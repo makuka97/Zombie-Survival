@@ -11,7 +11,7 @@ const io = socketIo(server);
 app.use(express.static(path.join(__dirname)));
 
 const MAX_PLAYERS = 4;
-const PLAYER_COLORS = ['#00ff00', '#ff4444', '#4488ff', '#ffff00'];
+const PLAYER_COLORS = ['#00ffff', '#ff44ff', '#4488ff', '#ffff00'];
 const HEARTBEAT_INTERVAL_MS = 2000;
 const GRACE_PERIOD_MS = 10000;
 const gameRooms = new Map();
@@ -151,6 +151,13 @@ class GameRoom {
     this.hostSocket.emit('player-input', { slotNumber: player.slotNumber, input: inputData });
   }
 
+  // Mystery Box Purchase
+  handleMysteryBoxPurchase(data) {
+    if (!this.hostSocket) return;
+    this.hostSocket.emit('mystery-box-purchase', { slotNumber: data.slotNumber });
+    console.log(`[ROOM ${this.roomCode}] Player ${data.slotNumber} used mystery box`);
+  }
+
   handleReady(socketId) {
     const player = this.players.get(socketId);
     if (!player || this.gameStarted) return;
@@ -228,6 +235,9 @@ class GameRoom {
             health: playerState.health,
             ammo: playerState.ammo,
             isAlive: playerState.isAlive,
+            points: playerState.points,
+            weapon: playerState.weapon,
+            canUseMysteryBox: playerState.canUseMysteryBox,
             wave: gameState.wave || 1,
             zombiesRemaining: gameState.zombiesRemaining || 0,
             gameOver: gameState.gameOver || false
@@ -289,6 +299,11 @@ io.on('connection', (socket) => {
     if (room) room.relayPlayerInput(socket.id, data.input);
   });
 
+  socket.on('mystery-box-purchase', (data) => {
+    const room = gameRooms.get(data.roomCode);
+    if (room) room.handleMysteryBoxPurchase(data);
+  });
+
   socket.on('restart-vote', (data) => {
     const room = gameRooms.get(data.roomCode);
     if (room) room.handleRestartVote(socket.id);
@@ -320,7 +335,6 @@ io.on('connection', (socket) => {
   });
 });
 
-// FIXED: Use environment variable PORT for Render deployment
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log('============================================');
