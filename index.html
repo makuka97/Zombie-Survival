@@ -226,7 +226,6 @@
     }
     #game-over-screen p { font-size: 24px; color: #fff; margin-top: 20px; }
     #vote-display { font-size: 28px; color: #00ff00; margin-top: 20px; }
-    #canvas { border: 2px solid #00ff00; }
   </style>
 </head>
 <body>
@@ -278,7 +277,9 @@
     <div id="vote-display">Waiting for restart votes...</div>
   </div>
 
-  <canvas id="canvas" width="1200" height="750"></canvas>
+  <div id="game-container">
+    <canvas id="canvas" width="1200" height="750"></canvas>
+  </div>
 
   <!-- QR Code Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
