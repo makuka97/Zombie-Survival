@@ -36,13 +36,19 @@
       image-rendering: crisp-edges;
     }
     
-    /* Mobile landscape */
+    /* Mobile landscape - force proper sizing */
     @media (max-width: 768px) and (orientation: landscape) {
       body { padding: 5px; }
+      #game-container {
+        max-width: 100vw;
+        max-height: 100vh;
+      }
       #room-code-display { 
         top: 5px; 
         padding: 8px 15px;
         font-size: 0.8em;
+        flex-direction: row;
+        gap: 15px;
       }
       #room-code { font-size: 24px; letter-spacing: 3px; }
       #qr-code canvas { width: 80px !important; height: 80px !important; }
@@ -52,14 +58,26 @@
         padding: 8px;
         font-size: 0.8em;
       }
+      #lobby-screen {
+        width: 95%;
+        max-width: none;
+        padding: 10px;
+      }
+      #lobby-players {
+        gap: 8px;
+      }
     }
     
-    /* Mobile portrait */
+    /* Mobile portrait - vertical layout */
     @media (max-width: 768px) and (orientation: portrait) {
-      #game-container { max-height: 60vh; }
+      #game-container { 
+        max-height: 70vh;
+        max-width: 95vw;
+      }
       #room-code-display {
         flex-direction: column;
         gap: 10px;
+        padding: 10px 20px;
       }
       #room-code { font-size: 32px; }
       #qr-code canvas { width: 100px !important; height: 100px !important; }
@@ -69,7 +87,7 @@
     @media (min-width: 769px) and (max-width: 1024px) {
       #game-container { 
         max-width: 95vw;
-        max-height: 60vh;
+        max-height: 70vh;
       }
     }
     #room-code-display {
@@ -114,10 +132,12 @@
       transform: translate(-50%, -50%);
       text-align: center;
       z-index: 150;
-      width: 600px;
+      width: 90%;
+      max-width: 600px;
+      padding: 20px;
     }
     #lobby-screen h2 {
-      font-size: 28px;
+      font-size: clamp(18px, 4vw, 28px);
       color: #00ff00;
       letter-spacing: 4px;
       margin-bottom: 60px;
@@ -132,7 +152,7 @@
     #lobby-players {
       display: flex;
       flex-direction: column;
-      gap: 16px;
+      gap: 12px;
       margin-bottom: 30px;
     }
     .lobby-slot {
@@ -142,25 +162,25 @@
       background: rgba(0,0,0,0.8);
       border: 2px solid #333;
       border-radius: 12px;
-      padding: 14px 24px;
-      font-size: 22px;
+      padding: 10px 16px;
+      font-size: clamp(14px, 3vw, 22px);
       letter-spacing: 2px;
     }
     .lobby-slot.connected { border-color: #555; }
     .lobby-slot.ready     { border-color: #00ff00; }
 
     .slot-color {
-      width: 28px;
-      height: 28px;
+      width: clamp(20px, 4vw, 28px);
+      height: clamp(20px, 4vw, 28px);
       border-radius: 4px;
-      margin-right: 14px;
+      margin-right: 10px;
       flex-shrink: 0;
     }
     .slot-name { flex: 1; text-align: left; color: #fff; }
     .slot-status {
-      font-size: 16px;
-      letter-spacing: 3px;
-      padding: 6px 14px;
+      font-size: clamp(12px, 2.5vw, 16px);
+      letter-spacing: 2px;
+      padding: 4px 10px;
       border-radius: 8px;
     }
     .status-waiting { color: #555; border: 1px solid #333; }
@@ -168,7 +188,7 @@
     .status-ready   { color: #00ff00; border: 1px solid #00ff00; background: rgba(0,255,0,0.1); }
 
     #countdown {
-      font-size: 100px;
+      font-size: clamp(60px, 15vw, 100px);
       font-weight: bold;
       color: #ff0000;
       text-shadow: 0 0 30px #ff0000;
@@ -199,7 +219,7 @@
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
-      font-size: 72px;
+      font-size: clamp(40px, 10vw, 72px);
       font-weight: bold;
       color: #ff0000;
       text-shadow: 0 0 20px #ff0000;
@@ -215,17 +235,18 @@
       display: none;
       z-index: 200;
       background: rgba(0,0,0,0.9);
-      padding: 40px 60px;
+      padding: clamp(20px, 5vw, 40px) clamp(30px, 8vw, 60px);
       border-radius: 20px;
       border: 3px solid #ff0000;
+      max-width: 90%;
     }
     #game-over-screen h1 {
-      font-size: 80px;
+      font-size: clamp(40px, 10vw, 80px);
       color: #ff0000;
       text-shadow: 0 0 30px #ff0000;
     }
-    #game-over-screen p { font-size: 24px; color: #fff; margin-top: 20px; }
-    #vote-display { font-size: 28px; color: #00ff00; margin-top: 20px; }
+    #game-over-screen p { font-size: clamp(14px, 3vw, 24px); color: #fff; margin-top: 20px; }
+    #vote-display { font-size: clamp(16px, 4vw, 28px); color: #00ff00; margin-top: 20px; }
   </style>
 </head>
 <body>
