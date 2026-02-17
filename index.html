@@ -27,9 +27,28 @@
       text-align: center;
       z-index: 100;
       transition: opacity 1.5s ease;
+      display: flex;
+      align-items: center;
+      gap: 30px;
+    }
+    #room-code-text {
+      text-align: center;
     }
     #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
     #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
+    
+    /* QR Code */
+    #qr-code {
+      background: #fff;
+      padding: 10px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #qr-code canvas {
+      display: block;
+    }
 
     #lobby-screen {
       position: absolute;
@@ -155,8 +174,11 @@
 </head>
 <body>
   <div id="room-code-display">
-    <p>ROOM CODE</p>
-    <div id="room-code">----</div>
+    <div id="room-code-text">
+      <p>SCAN TO JOIN</p>
+      <div id="room-code">----</div>
+    </div>
+    <div id="qr-code"></div>
   </div>
 
   <div id="lobby-screen">
@@ -201,6 +223,8 @@
 
   <canvas id="canvas" width="1200" height="750"></canvas>
 
+  <!-- QR Code Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
     // ================================================================
@@ -273,7 +297,7 @@
         speed: 0.9,
         hp: 2,
         points: 60,
-        weight: 70  // spawn weight
+        weight: 70
       },
       runner: {
         size: 20,
@@ -326,7 +350,6 @@
         this.gameStarted = false;
         this.reviveMap  = new Map();
 
-        // Mystery Box
         this.mysteryBox = null;
 
         this.socket   = null;
@@ -336,7 +359,6 @@
       }
 
       initPlayers() {
-        // NEW COLORS - no green!
         const colors = ['#00ffff','#ff44ff','#4488ff','#ffff00'];
         const spawns = [
           { x: 80,   y: 80  },
@@ -447,12 +469,10 @@
         p.firing = !!input.fire;
       }
 
-      // Mystery Box Purchase
       handleMysteryBoxPurchase(slot) {
         const p = this.players[slot - 1];
         if (!p || !p.alive || !this.mysteryBox) return;
 
-        // Check range
         const dx = p.x - this.mysteryBox.x;
         const dy = p.y - this.mysteryBox.y;
         const dist = Math.sqrt(dx*dx + dy*dy);
@@ -460,10 +480,8 @@
         if (dist > BOX_USE_RANGE) return;
         if (p.points < MYSTERY_BOX_COST) return;
 
-        // Deduct points
         p.points -= MYSTERY_BOX_COST;
 
-        // Get random weapon
         const weapon = this.rollRandomWeapon();
         p.currentWeapon = weapon;
         
@@ -472,7 +490,6 @@
 
         console.log(`Player ${slot} got ${weaponData.name}!`);
 
-        // Respawn box elsewhere
         setTimeout(() => this.spawnMysteryBox(), 1000);
       }
 
@@ -480,15 +497,12 @@
         const roll = Math.random() * 100;
         
         if (roll < 10) {
-          // 10% Legendary
           const legendaries = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'legendary');
           return legendaries[Math.floor(Math.random() * legendaries.length)];
         } else if (roll < 40) {
-          // 30% Rare
           const rares = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'rare');
           return rares[Math.floor(Math.random() * rares.length)];
         } else {
-          // 60% Common
           const commons = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'common');
           return commons[Math.floor(Math.random() * commons.length)];
         }
@@ -529,7 +543,6 @@
         else if (side === 2) { x = Math.random()*W; y = H+50; }
         else                 { x = -50; y = Math.random()*H; }
         
-        // Pick zombie type based on weights
         const type = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
         
@@ -685,7 +698,6 @@
               z.hp -= b.damage;
               hit = true;
               if (z.hp <= 0) {
-                // Award points to nearest player
                 let nearest = null, nearestDist = Infinity;
                 for (let p of this.players) {
                   if (!p.alive || !p.connected) continue;
@@ -771,7 +783,6 @@
         for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
         for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-        // Mystery Box
         if (this.mysteryBox) {
           const boxHs = this.BOX_SIZE / 2;
           ctx.shadowColor = '#bb00ff';
@@ -783,7 +794,6 @@
           ctx.lineWidth = 3;
           ctx.strokeRect(this.mysteryBox.x - boxHs, this.mysteryBox.y - boxHs, this.BOX_SIZE, this.BOX_SIZE);
           
-          // "?" symbol
           ctx.fillStyle = '#fff';
           ctx.font = 'bold 32px Courier New';
           ctx.textAlign = 'center';
@@ -810,7 +820,6 @@
           ctx.lineWidth = 2;
           ctx.strokeRect(zx, zy, z.size, z.size);
           
-          // Health bar
           ctx.fillStyle = '#ff0000';
           ctx.fillRect(z.x-zhs, zy-8, z.size, 4);
           ctx.fillStyle = '#00ff00';
@@ -840,7 +849,6 @@
             ctx.fillStyle = '#00ff00';
             ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE*(p.hp/p.maxHp), 5);
             
-            // Points display above player
             ctx.fillStyle = '#ffff00';
             ctx.font = 'bold 12px Courier New';
             ctx.textAlign = 'center';
@@ -931,6 +939,18 @@
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
+      
+      // Generate QR Code
+      const controllerUrl = `${window.location.origin}/controller.html`;
+      new QRCode(document.getElementById('qr-code'), {
+        text: controllerUrl,
+        width: 128,
+        height: 128,
+        colorDark: '#000000',
+        colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      
       game.start();
     });
 
