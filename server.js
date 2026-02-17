@@ -1,4 +1,3 @@
-
 const express = require('express');
 const http = require('http');
 const socketIo = require('socket.io');
@@ -9,7 +8,7 @@ const app = express();
 const server = http.createServer(app);
 const io = socketIo(server);
 
-app.use(express.static(path.join(__dirname, 'public')));
+app.use(express.static(path.join(__dirname)));
 
 const MAX_PLAYERS = 4;
 const PLAYER_COLORS = ['#00ff00', '#ff4444', '#4488ff', '#ffff00'];
@@ -24,7 +23,7 @@ class GameRoom {
     this.players = new Map();
     this.disconnectedPlayers = new Map();
     this.restartVotes = new Set();
-    this.readyPlayers = new Set(); // Tracks who has hit READY
+    this.readyPlayers = new Set();
     this.gameStarted = false;
     console.log(`[ROOM ${roomCode}] Created`);
   }
@@ -88,9 +87,7 @@ class GameRoom {
       });
     }
 
-    // Tell everyone the updated lobby state
     this.broadcastLobbyState();
-
     console.log(`[ROOM ${this.roomCode}] Player ${slotNumber} joined`);
     return playerData;
   }
@@ -154,10 +151,6 @@ class GameRoom {
     this.hostSocket.emit('player-input', { slotNumber: player.slotNumber, input: inputData });
   }
 
-  // ── READY UP SYSTEM ───────────────────────────────────────────────
-  // When a player hits READY, add their slot to the ready set
-  // Once everyone is ready, start the 3 second countdown on host
-
   handleReady(socketId) {
     const player = this.players.get(socketId);
     if (!player || this.gameStarted) return;
@@ -165,18 +158,14 @@ class GameRoom {
     this.readyPlayers.add(player.slotNumber);
     console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} is READY (${this.readyPlayers.size}/${this.players.size})`);
 
-    // Tell host to update lobby display
     this.broadcastLobbyState();
 
-    // Check if everyone is ready
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
       console.log(`[ROOM ${this.roomCode}] All players ready - starting countdown!`);
 
-      // Tell host to start countdown
       if (this.hostSocket) this.hostSocket.emit('all-ready');
 
-      // Tell all controllers game is starting
       for (let [sid] of this.players) {
         const sock = io.sockets.sockets.get(sid);
         if (sock) sock.emit('game-starting');
@@ -184,7 +173,6 @@ class GameRoom {
     }
   }
 
-  // Send current lobby state to host for display
   broadcastLobbyState() {
     if (!this.hostSocket) return;
 
@@ -199,8 +187,6 @@ class GameRoom {
 
     this.hostSocket.emit('lobby-update', { players: lobbyPlayers });
   }
-
-  // ── RESTART VOTE SYSTEM ───────────────────────────────────────────
 
   handleRestartVote(socketId) {
     const player = this.players.get(socketId);
@@ -293,7 +279,6 @@ io.on('connection', (socket) => {
     room.startHeartbeat(socket);
   });
 
-  // Player hits READY button
   socket.on('player-ready', (data) => {
     const room = gameRooms.get(data.roomCode);
     if (room) room.handleReady(socket.id);
@@ -335,12 +320,12 @@ io.on('connection', (socket) => {
   });
 });
 
-const PORT = 3000;
+// FIXED: Use environment variable PORT for Render deployment
+const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log('============================================');
   console.log('  Zombie Survival Server Running');
   console.log('============================================');
-  console.log(`  Host URL    : http://localhost:${PORT}`);
-  console.log(`  Controller  : http://YOUR-IP:${PORT}/controller.html`);
+  console.log(`  Port: ${PORT}`);
   console.log('============================================');
 });
