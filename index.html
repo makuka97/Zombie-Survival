@@ -11,9 +11,66 @@
       display: flex;
       justify-content: center;
       align-items: center;
-      height: 100vh;
+      min-height: 100vh;
       font-family: 'Courier New', monospace;
       overflow: hidden;
+      padding: 10px;
+    }
+    
+    #game-container {
+      width: 100%;
+      height: 100vh;
+      max-width: 1200px;
+      max-height: 750px;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      position: relative;
+    }
+    
+    #canvas {
+      border: 2px solid #00ff00;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      image-rendering: crisp-edges;
+    }
+    
+    /* Mobile landscape */
+    @media (max-width: 768px) and (orientation: landscape) {
+      body { padding: 5px; }
+      #room-code-display { 
+        top: 5px; 
+        padding: 8px 15px;
+        font-size: 0.8em;
+      }
+      #room-code { font-size: 24px; letter-spacing: 3px; }
+      #qr-code canvas { width: 80px !important; height: 80px !important; }
+      #game-info { 
+        top: 5px; 
+        right: 5px;
+        padding: 8px;
+        font-size: 0.8em;
+      }
+    }
+    
+    /* Mobile portrait */
+    @media (max-width: 768px) and (orientation: portrait) {
+      #game-container { max-height: 60vh; }
+      #room-code-display {
+        flex-direction: column;
+        gap: 10px;
+      }
+      #room-code { font-size: 32px; }
+      #qr-code canvas { width: 100px !important; height: 100px !important; }
+    }
+    
+    /* Tablet */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      #game-container { 
+        max-width: 95vw;
+        max-height: 60vh;
+      }
     }
     #room-code-display {
       position: absolute;
@@ -63,7 +120,7 @@
       font-size: 28px;
       color: #00ff00;
       letter-spacing: 4px;
-      margin-bottom: 40px;
+      margin-bottom: 60px;
       animation: pulse 1.5s infinite;
     }
     @keyframes pulse {
