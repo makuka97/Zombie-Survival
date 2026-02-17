@@ -6,18 +6,22 @@
   <title>Zombie Survival - Host</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    
-    html, body {
-      width: 100%;
-      height: 100%;
+    body {
       background: #000;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
       font-family: 'Courier New', monospace;
       overflow: hidden;
+      padding: 10px;
     }
     
     #game-container {
-      width: 100vw;
+      width: 100%;
       height: 100vh;
+      max-width: 1200px;
+      max-height: 750px;
       display: flex;
       justify-content: center;
       align-items: center;
@@ -26,93 +30,126 @@
     
     #canvas {
       border: 2px solid #00ff00;
-      max-width: 100%;
-      max-height: 100%;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
+      image-rendering: crisp-edges;
     }
     
-    /* Room code - positioned at top, hides during lobby */
+    /* Mobile landscape - force proper sizing */
+    @media (max-width: 768px) and (orientation: landscape) {
+      body { padding: 5px; }
+      #game-container {
+        max-width: 100vw;
+        max-height: 100vh;
+      }
+      #room-code-display { 
+        top: 5px; 
+        padding: 8px 15px;
+        font-size: 0.8em;
+        flex-direction: row;
+        gap: 15px;
+      }
+      #room-code { font-size: 24px; letter-spacing: 3px; }
+      #qr-code canvas { width: 80px !important; height: 80px !important; }
+      #game-info { 
+        top: 5px; 
+        right: 5px;
+        padding: 8px;
+        font-size: 0.8em;
+      }
+      #lobby-screen {
+        width: 95%;
+        max-width: none;
+        padding: 10px;
+      }
+      #lobby-players {
+        gap: 8px;
+      }
+    }
+    
+    /* Mobile portrait - vertical layout */
+    @media (max-width: 768px) and (orientation: portrait) {
+      #game-container { 
+        max-height: 70vh;
+        max-width: 95vw;
+      }
+      #room-code-display {
+        flex-direction: column;
+        gap: 10px;
+        padding: 10px 20px;
+      }
+      #room-code { font-size: 32px; }
+      #qr-code canvas { width: 100px !important; height: 100px !important; }
+    }
+    
+    /* Tablet */
+    @media (min-width: 769px) and (max-width: 1024px) {
+      #game-container { 
+        max-width: 95vw;
+        max-height: 70vh;
+      }
+    }
     #room-code-display {
-      position: fixed;
-      top: 10px;
+      position: absolute;
+      top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: rgba(0,0,0,0.9);
-      padding: 10px 20px;
+      background: rgba(0,0,0,0.8);
+      padding: 15px 30px;
       border-radius: 10px;
       border: 2px solid #00ff00;
       text-align: center;
       z-index: 100;
-      transition: opacity 0.3s ease;
+      transition: opacity 1.5s ease;
       display: flex;
       align-items: center;
-      gap: 20px;
+      gap: 30px;
     }
     
-    #room-code-display.hidden {
+    /* Hide room code when lobby is active */
+    body:has(#lobby-screen[style*="display: block"]) #room-code-display,
+    body:has(#lobby-screen[style*="display: flex"]) #room-code-display {
       opacity: 0;
       pointer-events: none;
     }
-    
     #room-code-text {
       text-align: center;
     }
+    #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
+    #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
     
-    #room-code-display p { 
-      color: #00ff00; 
-      font-size: clamp(12px, 2vw, 16px); 
-      margin-bottom: 5px; 
-    }
-    
-    #room-code { 
-      font-size: clamp(24px, 5vw, 48px); 
-      font-weight: bold; 
-      letter-spacing: 4px; 
-      color: #fff; 
-    }
-    
+    /* QR Code */
     #qr-code {
       background: #fff;
-      padding: 8px;
+      padding: 10px;
       border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
     }
-    
     #qr-code canvas {
       display: block;
-      width: clamp(80px, 15vw, 128px) !important;
-      height: clamp(80px, 15vw, 128px) !important;
     }
 
-    /* Lobby screen - full screen overlay */
     #lobby-screen {
-      position: fixed;
-      inset: 0;
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      text-align: center;
       z-index: 150;
-      background: rgba(0, 0, 0, 0.95);
+      width: 90%;
+      max-width: 600px;
       padding: 20px;
     }
-    
-    #lobby-content {
-      width: 100%;
-      max-width: 600px;
-      text-align: center;
-    }
-    
     #lobby-screen h2 {
-      font-size: clamp(20px, 5vw, 32px);
+      font-size: clamp(18px, 4vw, 28px);
       color: #00ff00;
       letter-spacing: 4px;
-      margin-bottom: clamp(30px, 6vw, 60px);
+      margin-bottom: 60px;
       animation: pulse 1.5s infinite;
     }
-    
     @keyframes pulse {
       0%   { opacity: 1; }
       50%  { opacity: 0.3; }
@@ -122,10 +159,9 @@
     #lobby-players {
       display: flex;
       flex-direction: column;
-      gap: clamp(8px, 2vw, 16px);
+      gap: 12px;
       margin-bottom: 30px;
     }
-    
     .lobby-slot {
       display: flex;
       align-items: center;
@@ -133,11 +169,10 @@
       background: rgba(0,0,0,0.8);
       border: 2px solid #333;
       border-radius: 12px;
-      padding: clamp(8px, 2vw, 14px) clamp(12px, 3vw, 24px);
-      font-size: clamp(16px, 3vw, 22px);
+      padding: 10px 16px;
+      font-size: clamp(14px, 3vw, 22px);
       letter-spacing: 2px;
     }
-    
     .lobby-slot.connected { border-color: #555; }
     .lobby-slot.ready     { border-color: #00ff00; }
 
@@ -145,19 +180,16 @@
       width: clamp(20px, 4vw, 28px);
       height: clamp(20px, 4vw, 28px);
       border-radius: 4px;
-      margin-right: clamp(8px, 2vw, 14px);
+      margin-right: 10px;
       flex-shrink: 0;
     }
-    
     .slot-name { flex: 1; text-align: left; color: #fff; }
-    
     .slot-status {
       font-size: clamp(12px, 2.5vw, 16px);
       letter-spacing: 2px;
       padding: 4px 10px;
       border-radius: 8px;
     }
-    
     .status-waiting { color: #555; border: 1px solid #333; }
     .status-joined  { color: #aaa; border: 1px solid #555; }
     .status-ready   { color: #00ff00; border: 1px solid #00ff00; background: rgba(0,255,0,0.1); }
@@ -170,34 +202,27 @@
       display: none;
       animation: pop 0.3s ease;
     }
-    
     @keyframes pop {
       0%   { transform: scale(1.4); }
       100% { transform: scale(1); }
     }
 
     #game-info {
-      position: fixed;
-      top: 10px;
-      right: 10px;
+      position: absolute;
+      top: 20px;
+      right: 20px;
       background: rgba(0,0,0,0.8);
-      padding: clamp(8px, 2vw, 15px);
+      padding: 15px;
       border-radius: 8px;
       border: 2px solid #00ff00;
       color: #fff;
       display: none;
-      z-index: 100;
     }
-    
-    .info-line { 
-      font-size: clamp(14px, 2.5vw, 18px); 
-      margin: 5px 0; 
-    }
-    
+    .info-line { font-size: 18px; margin: 5px 0; }
     .info-line span { color: #00ff00; font-weight: bold; }
 
     #wave-banner {
-      position: fixed;
+      position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
@@ -208,39 +233,27 @@
       display: none;
       z-index: 200;
     }
-    
     #game-over-screen {
-      position: fixed;
+      position: absolute;
       top: 50%;
       left: 50%;
       transform: translate(-50%, -50%);
       text-align: center;
       display: none;
       z-index: 200;
-      background: rgba(0,0,0,0.95);
+      background: rgba(0,0,0,0.9);
       padding: clamp(20px, 5vw, 40px) clamp(30px, 8vw, 60px);
       border-radius: 20px;
       border: 3px solid #ff0000;
       max-width: 90%;
     }
-    
     #game-over-screen h1 {
       font-size: clamp(40px, 10vw, 80px);
       color: #ff0000;
       text-shadow: 0 0 30px #ff0000;
     }
-    
-    #game-over-screen p { 
-      font-size: clamp(14px, 3vw, 24px); 
-      color: #fff; 
-      margin-top: 20px; 
-    }
-    
-    #vote-display { 
-      font-size: clamp(16px, 4vw, 28px); 
-      color: #00ff00; 
-      margin-top: 20px; 
-    }
+    #game-over-screen p { font-size: clamp(14px, 3vw, 24px); color: #fff; margin-top: 20px; }
+    #vote-display { font-size: clamp(16px, 4vw, 28px); color: #00ff00; margin-top: 20px; }
   </style>
 </head>
 <body>
@@ -253,32 +266,30 @@
   </div>
 
   <div id="lobby-screen">
-    <div id="lobby-content">
-      <h2>WAITING FOR PLAYERS...</h2>
-      <div id="lobby-players">
-        <div class="lobby-slot" id="slot-1">
-          <div class="slot-color" style="background:#00ffff"></div>
-          <div class="slot-name">PLAYER 1</div>
-          <div class="slot-status status-waiting">EMPTY</div>
-        </div>
-        <div class="lobby-slot" id="slot-2">
-          <div class="slot-color" style="background:#ff44ff"></div>
-          <div class="slot-name">PLAYER 2</div>
-          <div class="slot-status status-waiting">EMPTY</div>
-        </div>
-        <div class="lobby-slot" id="slot-3">
-          <div class="slot-color" style="background:#4488ff"></div>
-          <div class="slot-name">PLAYER 3</div>
-          <div class="slot-status status-waiting">EMPTY</div>
-        </div>
-        <div class="lobby-slot" id="slot-4">
-          <div class="slot-color" style="background:#ffff00"></div>
-          <div class="slot-name">PLAYER 4</div>
-          <div class="slot-status status-waiting">EMPTY</div>
-        </div>
+    <h2>WAITING FOR PLAYERS...</h2>
+    <div id="lobby-players">
+      <div class="lobby-slot" id="slot-1">
+        <div class="slot-color" style="background:#00ffff"></div>
+        <div class="slot-name">PLAYER 1</div>
+        <div class="slot-status status-waiting">EMPTY</div>
       </div>
-      <div id="countdown"></div>
+      <div class="lobby-slot" id="slot-2">
+        <div class="slot-color" style="background:#ff44ff"></div>
+        <div class="slot-name">PLAYER 2</div>
+        <div class="slot-status status-waiting">EMPTY</div>
+      </div>
+      <div class="lobby-slot" id="slot-3">
+        <div class="slot-color" style="background:#4488ff"></div>
+        <div class="slot-name">PLAYER 3</div>
+        <div class="slot-status status-waiting">EMPTY</div>
+      </div>
+      <div class="lobby-slot" id="slot-4">
+        <div class="slot-color" style="background:#ffff00"></div>
+        <div class="slot-name">PLAYER 4</div>
+        <div class="slot-status status-waiting">EMPTY</div>
+      </div>
     </div>
+    <div id="countdown"></div>
   </div>
 
   <div id="game-info">
@@ -288,7 +299,6 @@
   </div>
 
   <div id="wave-banner"></div>
-  
   <div id="game-over-screen">
     <h1>GAME OVER</h1>
     <p>All players have fallen</p>
@@ -299,83 +309,147 @@
     <canvas id="canvas" width="1200" height="750"></canvas>
   </div>
 
+  <!-- QR Code Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // [Full game engine code from before - weapons, zombies, etc.]
-    // Using the same code as index-with-qr.html but with updated display logic
+    // ================================================================
+    // WEAPON & ZOMBIE DEFINITIONS
+    // ================================================================
     
     const WEAPONS = {
-      pistol: { name: 'Pistol', damage: 1, fireRate: 10, ammoCapacity: 30, cost: 0 },
-      smg: { name: 'SMG', damage: 1, fireRate: 5, ammoCapacity: 60, cost: 0, rarity: 'common' },
-      shotgun: { name: 'Shotgun', damage: 3, fireRate: 20, ammoCapacity: 24, cost: 0, rarity: 'common' },
-      ar: { name: 'Assault Rifle', damage: 2, fireRate: 7, ammoCapacity: 45, cost: 0, rarity: 'rare' },
-      lmg: { name: 'LMG', damage: 2, fireRate: 8, ammoCapacity: 100, cost: 0, rarity: 'rare' },
-      raygun: { name: 'Ray Gun', damage: 5, fireRate: 12, ammoCapacity: 20, cost: 0, rarity: 'legendary' },
-      thundergun: { name: 'Thundergun', damage: 10, fireRate: 30, ammoCapacity: 8, cost: 0, rarity: 'legendary' }
+      pistol: {
+        name: 'Pistol',
+        damage: 1,
+        fireRate: 10,
+        ammoCapacity: 30,
+        cost: 0
+      },
+      smg: {
+        name: 'SMG',
+        damage: 1,
+        fireRate: 5,
+        ammoCapacity: 60,
+        cost: 0,
+        rarity: 'common'
+      },
+      shotgun: {
+        name: 'Shotgun',
+        damage: 3,
+        fireRate: 20,
+        ammoCapacity: 24,
+        cost: 0,
+        rarity: 'common'
+      },
+      ar: {
+        name: 'Assault Rifle',
+        damage: 2,
+        fireRate: 7,
+        ammoCapacity: 45,
+        cost: 0,
+        rarity: 'rare'
+      },
+      lmg: {
+        name: 'LMG',
+        damage: 2,
+        fireRate: 8,
+        ammoCapacity: 100,
+        cost: 0,
+        rarity: 'rare'
+      },
+      raygun: {
+        name: 'Ray Gun',
+        damage: 5,
+        fireRate: 12,
+        ammoCapacity: 20,
+        cost: 0,
+        rarity: 'legendary'
+      },
+      thundergun: {
+        name: 'Thundergun',
+        damage: 10,
+        fireRate: 30,
+        ammoCapacity: 8,
+        cost: 0,
+        rarity: 'legendary'
+      }
     };
 
     const ZOMBIE_TYPES = {
-      regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.9, hp: 2, points: 60, weight: 70 },
-      runner: { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.8, hp: 1, points: 80, weight: 20 },
-      tank: { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 8, points: 150, weight: 10 }
+      regular: {
+        size: 28,
+        color: '#00cc00',
+        borderColor: '#00ff00',
+        speed: 0.9,
+        hp: 2,
+        points: 60,
+        weight: 70
+      },
+      runner: {
+        size: 20,
+        color: '#cccc00',
+        borderColor: '#ffff00',
+        speed: 1.8,
+        hp: 1,
+        points: 80,
+        weight: 20
+      },
+      tank: {
+        size: 40,
+        color: '#cc0000',
+        borderColor: '#ff0000',
+        speed: 0.5,
+        hp: 8,
+        points: 150,
+        weight: 10
+      }
     };
 
     const MYSTERY_BOX_COST = 950;
     const BOX_USE_RANGE = 60;
 
-    // Helper function to show/hide lobby
-    function showLobby(show) {
-      const lobby = document.getElementById('lobby-screen');
-      const roomCode = document.getElementById('room-code-display');
-      
-      if (show) {
-        lobby.style.display = 'flex';
-        roomCode.classList.add('hidden');
-      } else {
-        lobby.style.display = 'none';
-        roomCode.classList.remove('hidden');
-      }
-    }
-
-    // [Rest of game engine code - keeping it the same as before]
     class GameEngine {
-      // ... (same as before, just updating display methods)
-      
       constructor() {
         this.canvas = document.getElementById('canvas');
-        this.ctx = this.canvas.getContext('2d');
+        this.ctx    = this.canvas.getContext('2d');
+
         this.PLAYER_SIZE = 28;
         this.BULLET_SIZE = 6;
-        this.AMMO_SIZE = 20;
-        this.BOX_SIZE = 50;
-        this.PLAYER_SPEED = 2.5;
-        this.BULLET_SPEED = 8;
+        this.AMMO_SIZE   = 20;
+        this.BOX_SIZE    = 50;
+
+        this.PLAYER_SPEED  = 2.5;
+        this.BULLET_SPEED  = 8;
+
         this.REVIVE_RADIUS = 40;
-        this.REVIVE_TIME = 3000;
+        this.REVIVE_TIME   = 3000;
         this.AMMO_DROP_CHANCE = 0.3;
-        this.players = [];
-        this.zombies = [];
-        this.bullets = [];
-        this.ammoPacks = [];
-        this.wave = 1;
-        this.waveTotal = 0;
+
+        this.players    = [];
+        this.zombies    = [];
+        this.bullets    = [];
+        this.ammoPacks  = [];
+        this.wave       = 1;
+        this.waveTotal  = 0;
         this.waveKilled = 0;
-        this.gameOver = false;
+        this.gameOver   = false;
         this.gameStarted = false;
-        this.reviveMap = new Map();
+        this.reviveMap  = new Map();
+
         this.mysteryBox = null;
-        this.socket = null;
+
+        this.socket   = null;
         this.roomCode = null;
+
         this.initPlayers();
       }
 
       initPlayers() {
         const colors = ['#00ffff','#ff44ff','#4488ff','#ffff00'];
         const spawns = [
-          { x: 80, y: 80 },
-          { x: 1120, y: 80 },
-          { x: 80, y: 670 },
+          { x: 80,   y: 80  },
+          { x: 1120, y: 80  },
+          { x: 80,   y: 670 },
           { x: 1120, y: 670 }
         ];
         for (let i = 0; i < 4; i++) {
@@ -410,31 +484,31 @@
 
       updateLobby(players) {
         for (let i = 1; i <= 4; i++) {
-          const slot = document.getElementById(`slot-${i}`);
-          const status = slot.querySelector('.slot-status');
-          const found = players.find(p => p.slotNumber === i);
+          const slot    = document.getElementById(`slot-${i}`);
+          const status  = slot.querySelector('.slot-status');
+          const found   = players.find(p => p.slotNumber === i);
 
           if (!found) {
-            slot.className = 'lobby-slot';
-            status.className = 'slot-status status-waiting';
-            status.textContent = 'EMPTY';
+            slot.className      = 'lobby-slot';
+            status.className    = 'slot-status status-waiting';
+            status.textContent  = 'EMPTY';
           } else if (found.ready) {
-            slot.className = 'lobby-slot ready';
-            status.className = 'slot-status status-ready';
-            status.textContent = 'READY!';
+            slot.className      = 'lobby-slot ready';
+            status.className    = 'slot-status status-ready';
+            status.textContent  = 'READY!';
           } else {
-            slot.className = 'lobby-slot connected';
-            status.className = 'slot-status status-joined';
-            status.textContent = 'JOINED';
+            slot.className      = 'lobby-slot connected';
+            status.className    = 'slot-status status-joined';
+            status.textContent  = 'JOINED';
           }
         }
       }
 
       startCountdown() {
-        const lobbyH2 = document.querySelector('#lobby-screen h2');
+        const lobbyH2   = document.querySelector('#lobby-screen h2');
         const countdown = document.getElementById('countdown');
 
-        lobbyH2.style.display = 'none';
+        lobbyH2.style.display   = 'none';
         countdown.style.display = 'block';
 
         let count = 3;
@@ -456,19 +530,18 @@
 
       beginGame() {
         this.gameStarted = true;
-        showLobby(false); // Hide lobby, show room code
+
+        document.getElementById('lobby-screen').style.display = 'none';
         document.getElementById('game-info').style.display = 'block';
-        
-        // Fade out room code after delay
-        setTimeout(() => {
-          document.getElementById('room-code-display').classList.add('hidden');
-        }, 1500);
+
+        const codeDisplay = document.getElementById('room-code-display');
+        codeDisplay.style.opacity = '0';
+        setTimeout(() => { codeDisplay.style.display = 'none'; }, 1500);
 
         this.spawnMysteryBox();
         setTimeout(() => this.startWave(), 500);
       }
 
-      // [Include all other game methods from before - handleInput, mystery box, zombies, etc.]
       handleInput(slot, input) {
         const p = this.players[slot - 1];
         if (!p || !p.alive) return;
@@ -494,16 +567,21 @@
         if (p.points < MYSTERY_BOX_COST) return;
 
         p.points -= MYSTERY_BOX_COST;
+
         const weapon = this.rollRandomWeapon();
         p.currentWeapon = weapon;
+        
         const weaponData = WEAPONS[weapon];
         p.ammo = weaponData.ammoCapacity;
+
+        console.log(`Player ${slot} got ${weaponData.name}!`);
 
         setTimeout(() => this.spawnMysteryBox(), 1000);
       }
 
       rollRandomWeapon() {
         const roll = Math.random() * 100;
+        
         if (roll < 10) {
           const legendaries = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'legendary');
           return legendaries[Math.floor(Math.random() * legendaries.length)];
@@ -526,9 +604,9 @@
 
       startWave() {
         const playerCount = Math.max(1, this.connectedCount());
-        const baseCount = 3 + (this.wave - 1) * 2;
-        this.waveTotal = Math.ceil(baseCount * (playerCount / 2));
-        this.waveKilled = 0;
+        const baseCount   = 3 + (this.wave - 1) * 2;
+        this.waveTotal    = Math.ceil(baseCount * (playerCount / 2));
+        this.waveKilled   = 0;
         this.showBanner('WAVE ' + this.wave);
         for (let i = 0; i < this.waveTotal; i++) {
           setTimeout(() => this.spawnZombie(), i * 500);
@@ -537,7 +615,7 @@
 
       showBanner(text) {
         const el = document.getElementById('wave-banner');
-        el.textContent = text;
+        el.textContent   = text;
         el.style.display = 'block';
         setTimeout(() => { el.style.display = 'none'; }, 2000);
       }
@@ -546,16 +624,17 @@
         const side = Math.floor(Math.random() * 4);
         const W = this.canvas.width, H = this.canvas.height;
         let x, y;
-        if (side === 0) { x = Math.random()*W; y = -50; }
+        if      (side === 0) { x = Math.random()*W; y = -50; }
         else if (side === 1) { x = W+50; y = Math.random()*H; }
         else if (side === 2) { x = Math.random()*W; y = H+50; }
-        else { x = -50; y = Math.random()*H; }
+        else                 { x = -50; y = Math.random()*H; }
         
         const type = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
         
         this.zombies.push({
-          x, y, type,
+          x, y,
+          type,
           hp: typeData.hp,
           maxHp: typeData.hp,
           speed: typeData.speed,
@@ -569,6 +648,7 @@
       rollZombieType() {
         const totalWeight = Object.values(ZOMBIE_TYPES).reduce((sum, t) => sum + t.weight, 0);
         let roll = Math.random() * totalWeight;
+        
         for (let type in ZOMBIE_TYPES) {
           roll -= ZOMBIE_TYPES[type].weight;
           if (roll <= 0) return type;
@@ -578,6 +658,7 @@
 
       fireBullet(p) {
         const weapon = WEAPONS[p.currentWeapon];
+        
         this.bullets.push({
           x: p.x + Math.cos(p.angle) * this.PLAYER_SIZE,
           y: p.y + Math.sin(p.angle) * this.PLAYER_SIZE,
@@ -610,7 +691,7 @@
                 this.reviveMap.set(reviver.slot, { targetSlot: target.slot, startTime: now });
               } else if (now - attempt.startTime >= this.REVIVE_TIME) {
                 target.alive = true;
-                target.hp = 50;
+                target.hp    = 50;
                 this.reviveMap.delete(reviver.slot);
               }
               break;
@@ -621,21 +702,21 @@
       }
 
       restart() {
-        this.zombies = [];
-        this.bullets = [];
-        this.ammoPacks = [];
-        this.wave = 1;
-        this.waveTotal = 0;
-        this.waveKilled = 0;
-        this.gameOver = false;
+        this.zombies     = [];
+        this.bullets     = [];
+        this.ammoPacks   = [];
+        this.wave        = 1;
+        this.waveTotal   = 0;
+        this.waveKilled  = 0;
+        this.gameOver    = false;
         this.gameStarted = false;
         this.reviveMap.clear();
-        this.mysteryBox = null;
+        this.mysteryBox  = null;
 
         const spawns = [
-          { x: 80, y: 80 },
-          { x: 1120, y: 80 },
-          { x: 80, y: 670 },
+          { x: 80,   y: 80  },
+          { x: 1120, y: 80  },
+          { x: 80,   y: 670 },
           { x: 1120, y: 670 }
         ];
         for (let p of this.players) {
@@ -646,24 +727,24 @@
           p.alive = true; p.firing = false; p.fireCooldown = 0;
         }
 
-        document.getElementById('game-over-screen').style.display = 'none';
-        document.getElementById('game-info').style.display = 'none';
-        showLobby(true); // Show lobby again
-        document.querySelector('#lobby-screen h2').style.display = 'block';
-        document.getElementById('countdown').style.display = 'none';
-        document.getElementById('vote-display').textContent = 'Waiting for restart votes...';
+        document.getElementById('game-over-screen').style.display  = 'none';
+        document.getElementById('game-info').style.display         = 'none';
+        document.getElementById('lobby-screen').style.display      = 'block';
+        document.querySelector('#lobby-screen h2').style.display   = 'block';
+        document.getElementById('countdown').style.display         = 'none';
+        document.getElementById('vote-display').textContent        = 'Waiting for restart votes...';
 
         for (let i = 1; i <= 4; i++) {
-          const slot = document.getElementById(`slot-${i}`);
+          const slot   = document.getElementById(`slot-${i}`);
           const status = slot.querySelector('.slot-status');
           const player = this.players[i-1];
           if (player.connected) {
-            slot.className = 'lobby-slot connected';
-            status.className = 'slot-status status-joined';
+            slot.className     = 'lobby-slot connected';
+            status.className   = 'slot-status status-joined';
             status.textContent = 'JOINED';
           } else {
-            slot.className = 'lobby-slot';
-            status.className = 'slot-status status-waiting';
+            slot.className     = 'lobby-slot';
+            status.className   = 'slot-status status-waiting';
             status.textContent = 'EMPTY';
           }
         }
@@ -841,9 +922,9 @@
           if (!p.connected) continue;
           if (p.alive) {
             ctx.shadowColor = p.color; ctx.shadowBlur = 15;
-            ctx.fillStyle = p.color;
+            ctx.fillStyle   = p.color;
             ctx.fillRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
-            ctx.shadowBlur = 0;
+            ctx.shadowBlur  = 0;
             ctx.strokeStyle = '#fff'; ctx.lineWidth = 2;
             ctx.beginPath();
             ctx.moveTo(p.x, p.y);
@@ -885,7 +966,7 @@
       }
 
       updateHUD() {
-        document.getElementById('wave').textContent = this.wave;
+        document.getElementById('wave').textContent         = this.wave;
         document.getElementById('zombie-count').textContent = this.zombies.length;
         document.getElementById('player-count').textContent = this.connectedCount();
       }
@@ -935,9 +1016,9 @@
       }
     }
 
-    const game = new GameEngine();
+    const game   = new GameEngine();
     const socket = io();
-    game.socket = socket;
+    game.socket  = socket;
 
     socket.on('connect', () => { socket.emit('create-room'); });
 
@@ -945,6 +1026,7 @@
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
       
+      // Generate QR Code
       const controllerUrl = `${window.location.origin}/controller.html`;
       new QRCode(document.getElementById('qr-code'), {
         text: controllerUrl,
@@ -955,18 +1037,21 @@
         correctLevel: QRCode.CorrectLevel.M
       });
       
-      showLobby(true); // Show lobby at start
       game.start();
     });
 
-    socket.on('player-joined', (d) => game.addPlayer(d.slotNumber));
+    socket.on('player-joined',       (d) => game.addPlayer(d.slotNumber));
     socket.on('player-disconnected', (d) => game.removePlayer(d.slotNumber));
-    socket.on('player-removed', (d) => game.removePlayer(d.slotNumber));
-    socket.on('player-input', (d) => game.handleInput(d.slotNumber, d.input));
+    socket.on('player-removed',      (d) => game.removePlayer(d.slotNumber));
+    socket.on('player-input',        (d) => game.handleInput(d.slotNumber, d.input));
     socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
+
     socket.on('lobby-update', (data) => game.updateLobby(data.players));
+
     socket.on('all-ready', () => game.startCountdown());
+
     socket.on('restart-game', () => game.restart());
+
     socket.on('restart-vote-update', (data) => {
       document.getElementById('vote-display').textContent =
         `Restart votes: ${data.votes} / ${data.needed} - Vote YES on your phone!`;
