@@ -1,0 +1,624 @@
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>Zombie Survival - Controller</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      touch-action: none;
+      font-family: 'Courier New', monospace;
+      color: #fff;
+      background: #111;
+    }
+
+    /* ── ROTATE WARNING ── */
+    #rotate-warning {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: #000;
+      z-index: 9999;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-size: 22px;
+      color: #00ff00;
+      letter-spacing: 2px;
+      text-align: center;
+      gap: 20px;
+    }
+    #rotate-warning .arrow { font-size: 60px; animation: spin 2s linear infinite; }
+    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    @media (orientation: portrait) {
+      #rotate-warning  { display: flex; }
+      #join-screen     { display: none !important; }
+      #lobby-screen    { display: none !important; }
+      #ctrl-screen     { display: none !important; }
+      #gameover-screen { display: none !important; }
+    }
+
+    /* ── JOIN SCREEN ── */
+    #join-screen {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      gap: 16px;
+    }
+    #join-screen h1 { font-size: 26px; color: #00ff00; letter-spacing: 6px; }
+    #join-screen h2 { font-size: 13px; color: #555; letter-spacing: 3px; font-weight: normal; }
+    #room-code-input {
+      width: 200px; height: 56px; font-size: 30px;
+      text-align: center; background: #000;
+      border: 3px solid #00ff00; border-radius: 10px;
+      color: #00ff00; letter-spacing: 10px;
+      font-family: 'Courier New', monospace;
+    }
+    #join-btn {
+      width: 200px; height: 50px; font-size: 20px;
+      font-weight: bold; background: #00ff00; color: #000;
+      border: none; border-radius: 10px; letter-spacing: 3px;
+      cursor: pointer; font-family: 'Courier New', monospace;
+    }
+    #join-btn:active { transform: scale(0.95); }
+    #join-error { color: #ff4444; font-size: 14px; min-height: 18px; }
+
+    /* ── LOBBY SCREEN ── */
+    #lobby-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw;
+      height: 100vh;
+      gap: 24px;
+      background: #111;
+    }
+
+    #lobby-screen h1 {
+      font-size: 22px;
+      color: #00ff00;
+      letter-spacing: 4px;
+    }
+
+    #player-badge {
+      font-size: 28px;
+      font-weight: bold;
+      padding: 14px 30px;
+      border-radius: 12px;
+      border: 3px solid;
+      letter-spacing: 3px;
+    }
+
+    #lobby-screen p {
+      font-size: 14px;
+      color: #555;
+      letter-spacing: 2px;
+      text-align: center;
+    }
+
+    /* Ready button */
+    #ready-btn {
+      width: 260px;
+      height: 80px;
+      font-size: 28px;
+      font-weight: bold;
+      background: #00ff00;
+      color: #000;
+      border: none;
+      border-radius: 16px;
+      letter-spacing: 4px;
+      cursor: pointer;
+      font-family: 'Courier New', monospace;
+      box-shadow: 0 0 30px rgba(0,255,0,0.5);
+      transition: all 0.1s;
+    }
+    #ready-btn:active { transform: scale(0.95); }
+    #ready-btn.voted {
+      background: #333;
+      color: #00ff00;
+      border: 3px solid #00ff00;
+      box-shadow: none;
+      font-size: 22px;
+    }
+
+    #waiting-text {
+      font-size: 14px;
+      color: #00ff00;
+      letter-spacing: 2px;
+      min-height: 20px;
+      animation: pulse 1.5s infinite;
+    }
+    @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
+
+    /* ── CONTROLLER SCREEN ── */
+    #ctrl-screen {
+      display: none;
+      flex-direction: column;
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    /* Ammo counter top right */
+    #ammo-display {
+      position: absolute;
+      top: 10px;
+      right: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #ffff00;
+      letter-spacing: 2px;
+      z-index: 10;
+    }
+    #ammo-display span { font-size: 13px; color: #555; letter-spacing: 1px; }
+    #ammo-display.low { color: #ff3333; animation: flash 0.5s infinite; }
+    @keyframes flash { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
+
+    #controls {
+      display: flex;
+      flex: 1;
+      align-items: center;
+      justify-content: space-around;
+      padding: 20px 40px;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ── JOYSTICK ── */
+    #joystick-zone {
+      width: 190px; height: 190px;
+      border-radius: 50%;
+      background: rgba(0,255,0,0.04);
+      border: 3px solid #00ff00;
+      position: relative;
+      touch-action: none;
+      flex-shrink: 0;
+    }
+    #joystick-zone::before, #joystick-zone::after {
+      content: ''; position: absolute; background: rgba(0,255,0,0.15);
+    }
+    #joystick-zone::before { width:2px; height:100%; top:0; left:50%; transform:translateX(-50%); }
+    #joystick-zone::after  { height:2px; width:100%; left:0; top:50%; transform:translateY(-50%); }
+    #joystick-knob {
+      width: 70px; height: 70px;
+      border-radius: 50%; background: #00ff00;
+      position: absolute; top:50%; left:50%;
+      transform: translate(-50%,-50%);
+      pointer-events: none;
+      box-shadow: 0 0 20px rgba(0,255,0,0.8);
+    }
+
+    /* ── FIRE BUTTON ── */
+    #fire-btn {
+      width: 165px; height: 165px;
+      border-radius: 50%;
+      background: rgba(255,40,40,0.12);
+      border: 4px solid #ff3333;
+      color: #ff3333; font-size: 22px;
+      font-weight: bold;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 3px;
+      display: flex; align-items: center; justify-content: center;
+      touch-action: none; user-select: none; flex-shrink: 0;
+      transition: all 0.08s;
+      box-shadow: 0 0 20px rgba(255,50,50,0.2);
+    }
+    #fire-btn.active {
+      background: #ff3333; color: #000;
+      transform: scale(0.92);
+      box-shadow: 0 0 40px rgba(255,50,50,0.9);
+    }
+
+    /* ── GAME OVER SCREEN ── */
+    #gameover-screen {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      width: 100vw; height: 100vh;
+      gap: 20px; background: #000;
+    }
+    #gameover-screen h1 {
+      font-size: 48px; color: #ff0000;
+      letter-spacing: 6px;
+      text-shadow: 0 0 20px #ff0000;
+    }
+    #gameover-screen p { font-size: 16px; color: #888; letter-spacing: 2px; }
+    #restart-btn {
+      width: 240px; height: 70px; font-size: 24px;
+      font-weight: bold; background: #00ff00; color: #000;
+      border: none; border-radius: 14px; letter-spacing: 3px;
+      cursor: pointer; font-family: 'Courier New', monospace;
+      box-shadow: 0 0 20px rgba(0,255,0,0.5);
+    }
+    #restart-btn:active { transform: scale(0.95); }
+    #restart-btn.voted { background: #444; color: #888; box-shadow: none; }
+    #vote-status { font-size: 18px; color: #00ff00; letter-spacing: 2px; min-height: 24px; }
+
+    #status-bar {
+      position: fixed; bottom: 4px; left: 50%;
+      transform: translateX(-50%);
+      font-size: 10px; color: #333; letter-spacing: 1px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ROTATE WARNING -->
+  <div id="rotate-warning">
+    <div class="arrow">↻</div>
+    <div>ROTATE YOUR PHONE</div>
+    <div style="font-size:13px;color:#444;letter-spacing:1px;">Landscape mode required</div>
+  </div>
+
+  <!-- JOIN SCREEN -->
+  <div id="join-screen">
+    <h1>ZOMBIE SURVIVAL</h1>
+    <h2>ENTER ROOM CODE</h2>
+    <input id="room-code-input" type="text" maxlength="4" placeholder="CODE" autocomplete="off">
+    <button id="join-btn">JOIN GAME</button>
+    <div id="join-error"></div>
+  </div>
+
+  <!-- LOBBY SCREEN -->
+  <div id="lobby-screen">
+    <h1>ZOMBIE SURVIVAL</h1>
+    <div id="player-badge">PLAYER ?</div>
+    <p>Waiting for all players to ready up...</p>
+    <button id="ready-btn">READY UP</button>
+    <div id="waiting-text"></div>
+  </div>
+
+  <!-- CONTROLLER SCREEN -->
+  <div id="ctrl-screen">
+    <div id="ammo-display"><span>AMMO </span>30</div>
+    <div id="controls">
+      <div id="joystick-zone">
+        <div id="joystick-knob"></div>
+      </div>
+      <div id="fire-btn">FIRE</div>
+    </div>
+  </div>
+
+  <!-- GAME OVER SCREEN -->
+  <div id="gameover-screen">
+    <h1>GAME OVER</h1>
+    <p>All players have fallen</p>
+    <button id="restart-btn">RESTART</button>
+    <div id="vote-status"></div>
+  </div>
+
+  <div id="status-bar">CONNECTING...</div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+
+    // ================================================================
+    // VIRTUAL JOYSTICK
+    // ================================================================
+
+    class Joystick {
+      constructor(zoneId, knobId) {
+        this.zone   = document.getElementById(zoneId);
+        this.knob   = document.getElementById(knobId);
+        this.angle  = null;
+        this.active = false;
+        this.maxR   = 58;
+
+        const o = { passive: false };
+        this.zone.addEventListener('touchstart',  e => this.onStart(e), o);
+        this.zone.addEventListener('touchmove',   e => this.onMove(e),  o);
+        this.zone.addEventListener('touchend',    e => this.onEnd(e),   o);
+        this.zone.addEventListener('touchcancel', e => this.onEnd(e),   o);
+        this.zone.addEventListener('mousedown',   e => this.onStart(e));
+        this.zone.addEventListener('mousemove',   e => this.onMove(e));
+        this.zone.addEventListener('mouseup',     e => this.onEnd(e));
+        this.zone.addEventListener('mouseleave',  e => this.onEnd(e));
+      }
+
+      getOffset(e) {
+        const rect = this.zone.getBoundingClientRect();
+        const src  = e.touches ? e.touches[0] : e;
+        return {
+          x: src.clientX - rect.left  - rect.width  / 2,
+          y: src.clientY - rect.top   - rect.height / 2
+        };
+      }
+
+      onStart(e) { e.preventDefault(); this.active = true; this.onMove(e); }
+
+      onMove(e) {
+        if (!this.active) return;
+        e.preventDefault();
+        const { x, y } = this.getOffset(e);
+        this.angle = Math.atan2(y, x);
+        const clamp = Math.min(Math.sqrt(x*x + y*y), this.maxR);
+        const kx = Math.cos(this.angle) * clamp;
+        const ky = Math.sin(this.angle) * clamp;
+        this.knob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+      }
+
+      onEnd(e) {
+        e.preventDefault();
+        this.active = false;
+        this.angle  = null;
+        this.knob.style.transform = 'translate(-50%, -50%)';
+      }
+
+      getAngle() { return this.active ? this.angle : null; }
+    }
+
+    // ================================================================
+    // CONTROLLER LINK
+    // ================================================================
+
+    class ControllerLink {
+      constructor() {
+        this.socket   = io();
+        this.roomCode = null;
+        this.slot     = null;
+        this.color    = null;
+        this.firing   = false;
+        this.joystick = new Joystick('joystick-zone', 'joystick-knob');
+        this.loop     = null;
+        this.hasVoted = false;
+        this.isReady  = false;
+        this.ammo     = 30;
+
+        this.loadFingerprint();
+        this.bindSocket();
+        this.bindFireBtn();
+        this.bindJoinUI();
+        this.bindReadyBtn();
+        this.bindRestartBtn();
+      }
+
+      loadFingerprint() {
+        this.fp = sessionStorage.getItem('zs-fp');
+        if (!this.fp) {
+          this.fp = 'fp-' + Date.now() + '-' + Math.random().toString(36).slice(2);
+          sessionStorage.setItem('zs-fp', this.fp);
+        }
+      }
+
+      // ── Socket ────────────────────────────────────────────────────
+
+      bindSocket() {
+        this.socket.on('connect', () => {
+          this.setStatus('CONNECTED');
+          const saved = sessionStorage.getItem('zs-room');
+          if (saved) this.join(saved);
+        });
+
+        this.socket.on('disconnect', () => {
+          this.setStatus('DISCONNECTED');
+          this.stopLoop();
+        });
+
+        this.socket.on('join-success',  d => this.onJoinSuccess(d));
+        this.socket.on('join-failed',   d => this.showError(d.reason));
+        this.socket.on('ping',          () => this.socket.emit('pong'));
+
+        // Game is starting - switch to controls
+        this.socket.on('game-starting', () => {
+          this.showController();
+          this.startLoop();
+        });
+
+        this.socket.on('game-state-update', d => {
+          this.updateAmmo(d.ammo);
+          if (d.gameOver) this.showGameOver();
+        });
+
+        this.socket.on('restart-vote-update', d => {
+          document.getElementById('vote-status').textContent =
+            `Votes: ${d.votes} / ${d.needed}`;
+        });
+
+        // All voted - go back to lobby
+        this.socket.on('game-restarting', () => {
+          this.hasVoted  = false;
+          this.isReady   = false;
+          this.ammo      = 30;
+          this.stopLoop();
+          this.updateAmmo(30);
+          this.showLobby();
+        });
+      }
+
+      // ── Join UI ───────────────────────────────────────────────────
+
+      bindJoinUI() {
+        const input = document.getElementById('room-code-input');
+        const btn   = document.getElementById('join-btn');
+        btn.addEventListener('click', () => {
+          const code = input.value.trim().toUpperCase();
+          if (code.length !== 4) { this.showError('Enter a 4-character code'); return; }
+          this.join(code);
+        });
+        input.addEventListener('keypress', e => { if (e.key === 'Enter') btn.click(); });
+        input.addEventListener('input',    e => { e.target.value = e.target.value.toUpperCase(); });
+      }
+
+      join(roomCode) {
+        this.roomCode = roomCode;
+        sessionStorage.setItem('zs-room', roomCode);
+        this.socket.emit('join-room', { roomCode, deviceFingerprint: this.fp });
+      }
+
+      onJoinSuccess(data) {
+        this.slot  = data.slotNumber;
+        this.color = data.color;
+        sessionStorage.setItem('zs-fp', data.deviceFingerprint);
+        this.showLobby();
+        this.setStatus('PLAYER ' + this.slot);
+        this.requestWakeLock();
+      }
+
+      showError(msg) {
+        const el = document.getElementById('join-error');
+        el.textContent = msg;
+        setTimeout(() => { el.textContent = ''; }, 3000);
+      }
+
+      // ── READY BUTTON ──────────────────────────────────────────────
+
+      bindReadyBtn() {
+        const btn = document.getElementById('ready-btn');
+        btn.addEventListener('click', () => {
+          if (this.isReady) return;
+          this.isReady = true;
+
+          // Update button to show ready state
+          btn.textContent = 'READY!';
+          btn.classList.add('voted');
+          document.getElementById('waiting-text').textContent =
+            'Waiting for others...';
+
+          // Tell server this player is ready
+          this.socket.emit('player-ready', { roomCode: this.roomCode });
+        });
+      }
+
+      // ── Screen Management ─────────────────────────────────────────
+
+      showLobby() {
+        document.getElementById('join-screen').style.display     = 'none';
+        document.getElementById('ctrl-screen').style.display     = 'none';
+        document.getElementById('gameover-screen').style.display = 'none';
+        document.getElementById('lobby-screen').style.display    = 'flex';
+
+        // Show player badge with their color
+        const badge = document.getElementById('player-badge');
+        badge.textContent        = 'PLAYER ' + this.slot;
+        badge.style.color        = this.color;
+        badge.style.borderColor  = this.color;
+        badge.style.background   = 'rgba(0,0,0,0.5)';
+
+        // Reset ready button
+        const btn = document.getElementById('ready-btn');
+        btn.textContent = 'READY UP';
+        btn.classList.remove('voted');
+        document.getElementById('waiting-text').textContent = '';
+        this.isReady = false;
+      }
+
+      showController() {
+        document.getElementById('join-screen').style.display     = 'none';
+        document.getElementById('lobby-screen').style.display    = 'none';
+        document.getElementById('gameover-screen').style.display = 'none';
+        document.getElementById('ctrl-screen').style.display     = 'flex';
+      }
+
+      showGameOver() {
+        document.getElementById('ctrl-screen').style.display     = 'none';
+        document.getElementById('gameover-screen').style.display = 'flex';
+
+        // Reset restart button
+        const btn = document.getElementById('restart-btn');
+        btn.textContent = 'RESTART';
+        btn.classList.remove('voted');
+        document.getElementById('vote-status').textContent = '';
+        this.hasVoted = false;
+      }
+
+      // ── Ammo Display ──────────────────────────────────────────────
+
+      updateAmmo(ammo) {
+        this.ammo    = ammo;
+        const el     = document.getElementById('ammo-display');
+        el.innerHTML = `<span>AMMO </span>${ammo}`;
+        if (ammo <= 5) {
+          el.classList.add('low');
+        } else {
+          el.classList.remove('low');
+        }
+      }
+
+      // ── Input Loop ────────────────────────────────────────────────
+
+      startLoop() {
+        this.stopLoop();
+        this.loop = setInterval(() => {
+          this.socket.emit('player-input', {
+            roomCode: this.roomCode,
+            input: { angle: this.joystick.getAngle(), fire: this.firing }
+          });
+        }, 50);
+      }
+
+      stopLoop() {
+        if (this.loop) { clearInterval(this.loop); this.loop = null; }
+      }
+
+      // ── Fire Button ───────────────────────────────────────────────
+
+      bindFireBtn() {
+        const btn     = document.getElementById('fire-btn');
+        const press   = e => { e.preventDefault(); this.firing = true;  btn.classList.add('active'); };
+        const release = e => { e.preventDefault(); this.firing = false; btn.classList.remove('active'); };
+        btn.addEventListener('touchstart',  press,   { passive: false });
+        btn.addEventListener('touchend',    release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
+        btn.addEventListener('mousedown',   press);
+        btn.addEventListener('mouseup',     release);
+        btn.addEventListener('mouseleave',  release);
+      }
+
+      // ── Restart Button ────────────────────────────────────────────
+
+      bindRestartBtn() {
+        const btn = document.getElementById('restart-btn');
+        btn.addEventListener('click', () => {
+          if (this.hasVoted) return;
+          this.hasVoted = true;
+          btn.textContent = 'VOTED!';
+          btn.classList.add('voted');
+          document.getElementById('vote-status').textContent = 'Waiting for others...';
+          this.socket.emit('restart-vote', { roomCode: this.roomCode });
+        });
+      }
+
+      // ── Wake Lock ─────────────────────────────────────────────────
+
+      async requestWakeLock() {
+        try {
+          if ('wakeLock' in navigator) {
+            await navigator.wakeLock.request('screen');
+            document.addEventListener('visibilitychange', async () => {
+              if (document.visibilityState === 'visible') {
+                try { await navigator.wakeLock.request('screen'); } catch(_) {}
+              }
+            });
+          }
+        } catch(e) {}
+      }
+
+      setStatus(msg) {
+        document.getElementById('status-bar').textContent = msg;
+      }
+    }
+
+    // ================================================================
+    // INIT
+    // ================================================================
+
+    const ctrl = new ControllerLink();
+
+    document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
+    history.pushState(null, null, location.href);
+    window.addEventListener('popstate', () => history.pushState(null, null, location.href));
+
+  </script>
+</body>
+</html>
