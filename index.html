@@ -31,7 +31,6 @@
     #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
     #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
 
-    /* Lobby screen - shown before game starts */
     #lobby-screen {
       position: absolute;
       top: 50%;
@@ -54,7 +53,6 @@
       100% { opacity: 1; }
     }
 
-    /* Player slots in lobby */
     #lobby-players {
       display: flex;
       flex-direction: column;
@@ -93,7 +91,6 @@
     .status-joined  { color: #aaa; border: 1px solid #555; }
     .status-ready   { color: #00ff00; border: 1px solid #00ff00; background: rgba(0,255,0,0.1); }
 
-    /* Countdown */
     #countdown {
       font-size: 100px;
       font-weight: bold;
@@ -162,7 +159,6 @@
     <div id="room-code">----</div>
   </div>
 
-  <!-- Lobby screen -->
   <div id="lobby-screen">
     <h2>WAITING FOR PLAYERS...</h2>
     <div id="lobby-players">
@@ -217,9 +213,10 @@
         this.BULLET_SIZE = 6;
         this.AMMO_SIZE   = 20;
 
-        this.PLAYER_SPEED  = 4;
-        this.BULLET_SPEED  = 12;
-        this.BASE_Z_SPEED  = 1.4;
+        // FIXED: Reduced speeds for proper frame rate
+        this.PLAYER_SPEED  = 2.5;   // was 4
+        this.BULLET_SPEED  = 8;     // was 12
+        this.BASE_Z_SPEED  = 0.9;   // was 1.4
         this.BASE_Z_HEALTH = 2;
 
         this.REVIVE_RADIUS = 40;
@@ -279,9 +276,6 @@
         return this.players.filter(p => p.connected).length;
       }
 
-      // ── LOBBY UPDATE ──────────────────────────────────────────────
-      // Updates the TV lobby display showing who joined and who is ready
-
       updateLobby(players) {
         for (let i = 1; i <= 4; i++) {
           const slot    = document.getElementById(`slot-${i}`);
@@ -304,9 +298,6 @@
         }
       }
 
-      // ── COUNTDOWN ─────────────────────────────────────────────────
-      // 3 second countdown once all players are ready
-
       startCountdown() {
         const lobbyH2   = document.querySelector('#lobby-screen h2');
         const countdown = document.getElementById('countdown');
@@ -320,7 +311,6 @@
         const tick = setInterval(() => {
           count--;
           if (count > 0) {
-            // Force reflow to retrigger animation each number
             countdown.style.animation = 'none';
             countdown.offsetHeight;
             countdown.style.animation = 'pop 0.3s ease';
@@ -332,27 +322,18 @@
         }, 1000);
       }
 
-      // ── BEGIN GAME ────────────────────────────────────────────────
-
       beginGame() {
         this.gameStarted = true;
 
-        // Hide lobby
         document.getElementById('lobby-screen').style.display = 'none';
-
-        // Show game info
         document.getElementById('game-info').style.display = 'block';
 
-        // Fade out room code
         const codeDisplay = document.getElementById('room-code-display');
         codeDisplay.style.opacity = '0';
         setTimeout(() => { codeDisplay.style.display = 'none'; }, 1500);
 
-        // Start wave 1
         setTimeout(() => this.startWave(), 500);
       }
-
-      // ── INPUT ─────────────────────────────────────────────────────
 
       handleInput(slot, input) {
         const p = this.players[slot - 1];
@@ -366,8 +347,6 @@
         }
         p.firing = !!input.fire;
       }
-
-      // ── WAVE SYSTEM ───────────────────────────────────────────────
 
       startWave() {
         const playerCount = Math.max(1, this.connectedCount());
@@ -396,7 +375,7 @@
         else if (side === 2) { x = Math.random()*W; y = H+30; }
         else                 { x = -30; y = Math.random()*H; }
         const hp    = this.BASE_Z_HEALTH + Math.floor((this.wave-1) * 0.5);
-        const speed = this.BASE_Z_SPEED  + (this.wave-1) * 0.1;
+        const speed = this.BASE_Z_SPEED  + (this.wave-1) * 0.08;  // Reduced scaling
         this.zombies.push({ x, y, hp, maxHp: hp, speed });
       }
 
@@ -466,7 +445,6 @@
           p.alive = true; p.firing = false; p.fireCooldown = 0;
         }
 
-        // Reset lobby display
         document.getElementById('game-over-screen').style.display  = 'none';
         document.getElementById('game-info').style.display         = 'none';
         document.getElementById('lobby-screen').style.display      = 'block';
@@ -474,7 +452,6 @@
         document.getElementById('countdown').style.display         = 'none';
         document.getElementById('vote-display').textContent        = 'Waiting for restart votes...';
 
-        // Reset lobby slots
         for (let i = 1; i <= 4; i++) {
           const slot   = document.getElementById(`slot-${i}`);
           const status = slot.querySelector('.slot-status');
@@ -490,8 +467,6 @@
           }
         }
       }
-
-      // ── UPDATE ────────────────────────────────────────────────────
 
       update() {
         if (this.gameOver || !this.gameStarted) return;
@@ -579,8 +554,6 @@
           document.getElementById('game-over-screen').style.display = 'block';
         }
       }
-
-      // ── RENDER ────────────────────────────────────────────────────
 
       render() {
         const ctx = this.ctx;
@@ -670,30 +643,36 @@
         document.getElementById('player-count').textContent = this.connectedCount();
       }
 
+      // FIXED: Frame rate limiting to 60 FPS
       start() {
-        const loop = () => {
-          this.update();
-          this.render();
-          if (this.socket && this.roomCode) {
-            this.socket.emit('game-state-broadcast', {
-              roomCode: this.roomCode,
-              gameState: {
-                wave: this.wave,
-                zombiesRemaining: this.zombies.length,
-                gameOver: this.gameOver,
-                players: this.players
-              }
-            });
+        let lastTime = 0;
+        const targetFPS = 60;
+        const frameDelay = 1000 / targetFPS;
+        
+        const loop = (currentTime) => {
+          const deltaTime = currentTime - lastTime;
+          
+          if (deltaTime >= frameDelay) {
+            this.update();
+            this.render();
+            if (this.socket && this.roomCode) {
+              this.socket.emit('game-state-broadcast', {
+                roomCode: this.roomCode,
+                gameState: {
+                  wave: this.wave,
+                  zombiesRemaining: this.zombies.length,
+                  gameOver: this.gameOver,
+                  players: this.players
+                }
+              });
+            }
+            lastTime = currentTime - (deltaTime % frameDelay);
           }
           requestAnimationFrame(loop);
         };
-        loop();
+        requestAnimationFrame(loop);
       }
     }
-
-    // ================================================================
-    // SOCKET
-    // ================================================================
 
     const game   = new GameEngine();
     const socket = io();
@@ -712,10 +691,8 @@
     socket.on('player-removed',      (d) => game.removePlayer(d.slotNumber));
     socket.on('player-input',        (d) => game.handleInput(d.slotNumber, d.input));
 
-    // Update lobby ready state on TV
     socket.on('lobby-update', (data) => game.updateLobby(data.players));
 
-    // All players ready - start countdown
     socket.on('all-ready', () => game.startCountdown());
 
     socket.on('restart-game', () => game.restart());
