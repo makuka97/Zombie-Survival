@@ -812,11 +812,11 @@
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(`$${p.points}`, p.x, p.y-hs-20);
 
-            // ── NEW: show knife icon above player when in melee mode ──
+            // show KNIFE text above player when in melee mode
             if (p.ammo === 0) {
-              ctx.fillStyle = '#00ff66'; ctx.font = 'bold 14px Courier New';
+              ctx.fillStyle = '#00ff66'; ctx.font = 'bold 11px Courier New';
               ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-              ctx.fillText('🔪', p.x, p.y - hs - 32);
+              ctx.fillText('KNIFE', p.x, p.y - hs - 32);
             }
           } else {
             ctx.fillStyle = '#444'; ctx.fillRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
