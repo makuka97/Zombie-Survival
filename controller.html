@@ -34,12 +34,15 @@
     }
     #rotate-warning .arrow { font-size: 60px; animation: spin 2s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-    @media (orientation: portrait) {
-      #rotate-warning  { display: flex; }
-      #join-screen     { display: none !important; }
-      #lobby-screen    { display: none !important; }
-      #ctrl-screen     { display: none !important; }
-      #gameover-screen { display: none !important; }
+
+    /* Only hide post-join screens in portrait — join screen stays visible */
+    body.joined-portrait #rotate-warning  { display: flex; }
+    body.joined-portrait #lobby-screen    { display: none !important; }
+    body.joined-portrait #ctrl-screen     { display: none !important; }
+    body.joined-portrait #gameover-screen { display: none !important; }
+
+    @media (orientation: landscape) {
+      body.joined-portrait #rotate-warning { display: none; }
     }
 
     #join-screen {
@@ -591,9 +594,21 @@
         this.slot  = data.slotNumber;
         this.color = data.color;
         sessionStorage.setItem('zs-fp', data.deviceFingerprint);
+        // Now that they've joined, enable the rotate warning for portrait mode
+        this.enableRotateWarning();
         this.showLobby();
         this.setStatus('PLAYER ' + this.slot);
         this.requestWakeLock();
+      }
+
+      enableRotateWarning() {
+        const check = () => {
+          const isPortrait = window.innerHeight > window.innerWidth;
+          document.getElementById('rotate-warning').style.display = isPortrait ? 'flex' : 'none';
+        };
+        window.addEventListener('orientationchange', check);
+        window.addEventListener('resize', check);
+        check(); // run immediately
       }
 
       showError(msg) {
