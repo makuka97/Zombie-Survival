@@ -86,7 +86,6 @@ class GameRoom {
         color: playerData.color
       });
     }
-
     this.broadcastLobbyState();
     console.log(`[ROOM ${this.roomCode}] Player ${slotNumber} joined`);
     return playerData;
@@ -145,13 +144,13 @@ class GameRoom {
     if (player) player.lastPong = Date.now();
   }
 
+  // Relay player input (fire + melee flag both pass through automatically)
   relayPlayerInput(socketId, inputData) {
     const player = this.players.get(socketId);
     if (!player || !this.hostSocket) return;
     this.hostSocket.emit('player-input', { slotNumber: player.slotNumber, input: inputData });
   }
 
-  // Mystery Box Purchase
   handleMysteryBoxPurchase(data) {
     if (!this.hostSocket) return;
     this.hostSocket.emit('mystery-box-purchase', { slotNumber: data.slotNumber });
@@ -161,18 +160,13 @@ class GameRoom {
   handleReady(socketId) {
     const player = this.players.get(socketId);
     if (!player || this.gameStarted) return;
-
     this.readyPlayers.add(player.slotNumber);
     console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} is READY (${this.readyPlayers.size}/${this.players.size})`);
-
     this.broadcastLobbyState();
-
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
       console.log(`[ROOM ${this.roomCode}] All players ready - starting countdown!`);
-
       if (this.hostSocket) this.hostSocket.emit('all-ready');
-
       for (let [sid] of this.players) {
         const sock = io.sockets.sockets.get(sid);
         if (sock) sock.emit('game-starting');
@@ -182,7 +176,6 @@ class GameRoom {
 
   broadcastLobbyState() {
     if (!this.hostSocket) return;
-
     const lobbyPlayers = [];
     for (let player of this.players.values()) {
       lobbyPlayers.push({
@@ -191,27 +184,18 @@ class GameRoom {
         ready: this.readyPlayers.has(player.slotNumber)
       });
     }
-
     this.hostSocket.emit('lobby-update', { players: lobbyPlayers });
   }
 
   handleRestartVote(socketId) {
     const player = this.players.get(socketId);
     if (!player) return;
-
     this.restartVotes.add(player.slotNumber);
     console.log(`[ROOM ${this.roomCode}] Restart vote from Player ${player.slotNumber} (${this.restartVotes.size}/${this.players.size})`);
-
     for (let [sid, p] of this.players) {
       const sock = io.sockets.sockets.get(sid);
-      if (sock) {
-        sock.emit('restart-vote-update', {
-          votes: this.restartVotes.size,
-          needed: this.players.size
-        });
-      }
+      if (sock) sock.emit('restart-vote-update', { votes: this.restartVotes.size, needed: this.players.size });
     }
-
     if (this.restartVotes.size >= this.players.size) {
       console.log(`[ROOM ${this.roomCode}] All players voted YES - restarting!`);
       this.restartVotes.clear();
@@ -294,6 +278,7 @@ io.on('connection', (socket) => {
     if (room) room.handleReady(socket.id);
   });
 
+  // melee flag is embedded in data.input and relayed transparently to the host
   socket.on('player-input', (data) => {
     const room = gameRooms.get(data.roomCode);
     if (room) room.relayPlayerInput(socket.id, data.input);
