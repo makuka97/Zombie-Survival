@@ -413,7 +413,6 @@
 
       <!-- Fire / Knife button — same element, different styles -->
       <div id="fire-btn">
-        <div class="btn-icon">🔫</div>
         <div class="btn-label">FIRE</div>
       </div>
     </div>
@@ -675,19 +674,15 @@
         this.inMeleeMode = active;
         const btn    = document.getElementById('fire-btn');
         const banner = document.getElementById('melee-banner');
-        const icon   = btn.querySelector('.btn-icon');
         const label  = btn.querySelector('.btn-label');
 
         if (active) {
           btn.classList.add('melee-mode');
-          icon.textContent  = '🔪';
           label.textContent = 'KNIFE';
           banner.style.display = 'block';
-          // make sure we're not stuck firing
           this.firing = false;
         } else {
           btn.classList.remove('melee-mode');
-          icon.textContent  = '🔫';
           label.textContent = 'FIRE';
           banner.style.display = 'none';
           this.meleeing = false;
