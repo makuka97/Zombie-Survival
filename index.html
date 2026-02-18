@@ -143,18 +143,6 @@
       max-width: 600px;
       padding: 20px;
     }
-    #lobby-screen h2 {
-      font-size: clamp(18px, 4vw, 28px);
-      color: #00ff00;
-      letter-spacing: 4px;
-      margin-bottom: 60px;
-      animation: pulse 1.5s infinite;
-    }
-    @keyframes pulse {
-      0%   { opacity: 1; }
-      50%  { opacity: 0.3; }
-      100% { opacity: 1; }
-    }
 
     #lobby-players {
       display: flex;
@@ -266,7 +254,6 @@
   </div>
 
   <div id="lobby-screen">
-    <h2>WAITING FOR PLAYERS...</h2>
     <div id="lobby-players">
       <div class="lobby-slot" id="slot-1">
         <div class="slot-color" style="background:#00ffff"></div>
@@ -505,10 +492,7 @@
       }
 
       startCountdown() {
-        const lobbyH2   = document.querySelector('#lobby-screen h2');
         const countdown = document.getElementById('countdown');
-
-        lobbyH2.style.display   = 'none';
         countdown.style.display = 'block';
 
         let count = 3;
@@ -730,7 +714,6 @@
         document.getElementById('game-over-screen').style.display  = 'none';
         document.getElementById('game-info').style.display         = 'none';
         document.getElementById('lobby-screen').style.display      = 'block';
-        document.querySelector('#lobby-screen h2').style.display   = 'block';
         document.getElementById('countdown').style.display         = 'none';
         document.getElementById('vote-display').textContent        = 'Waiting for restart votes...';
 
