@@ -171,6 +171,7 @@
     }
     #ammo-display span { font-size: 13px; color: #555; letter-spacing: 1px; }
     #ammo-display.low { color: #ff3333; animation: flash 0.5s infinite; }
+    #ammo-display.empty { color: #888; }
     @keyframes flash { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
 
     #points-display {
@@ -214,6 +215,7 @@
       box-shadow: 0 0 20px rgba(0,255,0,0.8);
     }
 
+    /* FIRE button - normal mode */
     #fire-btn {
       width: 165px; height: 165px;
       border-radius: 50%;
@@ -225,13 +227,49 @@
       letter-spacing: 3px;
       display: flex; align-items: center; justify-content: center;
       touch-action: none; user-select: none; flex-shrink: 0;
-      transition: all 0.08s;
+      transition: all 0.15s;
       box-shadow: 0 0 20px rgba(255,50,50,0.2);
+      flex-direction: column;
+      gap: 4px;
     }
     #fire-btn.active {
       background: #ff3333; color: #000;
       transform: scale(0.92);
       box-shadow: 0 0 40px rgba(255,50,50,0.9);
+    }
+
+    /* KNIFE / melee mode */
+    #fire-btn.melee-mode {
+      background: rgba(0,255,100,0.08);
+      border-color: #00ff66;
+      color: #00ff66;
+      box-shadow: 0 0 20px rgba(0,255,100,0.25);
+    }
+    #fire-btn.melee-mode.active {
+      background: #00ff66;
+      color: #000;
+      transform: scale(0.92);
+      box-shadow: 0 0 50px rgba(0,255,100,1);
+    }
+    #fire-btn .btn-icon { font-size: 36px; line-height: 1; }
+    #fire-btn .btn-label { font-size: 14px; letter-spacing: 3px; }
+
+    /* Melee mode HUD banner */
+    #melee-banner {
+      position: absolute;
+      top: 48px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(0,0,0,0.85);
+      border: 2px solid #00ff66;
+      border-radius: 8px;
+      padding: 4px 14px;
+      font-size: 12px;
+      color: #00ff66;
+      letter-spacing: 2px;
+      display: none;
+      z-index: 20;
+      animation: pulse 1.2s infinite;
     }
 
     /* Mystery Box Button */
@@ -361,11 +399,20 @@
       <div id="points-display"><span>$ </span>0</div>
       <div id="ammo-display"><span>AMMO </span>30</div>
     </div>
+
+    <!-- melee mode hint shown below HUD when out of ammo -->
+    <div id="melee-banner">⚔ KNIFE MODE — FIND AMMO!</div>
+
     <div id="controls">
       <div id="joystick-zone">
         <div id="joystick-knob"></div>
       </div>
-      <div id="fire-btn">FIRE</div>
+
+      <!-- Fire / Knife button — same element, different styles -->
+      <div id="fire-btn">
+        <div class="btn-icon">🔫</div>
+        <div class="btn-label">FIRE</div>
+      </div>
     </div>
     <button id="mystery-box-btn" disabled>MYSTERY BOX - 950</button>
   </div>
@@ -445,6 +492,8 @@
         this.slot     = null;
         this.color    = null;
         this.firing   = false;
+        this.meleeing = false;       // NEW: melee state
+        this.inMeleeMode = false;    // NEW: are we out of ammo?
         this.joystick = new Joystick('joystick-zone', 'joystick-knob');
         this.loop     = null;
         this.hasVoted = false;
@@ -576,6 +625,78 @@
         });
       }
 
+      // ── NEW: bind fire button for both fire and melee ──────────────────
+      bindFireBtn() {
+        const btn = document.getElementById('fire-btn');
+
+        const press = e => {
+          e.preventDefault();
+          if (this.inMeleeMode) {
+            this.meleeing = true;
+          } else {
+            this.firing = true;
+          }
+          btn.classList.add('active');
+        };
+
+        const release = e => {
+          e.preventDefault();
+          this.firing   = false;
+          this.meleeing = false;
+          btn.classList.remove('active');
+        };
+
+        btn.addEventListener('touchstart',  press,   { passive: false });
+        btn.addEventListener('touchend',    release, { passive: false });
+        btn.addEventListener('touchcancel', release, { passive: false });
+        btn.addEventListener('mousedown',   press);
+        btn.addEventListener('mouseup',     release);
+        btn.addEventListener('mouseleave',  release);
+      }
+
+      // ── NEW: switch button between FIRE and KNIFE visually ─────────────
+      setMeleeMode(active) {
+        if (this.inMeleeMode === active) return; // no change
+        this.inMeleeMode = active;
+        const btn    = document.getElementById('fire-btn');
+        const banner = document.getElementById('melee-banner');
+        const icon   = btn.querySelector('.btn-icon');
+        const label  = btn.querySelector('.btn-label');
+
+        if (active) {
+          btn.classList.add('melee-mode');
+          icon.textContent  = '🔪';
+          label.textContent = 'KNIFE';
+          banner.style.display = 'block';
+          // make sure we're not stuck firing
+          this.firing = false;
+        } else {
+          btn.classList.remove('melee-mode');
+          icon.textContent  = '🔫';
+          label.textContent = 'FIRE';
+          banner.style.display = 'none';
+          this.meleeing = false;
+        }
+      }
+
+      startLoop() {
+        this.stopLoop();
+        this.loop = setInterval(() => {
+          this.socket.emit('player-input', {
+            roomCode: this.roomCode,
+            input: {
+              angle:  this.joystick.getAngle(),
+              fire:   this.firing,
+              melee:  this.meleeing   // NEW: send melee flag
+            }
+          });
+        }, 50);
+      }
+
+      stopLoop() {
+        if (this.loop) { clearInterval(this.loop); this.loop = null; }
+      }
+
       showLobby() {
         document.getElementById('join-screen').style.display     = 'none';
         document.getElementById('ctrl-screen').style.display     = 'none';
@@ -616,11 +737,21 @@
       updateAmmo(ammo) {
         this.ammo    = ammo;
         const el     = document.getElementById('ammo-display');
-        el.innerHTML = `<span>AMMO </span>${ammo}`;
-        if (ammo <= 5) {
-          el.classList.add('low');
-        } else {
+
+        if (ammo === 0) {
+          el.innerHTML = `<span>AMMO </span>OUT`;
           el.classList.remove('low');
+          el.classList.add('empty');
+          this.setMeleeMode(true);   // ← switch to knife
+        } else {
+          el.innerHTML = `<span>AMMO </span>${ammo}`;
+          el.classList.remove('empty');
+          if (ammo <= 5) {
+            el.classList.add('low');
+          } else {
+            el.classList.remove('low');
+          }
+          this.setMeleeMode(false);  // ← switch back to gun
         }
       }
 
@@ -659,32 +790,6 @@
           btn.disabled = true;
           btn.classList.remove('pulse');
         }
-      }
-
-      startLoop() {
-        this.stopLoop();
-        this.loop = setInterval(() => {
-          this.socket.emit('player-input', {
-            roomCode: this.roomCode,
-            input: { angle: this.joystick.getAngle(), fire: this.firing }
-          });
-        }, 50);
-      }
-
-      stopLoop() {
-        if (this.loop) { clearInterval(this.loop); this.loop = null; }
-      }
-
-      bindFireBtn() {
-        const btn     = document.getElementById('fire-btn');
-        const press   = e => { e.preventDefault(); this.firing = true;  btn.classList.add('active'); };
-        const release = e => { e.preventDefault(); this.firing = false; btn.classList.remove('active'); };
-        btn.addEventListener('touchstart',  press,   { passive: false });
-        btn.addEventListener('touchend',    release, { passive: false });
-        btn.addEventListener('touchcancel', release, { passive: false });
-        btn.addEventListener('mousedown',   press);
-        btn.addEventListener('mouseup',     release);
-        btn.addEventListener('mouseleave',  release);
       }
 
       bindRestartBtn() {
