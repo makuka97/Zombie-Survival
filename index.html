@@ -36,60 +36,28 @@
       image-rendering: crisp-edges;
     }
     
-    /* Mobile landscape - force proper sizing */
     @media (max-width: 768px) and (orientation: landscape) {
       body { padding: 5px; }
-      #game-container {
-        max-width: 100vw;
-        max-height: 100vh;
-      }
-      #room-code-display { 
-        top: 5px; 
-        padding: 8px 15px;
-        font-size: 0.8em;
-        flex-direction: row;
-        gap: 15px;
-      }
+      #game-container { max-width: 100vw; max-height: 100vh; }
+      #room-code-display { top: 5px; padding: 8px 15px; font-size: 0.8em; flex-direction: row; gap: 15px; }
       #room-code { font-size: 24px; letter-spacing: 3px; }
       #qr-code canvas { width: 80px !important; height: 80px !important; }
-      #game-info { 
-        top: 5px; 
-        right: 5px;
-        padding: 8px;
-        font-size: 0.8em;
-      }
-      #lobby-screen {
-        width: 95%;
-        max-width: none;
-        padding: 10px;
-      }
-      #lobby-players {
-        gap: 8px;
-      }
+      #game-info { top: 5px; right: 5px; padding: 8px; font-size: 0.8em; }
+      #lobby-screen { width: 95%; max-width: none; padding: 10px; }
+      #lobby-players { gap: 8px; }
     }
     
-    /* Mobile portrait - vertical layout */
     @media (max-width: 768px) and (orientation: portrait) {
-      #game-container { 
-        max-height: 70vh;
-        max-width: 95vw;
-      }
-      #room-code-display {
-        flex-direction: column;
-        gap: 10px;
-        padding: 10px 20px;
-      }
+      #game-container { max-height: 70vh; max-width: 95vw; }
+      #room-code-display { flex-direction: column; gap: 10px; padding: 10px 20px; }
       #room-code { font-size: 32px; }
       #qr-code canvas { width: 100px !important; height: 100px !important; }
     }
     
-    /* Tablet */
     @media (min-width: 769px) and (max-width: 1024px) {
-      #game-container { 
-        max-width: 95vw;
-        max-height: 70vh;
-      }
+      #game-container { max-width: 95vw; max-height: 70vh; }
     }
+
     #room-code-display {
       position: absolute;
       top: 20px;
@@ -107,19 +75,16 @@
       gap: 30px;
     }
     
-    /* Hide room code when lobby is active */
     body:has(#lobby-screen[style*="display: block"]) #room-code-display,
     body:has(#lobby-screen[style*="display: flex"]) #room-code-display {
       opacity: 0;
       pointer-events: none;
     }
-    #room-code-text {
-      text-align: center;
-    }
+
+    #room-code-text { text-align: center; }
     #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
     #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
     
-    /* QR Code */
     #qr-code {
       background: #fff;
       padding: 10px;
@@ -128,9 +93,7 @@
       align-items: center;
       justify-content: center;
     }
-    #qr-code canvas {
-      display: block;
-    }
+    #qr-code canvas { display: block; }
 
     #lobby-screen {
       position: absolute;
@@ -144,12 +107,7 @@
       padding: 20px;
     }
 
-    #lobby-players {
-      display: flex;
-      flex-direction: column;
-      gap: 12px;
-      margin-bottom: 30px;
-    }
+    #lobby-players { display: flex; flex-direction: column; gap: 12px; margin-bottom: 30px; }
     .lobby-slot {
       display: flex;
       align-items: center;
@@ -190,10 +148,7 @@
       display: none;
       animation: pop 0.3s ease;
     }
-    @keyframes pop {
-      0%   { transform: scale(1.4); }
-      100% { transform: scale(1); }
-    }
+    @keyframes pop { 0% { transform: scale(1.4); } 100% { transform: scale(1); } }
 
     #game-info {
       position: absolute;
@@ -221,6 +176,7 @@
       display: none;
       z-index: 200;
     }
+
     #game-over-screen {
       position: absolute;
       top: 50%;
@@ -296,7 +252,6 @@
     <canvas id="canvas" width="1200" height="750"></canvas>
   </div>
 
-  <!-- QR Code Library -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -305,109 +260,40 @@
     // ================================================================
     
     const WEAPONS = {
-      pistol: {
-        name: 'Pistol',
-        damage: 1,
-        fireRate: 10,
-        ammoCapacity: 30,
-        cost: 0
-      },
-      smg: {
-        name: 'SMG',
-        damage: 1,
-        fireRate: 5,
-        ammoCapacity: 60,
-        cost: 0,
-        rarity: 'common'
-      },
-      shotgun: {
-        name: 'Shotgun',
-        damage: 3,
-        fireRate: 20,
-        ammoCapacity: 24,
-        cost: 0,
-        rarity: 'common'
-      },
-      ar: {
-        name: 'Assault Rifle',
-        damage: 2,
-        fireRate: 7,
-        ammoCapacity: 45,
-        cost: 0,
-        rarity: 'rare'
-      },
-      lmg: {
-        name: 'LMG',
-        damage: 2,
-        fireRate: 8,
-        ammoCapacity: 100,
-        cost: 0,
-        rarity: 'rare'
-      },
-      raygun: {
-        name: 'Ray Gun',
-        damage: 5,
-        fireRate: 12,
-        ammoCapacity: 20,
-        cost: 0,
-        rarity: 'legendary'
-      },
-      thundergun: {
-        name: 'Thundergun',
-        damage: 10,
-        fireRate: 30,
-        ammoCapacity: 8,
-        cost: 0,
-        rarity: 'legendary'
-      }
+      pistol:     { name: 'Pistol',        damage: 1,  fireRate: 10, ammoCapacity: 30  },
+      smg:        { name: 'SMG',           damage: 1,  fireRate: 5,  ammoCapacity: 60,  rarity: 'common'    },
+      shotgun:    { name: 'Shotgun',       damage: 3,  fireRate: 20, ammoCapacity: 24,  rarity: 'common'    },
+      ar:         { name: 'Assault Rifle', damage: 2,  fireRate: 7,  ammoCapacity: 45,  rarity: 'rare'      },
+      lmg:        { name: 'LMG',           damage: 2,  fireRate: 8,  ammoCapacity: 100, rarity: 'rare'      },
+      raygun:     { name: 'Ray Gun',       damage: 5,  fireRate: 12, ammoCapacity: 20,  rarity: 'legendary' },
+      thundergun: { name: 'Thundergun',    damage: 10, fireRate: 30, ammoCapacity: 8,   rarity: 'legendary' }
     };
 
     const ZOMBIE_TYPES = {
-      regular: {
-        size: 28,
-        color: '#00cc00',
-        borderColor: '#00ff00',
-        speed: 0.9,
-        hp: 2,
-        points: 60,
-        weight: 70
-      },
-      runner: {
-        size: 20,
-        color: '#cccc00',
-        borderColor: '#ffff00',
-        speed: 1.8,
-        hp: 1,
-        points: 80,
-        weight: 20
-      },
-      tank: {
-        size: 40,
-        color: '#cc0000',
-        borderColor: '#ff0000',
-        speed: 0.5,
-        hp: 8,
-        points: 150,
-        weight: 10
-      }
+      regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.9, hp: 2,  points: 60,  weight: 70 },
+      runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.8, hp: 1,  points: 80,  weight: 20 },
+      tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 8,  points: 150, weight: 10 }
     };
 
     const MYSTERY_BOX_COST = 950;
-    const BOX_USE_RANGE = 60;
+    const BOX_USE_RANGE    = 60;
+
+    // ── NEW: Melee constants ──────────────────────────────────────────
+    const MELEE_DAMAGE = 3;
+    const MELEE_RANGE  = 55;   // pixels in front of player
+    const MELEE_ARC    = Math.PI * 0.6; // ~108° cone
 
     class GameEngine {
       constructor() {
         this.canvas = document.getElementById('canvas');
         this.ctx    = this.canvas.getContext('2d');
 
-        this.PLAYER_SIZE = 28;
-        this.BULLET_SIZE = 6;
-        this.AMMO_SIZE   = 20;
-        this.BOX_SIZE    = 50;
-
-        this.PLAYER_SPEED  = 2.5;
-        this.BULLET_SPEED  = 8;
-
+        this.PLAYER_SIZE  = 28;
+        this.BULLET_SIZE  = 6;
+        this.AMMO_SIZE    = 20;
+        this.BOX_SIZE     = 50;
+        this.PLAYER_SPEED = 2.5;
+        this.BULLET_SPEED = 8;
         this.REVIVE_RADIUS = 40;
         this.REVIVE_TIME   = 3000;
         this.AMMO_DROP_CHANCE = 0.3;
@@ -422,8 +308,10 @@
         this.gameOver   = false;
         this.gameStarted = false;
         this.reviveMap  = new Map();
-
         this.mysteryBox = null;
+
+        // NEW: track active melee swings for rendering flash
+        this.meleeFlashes = []; // { x, y, angle, timer }
 
         this.socket   = null;
         this.roomCode = null;
@@ -450,43 +338,29 @@
             points: 0,
             currentWeapon: 'pistol',
             alive: true, connected: false,
-            firing: false, fireCooldown: 0
+            firing: false, fireCooldown: 0,
+            // NEW: melee state
+            meleeing: false,
+            meleeCooldown: 0
           };
         }
       }
 
-      addPlayer(slot) {
-        this.players[slot-1].connected = true;
-        this.updateHUD();
-      }
-
-      removePlayer(slot) {
-        this.players[slot-1].connected = false;
-        this.updateHUD();
-      }
-
-      connectedCount() {
-        return this.players.filter(p => p.connected).length;
-      }
+      addPlayer(slot)    { this.players[slot-1].connected = true;  this.updateHUD(); }
+      removePlayer(slot) { this.players[slot-1].connected = false; this.updateHUD(); }
+      connectedCount()   { return this.players.filter(p => p.connected).length; }
 
       updateLobby(players) {
         for (let i = 1; i <= 4; i++) {
-          const slot    = document.getElementById(`slot-${i}`);
-          const status  = slot.querySelector('.slot-status');
-          const found   = players.find(p => p.slotNumber === i);
-
+          const slot   = document.getElementById(`slot-${i}`);
+          const status = slot.querySelector('.slot-status');
+          const found  = players.find(p => p.slotNumber === i);
           if (!found) {
-            slot.className      = 'lobby-slot';
-            status.className    = 'slot-status status-waiting';
-            status.textContent  = 'EMPTY';
+            slot.className = 'lobby-slot'; status.className = 'slot-status status-waiting'; status.textContent = 'EMPTY';
           } else if (found.ready) {
-            slot.className      = 'lobby-slot ready';
-            status.className    = 'slot-status status-ready';
-            status.textContent  = 'READY!';
+            slot.className = 'lobby-slot ready'; status.className = 'slot-status status-ready'; status.textContent = 'READY!';
           } else {
-            slot.className      = 'lobby-slot connected';
-            status.className    = 'slot-status status-joined';
-            status.textContent  = 'JOINED';
+            slot.className = 'lobby-slot connected'; status.className = 'slot-status status-joined'; status.textContent = 'JOINED';
           }
         }
       }
@@ -494,10 +368,8 @@
       startCountdown() {
         const countdown = document.getElementById('countdown');
         countdown.style.display = 'block';
-
         let count = 3;
         countdown.textContent = count;
-
         const tick = setInterval(() => {
           count--;
           if (count > 0) {
@@ -514,14 +386,11 @@
 
       beginGame() {
         this.gameStarted = true;
-
         document.getElementById('lobby-screen').style.display = 'none';
-        document.getElementById('game-info').style.display = 'block';
-
+        document.getElementById('game-info').style.display    = 'block';
         const codeDisplay = document.getElementById('room-code-display');
         codeDisplay.style.opacity = '0';
         setTimeout(() => { codeDisplay.style.display = 'none'; }, 1500);
-
         this.spawnMysteryBox();
         setTimeout(() => this.startWave(), 500);
       }
@@ -530,58 +399,47 @@
         const p = this.players[slot - 1];
         if (!p || !p.alive) return;
         if (input.angle !== null && input.angle !== undefined) {
-          p.vx = Math.cos(input.angle) * this.PLAYER_SPEED;
-          p.vy = Math.sin(input.angle) * this.PLAYER_SPEED;
+          p.vx    = Math.cos(input.angle) * this.PLAYER_SPEED;
+          p.vy    = Math.sin(input.angle) * this.PLAYER_SPEED;
           p.angle = input.angle;
         } else {
           p.vx = 0; p.vy = 0;
         }
-        p.firing = !!input.fire;
+        p.firing   = !!input.fire;
+        p.meleeing = !!input.melee; // NEW
       }
 
       handleMysteryBoxPurchase(slot) {
         const p = this.players[slot - 1];
         if (!p || !p.alive || !this.mysteryBox) return;
-
-        const dx = p.x - this.mysteryBox.x;
-        const dy = p.y - this.mysteryBox.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-
-        if (dist > BOX_USE_RANGE) return;
+        const dx = p.x - this.mysteryBox.x, dy = p.y - this.mysteryBox.y;
+        if (Math.sqrt(dx*dx+dy*dy) > BOX_USE_RANGE) return;
         if (p.points < MYSTERY_BOX_COST) return;
-
         p.points -= MYSTERY_BOX_COST;
-
         const weapon = this.rollRandomWeapon();
         p.currentWeapon = weapon;
-        
-        const weaponData = WEAPONS[weapon];
-        p.ammo = weaponData.ammoCapacity;
-
-        console.log(`Player ${slot} got ${weaponData.name}!`);
-
+        p.ammo = WEAPONS[weapon].ammoCapacity;
         setTimeout(() => this.spawnMysteryBox(), 1000);
       }
 
       rollRandomWeapon() {
         const roll = Math.random() * 100;
-        
         if (roll < 10) {
-          const legendaries = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'legendary');
-          return legendaries[Math.floor(Math.random() * legendaries.length)];
+          const l = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'legendary');
+          return l[Math.floor(Math.random() * l.length)];
         } else if (roll < 40) {
-          const rares = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'rare');
-          return rares[Math.floor(Math.random() * rares.length)];
+          const r = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'rare');
+          return r[Math.floor(Math.random() * r.length)];
         } else {
-          const commons = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'common');
-          return commons[Math.floor(Math.random() * commons.length)];
+          const c = Object.keys(WEAPONS).filter(k => WEAPONS[k].rarity === 'common');
+          return c[Math.floor(Math.random() * c.length)];
         }
       }
 
       spawnMysteryBox() {
         const margin = 100;
         this.mysteryBox = {
-          x: margin + Math.random() * (this.canvas.width - margin * 2),
+          x: margin + Math.random() * (this.canvas.width  - margin * 2),
           y: margin + Math.random() * (this.canvas.height - margin * 2)
         };
       }
@@ -599,8 +457,7 @@
 
       showBanner(text) {
         const el = document.getElementById('wave-banner');
-        el.textContent   = text;
-        el.style.display = 'block';
+        el.textContent = text; el.style.display = 'block';
         setTimeout(() => { el.style.display = 'none'; }, 2000);
       }
 
@@ -612,37 +469,26 @@
         else if (side === 1) { x = W+50; y = Math.random()*H; }
         else if (side === 2) { x = Math.random()*W; y = H+50; }
         else                 { x = -50; y = Math.random()*H; }
-        
-        const type = this.rollZombieType();
+        const type     = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
-        
         this.zombies.push({
-          x, y,
-          type,
-          hp: typeData.hp,
-          maxHp: typeData.hp,
-          speed: typeData.speed,
-          size: typeData.size,
-          color: typeData.color,
-          borderColor: typeData.borderColor,
+          x, y, type,
+          hp: typeData.hp, maxHp: typeData.hp,
+          speed: typeData.speed, size: typeData.size,
+          color: typeData.color, borderColor: typeData.borderColor,
           points: typeData.points
         });
       }
 
       rollZombieType() {
-        const totalWeight = Object.values(ZOMBIE_TYPES).reduce((sum, t) => sum + t.weight, 0);
-        let roll = Math.random() * totalWeight;
-        
-        for (let type in ZOMBIE_TYPES) {
-          roll -= ZOMBIE_TYPES[type].weight;
-          if (roll <= 0) return type;
-        }
+        const total = Object.values(ZOMBIE_TYPES).reduce((s, t) => s + t.weight, 0);
+        let roll = Math.random() * total;
+        for (let type in ZOMBIE_TYPES) { roll -= ZOMBIE_TYPES[type].weight; if (roll <= 0) return type; }
         return 'regular';
       }
 
       fireBullet(p) {
         const weapon = WEAPONS[p.currentWeapon];
-        
         this.bullets.push({
           x: p.x + Math.cos(p.angle) * this.PLAYER_SIZE,
           y: p.y + Math.sin(p.angle) * this.PLAYER_SIZE,
@@ -654,6 +500,44 @@
         p.ammo--;
       }
 
+      // ── NEW: melee attack ───────────────────────────────────────────
+      performMelee(p) {
+        // Add a visual flash for rendering
+        this.meleeFlashes.push({ x: p.x, y: p.y, angle: p.angle, timer: 8, color: p.color });
+
+        for (let j = this.zombies.length - 1; j >= 0; j--) {
+          const z  = this.zombies[j];
+          const dx = z.x - p.x, dy = z.y - p.y;
+          const dist = Math.sqrt(dx*dx + dy*dy);
+          if (dist > MELEE_RANGE + z.size / 2) continue;
+
+          // Check angle — zombie must be within the arc in front of the player
+          const angleToZombie = Math.atan2(dy, dx);
+          let angleDiff = angleToZombie - p.angle;
+          // Normalise to [-π, π]
+          while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
+          while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
+          if (Math.abs(angleDiff) > MELEE_ARC / 2) continue;
+
+          z.hp -= MELEE_DAMAGE;
+
+          if (z.hp <= 0) {
+            // Award points to the knifing player
+            p.points += z.points;
+
+            // Guaranteed ammo drop on melee kill so you can escape knife mode
+            this.ammoPacks.push({ x: z.x, y: z.y });
+
+            this.zombies.splice(j, 1);
+            this.waveKilled++;
+            if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
+              this.wave++;
+              setTimeout(() => this.startWave(), 3000);
+            }
+          }
+        }
+      }
+
       aabb(ax, ay, as, bx, by, bs) {
         return ax < bx+bs && ax+as > bx && ay < by+bs && ay+as > by;
       }
@@ -661,9 +545,7 @@
       updateRevive() {
         const now = Date.now();
         for (let reviver of this.players) {
-          if (!reviver.alive || !reviver.connected) {
-            this.reviveMap.delete(reviver.slot); continue;
-          }
+          if (!reviver.alive || !reviver.connected) { this.reviveMap.delete(reviver.slot); continue; }
           let found = false;
           for (let target of this.players) {
             if (target.alive || !target.connected || target === reviver) continue;
@@ -674,8 +556,7 @@
               if (!attempt || attempt.targetSlot !== target.slot) {
                 this.reviveMap.set(reviver.slot, { targetSlot: target.slot, startTime: now });
               } else if (now - attempt.startTime >= this.REVIVE_TIME) {
-                target.alive = true;
-                target.hp    = 50;
+                target.alive = true; target.hp = 50;
                 this.reviveMap.delete(reviver.slot);
               }
               break;
@@ -686,22 +567,15 @@
       }
 
       restart() {
-        this.zombies     = [];
-        this.bullets     = [];
-        this.ammoPacks   = [];
-        this.wave        = 1;
-        this.waveTotal   = 0;
-        this.waveKilled  = 0;
-        this.gameOver    = false;
-        this.gameStarted = false;
-        this.reviveMap.clear();
-        this.mysteryBox  = null;
+        this.zombies = []; this.bullets = []; this.ammoPacks = [];
+        this.wave = 1; this.waveTotal = 0; this.waveKilled = 0;
+        this.gameOver = false; this.gameStarted = false;
+        this.reviveMap.clear(); this.mysteryBox = null;
+        this.meleeFlashes = [];
 
         const spawns = [
-          { x: 80,   y: 80  },
-          { x: 1120, y: 80  },
-          { x: 80,   y: 670 },
-          { x: 1120, y: 670 }
+          { x: 80,   y: 80  }, { x: 1120, y: 80  },
+          { x: 80,   y: 670 }, { x: 1120, y: 670 }
         ];
         for (let p of this.players) {
           p.x = spawns[p.slot-1].x; p.y = spawns[p.slot-1].y;
@@ -709,8 +583,8 @@
           p.hp = 100; p.ammo = 30; p.points = 0;
           p.currentWeapon = 'pistol';
           p.alive = true; p.firing = false; p.fireCooldown = 0;
+          p.meleeing = false; p.meleeCooldown = 0; // NEW reset
         }
-
         document.getElementById('game-over-screen').style.display  = 'none';
         document.getElementById('game-info').style.display         = 'none';
         document.getElementById('lobby-screen').style.display      = 'block';
@@ -722,46 +596,55 @@
           const status = slot.querySelector('.slot-status');
           const player = this.players[i-1];
           if (player.connected) {
-            slot.className     = 'lobby-slot connected';
-            status.className   = 'slot-status status-joined';
-            status.textContent = 'JOINED';
+            slot.className = 'lobby-slot connected'; status.className = 'slot-status status-joined'; status.textContent = 'JOINED';
           } else {
-            slot.className     = 'lobby-slot';
-            status.className   = 'slot-status status-waiting';
-            status.textContent = 'EMPTY';
+            slot.className = 'lobby-slot'; status.className = 'slot-status status-waiting'; status.textContent = 'EMPTY';
           }
         }
       }
 
       update() {
         if (this.gameOver || !this.gameStarted) return;
-
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
+
+        // Tick melee flash timers
+        for (let i = this.meleeFlashes.length - 1; i >= 0; i--) {
+          this.meleeFlashes[i].timer--;
+          if (this.meleeFlashes[i].timer <= 0) this.meleeFlashes.splice(i, 1);
+        }
 
         for (let p of this.players) {
           if (!p.connected || !p.alive) continue;
           p.x = Math.max(hs, Math.min(W-hs, p.x+p.vx));
           p.y = Math.max(hs, Math.min(H-hs, p.y+p.vy));
-          
+
           const weapon = WEAPONS[p.currentWeapon];
           p.fireCooldown--;
+          p.meleeCooldown--;
+
+          // Fire bullet only if has ammo
           if (p.firing && p.ammo > 0 && p.fireCooldown <= 0) {
             this.fireBullet(p);
             p.fireCooldown = weapon.fireRate;
           }
+
+          // ── NEW: melee attack (no cooldown, just register each press) ──
+          // meleeCooldown is 1 frame so we don't spam on same held press
+          if (p.meleeing && p.ammo === 0 && p.meleeCooldown <= 0) {
+            this.performMelee(p);
+            p.meleeCooldown = 1; // 1 frame gap prevents same-frame double-hit
+          }
         }
 
+        // Bullets
         for (let i = this.bullets.length-1; i >= 0; i--) {
           const b = this.bullets[i];
           b.x += b.vx; b.y += b.vy;
-          if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) {
-            this.bullets.splice(i, 1); continue;
-          }
+          if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) { this.bullets.splice(i, 1); continue; }
           let hit = false;
           for (let j = this.zombies.length-1; j >= 0; j--) {
-            const z = this.zombies[j];
-            const zhs = z.size / 2;
+            const z = this.zombies[j], zhs = z.size / 2;
             if (this.aabb(b.x-this.BULLET_SIZE/2, b.y-this.BULLET_SIZE/2, this.BULLET_SIZE,
                           z.x-zhs, z.y-zhs, z.size)) {
               z.hp -= b.damage;
@@ -775,7 +658,6 @@
                   if (dist < nearestDist) { nearestDist = dist; nearest = p; }
                 }
                 if (nearest) nearest.points += z.points;
-
                 if (Math.random() < this.AMMO_DROP_CHANCE) this.ammoPacks.push({ x: z.x, y: z.y });
                 this.zombies.splice(j, 1);
                 this.waveKilled++;
@@ -790,6 +672,7 @@
           if (hit) this.bullets.splice(i, 1);
         }
 
+        // Zombies move & attack
         for (let z of this.zombies) {
           let nearest = null, nearestDist = Infinity;
           for (let p of this.players) {
@@ -802,10 +685,8 @@
           const dx = nearest.x-z.x, dy = nearest.y-z.y;
           const dist = Math.sqrt(dx*dx+dy*dy);
           if (dist > 0) { z.x += (dx/dist)*z.speed; z.y += (dy/dist)*z.speed; }
-          
           const zhs = z.size / 2;
-          if (this.aabb(z.x-zhs, z.y-zhs, z.size,
-                        nearest.x-hs, nearest.y-hs, this.PLAYER_SIZE)) {
+          if (this.aabb(z.x-zhs, z.y-zhs, z.size, nearest.x-hs, nearest.y-hs, this.PLAYER_SIZE)) {
             nearest.hp -= 0.5;
             if (nearest.hp <= 0 && nearest.alive) {
               nearest.alive = false; nearest.hp = 0;
@@ -814,6 +695,7 @@
           }
         }
 
+        // Ammo pickups
         for (let i = this.ammoPacks.length-1; i >= 0; i--) {
           const a = this.ammoPacks[i];
           for (let p of this.players) {
@@ -847,29 +729,26 @@
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, W, H);
 
-        ctx.strokeStyle = 'rgba(0,255,0,0.05)';
-        ctx.lineWidth = 1;
+        // Grid
+        ctx.strokeStyle = 'rgba(0,255,0,0.05)'; ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
         for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
+        // Mystery box
         if (this.mysteryBox) {
-          const boxHs = this.BOX_SIZE / 2;
-          ctx.shadowColor = '#bb00ff';
-          ctx.shadowBlur = 20;
+          const bhs = this.BOX_SIZE / 2;
+          ctx.shadowColor = '#bb00ff'; ctx.shadowBlur = 20;
           ctx.fillStyle = '#bb00ff';
-          ctx.fillRect(this.mysteryBox.x - boxHs, this.mysteryBox.y - boxHs, this.BOX_SIZE, this.BOX_SIZE);
+          ctx.fillRect(this.mysteryBox.x-bhs, this.mysteryBox.y-bhs, this.BOX_SIZE, this.BOX_SIZE);
           ctx.shadowBlur = 0;
-          ctx.strokeStyle = '#ff00ff';
-          ctx.lineWidth = 3;
-          ctx.strokeRect(this.mysteryBox.x - boxHs, this.mysteryBox.y - boxHs, this.BOX_SIZE, this.BOX_SIZE);
-          
-          ctx.fillStyle = '#fff';
-          ctx.font = 'bold 32px Courier New';
-          ctx.textAlign = 'center';
-          ctx.textBaseline = 'middle';
+          ctx.strokeStyle = '#ff00ff'; ctx.lineWidth = 3;
+          ctx.strokeRect(this.mysteryBox.x-bhs, this.mysteryBox.y-bhs, this.BOX_SIZE, this.BOX_SIZE);
+          ctx.fillStyle = '#fff'; ctx.font = 'bold 32px Courier New';
+          ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText('?', this.mysteryBox.x, this.mysteryBox.y);
         }
 
+        // Ammo packs
         for (let a of this.ammoPacks) {
           ctx.fillStyle = '#ffff00';
           ctx.fillRect(a.x-this.AMMO_SIZE/2, a.y-this.AMMO_SIZE/2, this.AMMO_SIZE, this.AMMO_SIZE);
@@ -880,27 +759,39 @@
           ctx.fillText('A', a.x, a.y);
         }
 
+        // Zombies
         for (let z of this.zombies) {
-          const zhs = z.size / 2;
-          const zx = z.x - zhs, zy = z.y - zhs;
-          ctx.fillStyle = z.color;
-          ctx.fillRect(zx, zy, z.size, z.size);
-          ctx.strokeStyle = z.borderColor;
-          ctx.lineWidth = 2;
-          ctx.strokeRect(zx, zy, z.size, z.size);
-          
-          ctx.fillStyle = '#ff0000';
-          ctx.fillRect(z.x-zhs, zy-8, z.size, 4);
-          ctx.fillStyle = '#00ff00';
-          ctx.fillRect(z.x-zhs, zy-8, z.size*(z.hp/z.maxHp), 4);
+          const zhs = z.size / 2, zx = z.x-zhs, zy = z.y-zhs;
+          ctx.fillStyle = z.color; ctx.fillRect(zx, zy, z.size, z.size);
+          ctx.strokeStyle = z.borderColor; ctx.lineWidth = 2; ctx.strokeRect(zx, zy, z.size, z.size);
+          ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x-zhs, zy-8, z.size, 4);
+          ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-zhs, zy-8, z.size*(z.hp/z.maxHp), 4);
         }
 
+        // Bullets
         for (let b of this.bullets) {
           ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
           ctx.beginPath(); ctx.arc(b.x, b.y, this.BULLET_SIZE/2, 0, Math.PI*2); ctx.fill();
           ctx.shadowBlur = 0;
         }
 
+        // ── NEW: render melee arc flashes ───────────────────────────
+        for (let f of this.meleeFlashes) {
+          const alpha = f.timer / 8;
+          ctx.save();
+          ctx.globalAlpha = alpha * 0.55;
+          ctx.fillStyle   = f.color;
+          ctx.shadowColor = f.color;
+          ctx.shadowBlur  = 20;
+          ctx.beginPath();
+          ctx.moveTo(f.x, f.y);
+          ctx.arc(f.x, f.y, MELEE_RANGE, f.angle - MELEE_ARC / 2, f.angle + MELEE_ARC / 2);
+          ctx.closePath();
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Players
         for (let p of this.players) {
           if (!p.connected) continue;
           if (p.alive) {
@@ -913,22 +804,24 @@
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p.x+Math.cos(p.angle)*(hs+12), p.y+Math.sin(p.angle)*(hs+12));
             ctx.stroke();
-            ctx.fillStyle = '#ff0000';
-            ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE, 5);
-            ctx.fillStyle = '#00ff00';
-            ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE*(p.hp/p.maxHp), 5);
-            
-            ctx.fillStyle = '#ffff00';
-            ctx.font = 'bold 12px Courier New';
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(`$${p.points}`, p.x, p.y - hs - 20);
+            // HP bar
+            ctx.fillStyle = '#ff0000'; ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE, 5);
+            ctx.fillStyle = '#00ff00'; ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE*(p.hp/p.maxHp), 5);
+            // Points label
+            ctx.fillStyle = '#ffff00'; ctx.font = 'bold 12px Courier New';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`$${p.points}`, p.x, p.y-hs-20);
+
+            // ── NEW: show knife icon above player when in melee mode ──
+            if (p.ammo === 0) {
+              ctx.fillStyle = '#00ff66'; ctx.font = 'bold 14px Courier New';
+              ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+              ctx.fillText('🔪', p.x, p.y - hs - 32);
+            }
           } else {
-            ctx.fillStyle = '#444';
-            ctx.fillRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
+            ctx.fillStyle = '#444'; ctx.fillRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
             ctx.strokeStyle = '#888'; ctx.lineWidth = 2;
-            ctx.setLineDash([4,4]);
-            ctx.strokeRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
+            ctx.setLineDash([4,4]); ctx.strokeRect(p.x-hs, p.y-hs, this.PLAYER_SIZE, this.PLAYER_SIZE);
             ctx.setLineDash([]);
             for (let [, attempt] of this.reviveMap) {
               if (attempt.targetSlot === p.slot) {
@@ -954,14 +847,17 @@
         document.getElementById('player-count').textContent = this.connectedCount();
       }
 
+      canUseMysteryBox(player) {
+        if (!this.mysteryBox || !player.alive) return false;
+        const dx = player.x - this.mysteryBox.x, dy = player.y - this.mysteryBox.y;
+        return Math.sqrt(dx*dx+dy*dy) <= BOX_USE_RANGE;
+      }
+
       start() {
         let lastTime = 0;
-        const targetFPS = 60;
-        const frameDelay = 1000 / targetFPS;
-        
+        const frameDelay = 1000 / 60;
         const loop = (currentTime) => {
           const deltaTime = currentTime - lastTime;
-          
           if (deltaTime >= frameDelay) {
             this.update();
             this.render();
@@ -989,55 +885,36 @@
         };
         requestAnimationFrame(loop);
       }
-
-      canUseMysteryBox(player) {
-        if (!this.mysteryBox || !player.alive) return false;
-        const dx = player.x - this.mysteryBox.x;
-        const dy = player.y - this.mysteryBox.y;
-        const dist = Math.sqrt(dx*dx + dy*dy);
-        return dist <= BOX_USE_RANGE;
-      }
     }
 
     const game   = new GameEngine();
     const socket = io();
     game.socket  = socket;
 
-    socket.on('connect', () => { socket.emit('create-room'); });
-
+    socket.on('connect',      () => socket.emit('create-room'));
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
-      
-      // Generate QR Code
-      const controllerUrl = `${window.location.origin}/controller.html`;
       new QRCode(document.getElementById('qr-code'), {
-        text: controllerUrl,
-        width: 128,
-        height: 128,
-        colorDark: '#000000',
-        colorLight: '#ffffff',
+        text: `${window.location.origin}/controller.html`,
+        width: 128, height: 128,
+        colorDark: '#000000', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
       });
-      
       game.start();
     });
 
-    socket.on('player-joined',       (d) => game.addPlayer(d.slotNumber));
-    socket.on('player-disconnected', (d) => game.removePlayer(d.slotNumber));
-    socket.on('player-removed',      (d) => game.removePlayer(d.slotNumber));
-    socket.on('player-input',        (d) => game.handleInput(d.slotNumber, d.input));
+    socket.on('player-joined',        (d) => game.addPlayer(d.slotNumber));
+    socket.on('player-disconnected',  (d) => game.removePlayer(d.slotNumber));
+    socket.on('player-removed',       (d) => game.removePlayer(d.slotNumber));
+    socket.on('player-input',         (d) => game.handleInput(d.slotNumber, d.input));
     socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
-
-    socket.on('lobby-update', (data) => game.updateLobby(data.players));
-
-    socket.on('all-ready', () => game.startCountdown());
-
-    socket.on('restart-game', () => game.restart());
-
-    socket.on('restart-vote-update', (data) => {
+    socket.on('lobby-update',         (d) => game.updateLobby(d.players));
+    socket.on('all-ready',            ()  => game.startCountdown());
+    socket.on('restart-game',         ()  => game.restart());
+    socket.on('restart-vote-update',  (d) => {
       document.getElementById('vote-display').textContent =
-        `Restart votes: ${data.votes} / ${data.needed} - Vote YES on your phone!`;
+        `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
     });
   </script>
 </body>
