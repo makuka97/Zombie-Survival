@@ -177,7 +177,7 @@
 </head>
 <body>
   <div id="game-container">
-    <canvas id="canvas" width="1200" height="750"></canvas>
+    <canvas id="canvas" width="1334" height="750"></canvas>
 
     <div id="room-code-display">
       <div id="room-code-text">
@@ -298,9 +298,9 @@
         const colors = ['#00ffff','#ff44ff','#4488ff','#ffff00'];
         const spawns = [
           { x: 80,   y: 80  },
-          { x: 1120, y: 80  },
+          { x: 1254, y: 80  },
           { x: 80,   y: 670 },
-          { x: 1120, y: 670 }
+          { x: 1254, y: 670 }
         ];
         for (let i = 0; i < 4; i++) {
           this.players[i] = {
@@ -549,8 +549,8 @@
         this.meleeFlashes = [];
 
         const spawns = [
-          { x: 80,   y: 80  }, { x: 1120, y: 80  },
-          { x: 80,   y: 670 }, { x: 1120, y: 670 }
+          { x: 80,   y: 80  }, { x: 1254, y: 80  },
+          { x: 80,   y: 670 }, { x: 1254, y: 670 }
         ];
         for (let p of this.players) {
           p.x = spawns[p.slot-1].x; p.y = spawns[p.slot-1].y;
@@ -893,12 +893,12 @@
     });
     // ================================================================
     // RESPONSIVE CANVAS SCALER
-    // Base resolution: 1200x750 — all game logic stays untouched.
+    // Base resolution: 1334x750 — all game logic stays untouched.
     // Uses CSS transform scale on the container so ALL child overlays
     // (lobby, HUD, game-over screen) scale automatically with the canvas.
     // ================================================================
 
-    const BASE_W = 1200;
+    const BASE_W = 1334;
     const BASE_H = 750;
 
     function scaleCanvas() {
@@ -911,7 +911,7 @@
       // Best-fit letterbox — never crop, always show full game area
       const scale = Math.min(scaleX, scaleY);
 
-      // Canvas internal resolution stays locked at 1200x750
+      // Canvas internal resolution stays locked at 1334x750
       canvas.width  = BASE_W;
       canvas.height = BASE_H;
 
