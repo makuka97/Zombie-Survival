@@ -479,14 +479,16 @@
 
         // Bounce boundary = circumradius (90) + max tip triangle height (28) + small margin
         // tipSize max = 18 + (5/5)*10 = 28, drawn from the tip point outward
-        const pad = b.radius + 35; // 90 + 35 = 125px total clearance
+        // Bounce wall = border inner edge (6px) + full boss extent (radius 90 + tip 35 = 125)
+        const WALL = 6;
+        const pad = b.radius + 35;
         b.x += b.vx;
         b.y += b.vy;
 
-        if (b.x - pad < this.WALL_INSET) { b.x = this.WALL_INSET + pad; b.vx = Math.abs(b.vx); }
-        if (b.x + pad > W - this.WALL_INSET) { b.x = W - this.WALL_INSET - pad; b.vx = -Math.abs(b.vx); }
-        if (b.y - pad < this.WALL_INSET) { b.y = this.WALL_INSET + pad; b.vy = Math.abs(b.vy); }
-        if (b.y + pad > H - this.WALL_INSET) { b.y = H - this.WALL_INSET - pad; b.vy = -Math.abs(b.vy); }
+        if (b.x - pad < WALL)     { b.x = WALL + pad;     b.vx =  Math.abs(b.vx); }
+        if (b.x + pad > W - WALL) { b.x = W - WALL - pad; b.vx = -Math.abs(b.vx); }
+        if (b.y - pad < WALL)     { b.y = WALL + pad;     b.vy =  Math.abs(b.vy); }
+        if (b.y + pad > H - WALL) { b.y = H - WALL - pad; b.vy = -Math.abs(b.vy); }
 
         if (b.flashTimer > 0) b.flashTimer--;
 
@@ -687,9 +689,11 @@
           if (!p.connected || !p.alive) continue;
 
           // Player clamp — border inner edge is at wi=4, keep full sprite inside with margin
-          const margin = hs + wi + 2; // 14 + 4 + 2 = 20px from canvas edge
-          p.x = Math.max(margin, Math.min(W - margin, p.x + p.vx));
-          p.y = Math.max(margin, Math.min(H - margin, p.y + p.vy));
+          // Hard clamp: wall inner edge (6px) + half player size (14px) = 20px
+          const WALL = 6;
+          const clamp = hs + WALL;
+          p.x = Math.max(clamp, Math.min(W - clamp, p.x + p.vx));
+          p.y = Math.max(clamp, Math.min(H - clamp, p.y + p.vy));
 
           const weapon = WEAPONS[p.currentWeapon];
           p.fireCooldown--;
@@ -1091,7 +1095,14 @@
       container.style.width     = BASE_W + 'px';
       container.style.height    = BASE_H + 'px';
       container.style.transform = `scale(${scale})`;
-      container.style.transformOrigin = 'center center';
+      container.style.transformOrigin = 'top left';
+      // Manually centre using position:absolute + left/top offset
+      // This works correctly on all devices including iPad with browser chrome
+      const scaledW = BASE_W * scale;
+      const scaledH = BASE_H * scale;
+      container.style.position = 'absolute';
+      container.style.left = Math.floor((window.innerWidth  - scaledW) / 2) + 'px';
+      container.style.top  = Math.floor((window.innerHeight - scaledH) / 2) + 'px';
     }
 
     scaleCanvas();
