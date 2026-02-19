@@ -265,8 +265,9 @@
         this.REVIVE_TIME   = 3000;
         this.AMMO_DROP_CHANCE = 0.3;
 
-        // Wall inset — matches the border strokeRect(2,2,W-4,H-4) with lineWidth 4
-        this.WALL_INSET = 4;
+        // Wall inset — border is strokeRect(2,2,W-4,H-4) lineWidth=4, inner edge at 4px
+        // Use 6 for a clean pixel buffer so nothing clips through
+        this.WALL_INSET = 6;
 
         this.players    = [];
         this.zombies    = [];
@@ -282,7 +283,6 @@
 
         this.meleeFlashes = [];
         this.boss = null;
-        this.screenShake = 0;
 
         this.socket   = null;
         this.roomCode = null;
@@ -451,15 +451,13 @@
           flashTimer: 0,
           dead: false,
         };
-        // No screenShake here — shake fires on landing only
+
       }
 
       updateBoss() {
         if (!this.boss) return;
         const b = this.boss;
         const W = this.canvas.width, H = this.canvas.height;
-
-        if (this.screenShake > 0) this.screenShake--;
 
         // ── Dropping entrance ──────────────────────────────────────────
         if (b.dropping) {
@@ -468,10 +466,8 @@
           if (b.y >= b.dropTarget) {
             b.y = b.dropTarget;
             b.dropping = false;
-            // ── FIX 2: Start bouncing + big shake only on landing ──
             b.vx = 3.5;
             b.vy = 2.5;
-            this.screenShake = 30;
           }
           return;
         }
@@ -499,7 +495,6 @@
           for (let p of this.players) {
             if (p.alive && p.connected) p.points += 500;
           }
-          this.screenShake = 25;
           setTimeout(() => {
             this.boss = null;
             this.waveKilled = this.waveTotal;
@@ -645,7 +640,7 @@
         this.gameOver = false; this.gameStarted = false;
         this.reviveMap.clear(); this.mysteryBox = null;
         this.meleeFlashes = [];
-        this.boss = null; this.screenShake = 0;
+        this.boss = null;
 
         const spawns = [
           { x: 80,   y: 80  }, { x: 1254, y: 80  },
@@ -819,16 +814,7 @@
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
 
-        // Screen shake — inner content shakes, border drawn after restore so it never moves
-        ctx.save();
-        if (this.screenShake > 0) {
-          const intensity = this.screenShake * 0.15;
-          ctx.translate(
-            (Math.random()-0.5) * intensity,
-            (Math.random()-0.5) * intensity
-          );
-        }
-
+        // Screen shake removed — content renders cleanly without transform offset
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, W, H);
 
@@ -962,9 +948,7 @@
           ctx.fillText('BOSS', b.x, b.y - b.radius - 20);
         }
 
-        ctx.restore(); // end screen shake
-
-        // ── Arena border — drawn AFTER restore so it never shakes and is always visible ──
+        // ── Arena border — always on top, always visible ──
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
         ctx.shadowColor = '#00ff00';
