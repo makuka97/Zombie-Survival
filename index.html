@@ -273,6 +273,7 @@
         this.zombies    = [];
         this.bullets    = [];
         this.ammoPacks  = [];
+        this.healthPacks = [];
         this.wave       = 1;
         this.waveTotal  = 0;
         this.waveKilled = 0;
@@ -633,6 +634,7 @@
           if (z.hp <= 0) {
             p.points += z.points;
             this.ammoPacks.push({ x: z.x, y: z.y });
+            if (Math.random() < 0.08) this.healthPacks.push({ x: z.x, y: z.y });
             this.zombies.splice(j, 1);
             this.waveKilled++;
             if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
@@ -690,7 +692,7 @@
       }
 
       restart() {
-        this.zombies = []; this.bullets = []; this.ammoPacks = [];
+        this.zombies = []; this.bullets = []; this.ammoPacks = []; this.healthPacks = [];
         this.wave = 1; this.waveTotal = 0; this.waveKilled = 0;
         this.gameOver = false; this.gameStarted = false;
         this.reviveMap.clear(); this.mysteryBox = null;
@@ -787,6 +789,7 @@
                 }
                 if (nearest) nearest.points += z.points;
                 if (Math.random() < this.AMMO_DROP_CHANCE) this.ammoPacks.push({ x: z.x, y: z.y });
+                if (Math.random() < 0.08) this.healthPacks.push({ x: z.x, y: z.y });
                 this.zombies.splice(j, 1);
                 this.waveKilled++;
                 if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
@@ -814,6 +817,17 @@
             }
           }
           if (hit) this.bullets.splice(i, 1);
+        }
+
+        // Health packs — red cross
+        for (let h of this.healthPacks) {
+          ctx.fillStyle = '#222';
+          ctx.fillRect(h.x - 10, h.y - 10, 20, 20);
+          ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
+          ctx.strokeRect(h.x - 10, h.y - 10, 20, 20);
+          ctx.fillStyle = '#ff3333';
+          ctx.fillRect(h.x - 7, h.y - 2, 14, 4);  // horizontal bar
+          ctx.fillRect(h.x - 2, h.y - 7, 4, 14);  // vertical bar
         }
 
         // Zombies
@@ -851,6 +865,20 @@
               const weapon = WEAPONS[p.currentWeapon];
               p.ammo += Math.floor(weapon.ammoCapacity * 0.5);
               this.ammoPacks.splice(i, 1);
+              break;
+            }
+          }
+        }
+
+        // Health pack pickups
+        for (let i = this.healthPacks.length - 1; i >= 0; i--) {
+          const h = this.healthPacks[i];
+          for (let p of this.players) {
+            if (!p.alive) continue;
+            const hs2 = this.PLAYER_SIZE / 2;
+            if (this.aabb(h.x - 10, h.y - 10, 20, p.x - hs2, p.y - hs2, this.PLAYER_SIZE)) {
+              p.hp = Math.min(p.maxHp, p.hp + 30); // restore 30hp, cap at max
+              this.healthPacks.splice(i, 1);
               break;
             }
           }
