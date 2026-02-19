@@ -481,9 +481,9 @@
         b.spinSpeed = 0.03 + (3 - tipsAlive) * 0.025;
         b.rotation += b.spinSpeed;
 
-        // ── FIX 3: Bounce using padded radius so tips stay inside border ──
-        // Tips are drawn at b.radius distance; tip triangles add ~20px overhang
-        const pad = b.radius + 20;
+        // Bounce boundary = circumradius (90) + max tip triangle height (28) + small margin
+        // tipSize max = 18 + (5/5)*10 = 28, drawn from the tip point outward
+        const pad = b.radius + 35; // 90 + 35 = 125px total clearance
         b.x += b.vx;
         b.y += b.vy;
 
@@ -691,9 +691,10 @@
         for (let p of this.players) {
           if (!p.connected || !p.alive) continue;
 
-          // ── FIX 4: Player wall clamp — aligned to visible border ──
-          p.x = Math.max(hs + wi, Math.min(W - hs - wi, p.x + p.vx));
-          p.y = Math.max(hs + wi, Math.min(H - hs - wi, p.y + p.vy));
+          // Player clamp — border inner edge is at wi=4, keep full sprite inside with margin
+          const margin = hs + wi + 2; // 14 + 4 + 2 = 20px from canvas edge
+          p.x = Math.max(margin, Math.min(W - margin, p.x + p.vx));
+          p.y = Math.max(margin, Math.min(H - margin, p.y + p.vy));
 
           const weapon = WEAPONS[p.currentWeapon];
           p.fireCooldown--;
@@ -818,15 +819,7 @@
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
 
-        // Arena border — drawn outside shake so it never moves
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#00ff00';
-        ctx.shadowBlur = 12;
-        ctx.strokeRect(2, 2, W-4, H-4);
-        ctx.shadowBlur = 0;
-
-        // Screen shake — only inner content shakes
+        // Screen shake — inner content shakes, border drawn after restore so it never moves
         ctx.save();
         if (this.screenShake > 0) {
           const intensity = this.screenShake * 0.15;
@@ -970,6 +963,14 @@
         }
 
         ctx.restore(); // end screen shake
+
+        // ── Arena border — drawn AFTER restore so it never shakes and is always visible ──
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 14;
+        ctx.strokeRect(2, 2, W-4, H-4);
+        ctx.shadowBlur = 0;
 
         // Players (drawn outside shake so they feel stable)
         for (let p of this.players) {
