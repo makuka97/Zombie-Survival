@@ -418,7 +418,7 @@
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
 
-        if (this.wave % 1 === 0) {
+        if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
           this.showBanner('⚠ BOSS WAVE');
