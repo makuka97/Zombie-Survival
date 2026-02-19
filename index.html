@@ -819,17 +819,6 @@
           if (hit) this.bullets.splice(i, 1);
         }
 
-        // Health packs — red cross
-        for (let h of this.healthPacks) {
-          ctx.fillStyle = '#222';
-          ctx.fillRect(h.x - 10, h.y - 10, 20, 20);
-          ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
-          ctx.strokeRect(h.x - 10, h.y - 10, 20, 20);
-          ctx.fillStyle = '#ff3333';
-          ctx.fillRect(h.x - 7, h.y - 2, 14, 4);  // horizontal bar
-          ctx.fillRect(h.x - 2, h.y - 7, 4, 14);  // vertical bar
-        }
-
         // Zombies
         for (let z of this.zombies) {
           let nearest = null, nearestDist = Infinity;
@@ -933,6 +922,17 @@
           ctx.fillStyle = '#000'; ctx.font = 'bold 12px Courier New';
           ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
           ctx.fillText('A', a.x, a.y);
+        }
+
+        // Health packs — red cross
+        for (let h of this.healthPacks) {
+          ctx.fillStyle = '#222';
+          ctx.fillRect(h.x - 10, h.y - 10, 20, 20);
+          ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2;
+          ctx.strokeRect(h.x - 10, h.y - 10, 20, 20);
+          ctx.fillStyle = '#ff3333';
+          ctx.fillRect(h.x - 7, h.y - 2, 14, 4);
+          ctx.fillRect(h.x - 2, h.y - 7, 4, 14);
         }
 
         // Zombies
