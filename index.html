@@ -21,7 +21,6 @@
     #game-container {
       position: relative;
       overflow: hidden;
-      /* Size is set dynamically by the scaler JS */
     }
 
     #canvas {
@@ -228,10 +227,6 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
-    // ================================================================
-    // WEAPON & ZOMBIE DEFINITIONS
-    // ================================================================
-    
     const WEAPONS = {
       pistol:     { name: 'Pistol',        damage: 1,  fireRate: 10, ammoCapacity: 30  },
       smg:        { name: 'SMG',           damage: 1,  fireRate: 5,  ammoCapacity: 60,  rarity: 'common'    },
@@ -251,10 +246,9 @@
     const MYSTERY_BOX_COST = 950;
     const BOX_USE_RANGE    = 60;
 
-    // ── NEW: Melee constants ──────────────────────────────────────────
     const MELEE_DAMAGE = 1;
-    const MELEE_RANGE  = 55;   // pixels in front of player
-    const MELEE_ARC    = Math.PI * 0.6; // ~108° cone
+    const MELEE_RANGE  = 55;
+    const MELEE_ARC    = Math.PI * 0.6;
 
     class GameEngine {
       constructor() {
@@ -271,6 +265,9 @@
         this.REVIVE_TIME   = 3000;
         this.AMMO_DROP_CHANCE = 0.3;
 
+        // Wall inset — matches the border strokeRect(2,2,W-4,H-4) with lineWidth 4
+        this.WALL_INSET = 4;
+
         this.players    = [];
         this.zombies    = [];
         this.bullets    = [];
@@ -283,8 +280,7 @@
         this.reviveMap  = new Map();
         this.mysteryBox = null;
 
-        // NEW: track active melee swings for rendering flash
-        this.meleeFlashes = []; // { x, y, angle, timer }
+        this.meleeFlashes = [];
         this.boss = null;
         this.screenShake = 0;
 
@@ -314,7 +310,6 @@
             currentWeapon: 'pistol',
             alive: true, connected: false,
             firing: false, fireCooldown: 0,
-            // NEW: melee state
             meleeing: false,
             meleeCooldown: 0
           };
@@ -381,7 +376,7 @@
           p.vx = 0; p.vy = 0;
         }
         p.firing   = !!input.fire;
-        p.meleeing = !!input.melee; // NEW
+        p.meleeing = !!input.melee;
       }
 
       handleMysteryBoxPurchase(slot) {
@@ -423,7 +418,6 @@
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
 
-        // Every 1st wave is a boss wave (TESTING - change back to % 5)
         if (this.wave % 1 === 0) {
           this.waveTotal = 1;
           this.showBanner('⚠ BOSS WAVE');
@@ -440,24 +434,24 @@
 
       spawnBoss() {
         const W = this.canvas.width, H = this.canvas.height;
-        // Drop from top center
+        // ── FIX 1: No shake during drop — save it for the landing impact ──
         this.boss = {
           x: W / 2, y: -120,
-          dropping: true,       // falling entrance animation
+          dropping: true,
           dropTarget: H / 2,
-          vx: 3.5, vy: 2.5,    // bounce velocity
+          vx: 0, vy: 0,        // no movement until landed
           rotation: 0,
           spinSpeed: 0.03,
-          radius: 90,           // triangle circumradius
+          radius: 90,
           tips: [
-            { hp: 5, maxHp: 5 }, // tip 0 — top
-            { hp: 5, maxHp: 5 }, // tip 1 — bottom-left
-            { hp: 5, maxHp: 5 }, // tip 2 — bottom-right
+            { hp: 5, maxHp: 5 },
+            { hp: 5, maxHp: 5 },
+            { hp: 5, maxHp: 5 },
           ],
           flashTimer: 0,
           dead: false,
         };
-        this.screenShake = 8; // frames of shake while dropping
+        // No screenShake here — shake fires on landing only
       }
 
       updateBoss() {
@@ -465,17 +459,19 @@
         const b = this.boss;
         const W = this.canvas.width, H = this.canvas.height;
 
-        // Screen shake countdown
         if (this.screenShake > 0) this.screenShake--;
 
-        // Dropping entrance
+        // ── Dropping entrance ──────────────────────────────────────────
         if (b.dropping) {
           b.y += 6;
           b.rotation += b.spinSpeed;
           if (b.y >= b.dropTarget) {
             b.y = b.dropTarget;
             b.dropping = false;
-            this.screenShake = 20; // shake on landing
+            // ── FIX 2: Start bouncing + big shake only on landing ──
+            b.vx = 3.5;
+            b.vy = 2.5;
+            this.screenShake = 30;
           }
           return;
         }
@@ -485,27 +481,24 @@
         b.spinSpeed = 0.03 + (3 - tipsAlive) * 0.025;
         b.rotation += b.spinSpeed;
 
-        // Bounce movement
+        // ── FIX 3: Bounce using padded radius so tips stay inside border ──
+        // Tips are drawn at b.radius distance; tip triangles add ~20px overhang
+        const pad = b.radius + 20;
         b.x += b.vx;
         b.y += b.vy;
 
-        // Bounce off edges (account for radius)
-        if (b.x - b.radius < 0)  { b.x = b.radius;   b.vx = Math.abs(b.vx); }
-        if (b.x + b.radius > W)  { b.x = W-b.radius;  b.vx = -Math.abs(b.vx); }
-        if (b.y - b.radius < 0)  { b.y = b.radius;    b.vy = Math.abs(b.vy); }
-        if (b.y + b.radius > H)  { b.y = H-b.radius;  b.vy = -Math.abs(b.vy); }
+        if (b.x - pad < this.WALL_INSET) { b.x = this.WALL_INSET + pad; b.vx = Math.abs(b.vx); }
+        if (b.x + pad > W - this.WALL_INSET) { b.x = W - this.WALL_INSET - pad; b.vx = -Math.abs(b.vx); }
+        if (b.y - pad < this.WALL_INSET) { b.y = this.WALL_INSET + pad; b.vy = Math.abs(b.vy); }
+        if (b.y + pad > H - this.WALL_INSET) { b.y = H - this.WALL_INSET - pad; b.vy = -Math.abs(b.vy); }
 
-        // Flash timer
         if (b.flashTimer > 0) b.flashTimer--;
 
-        // Check if all tips destroyed
         if (b.tips.every(t => t.hp <= 0) && !b.dead) {
           b.dead = true;
-          // Award points to all alive players
           for (let p of this.players) {
             if (p.alive && p.connected) p.points += 500;
           }
-          // Death explosion shake
           this.screenShake = 25;
           setTimeout(() => {
             this.boss = null;
@@ -515,7 +508,6 @@
           }, 800);
         }
 
-        // Boss damages players on contact
         const hs = this.PLAYER_SIZE / 2;
         for (let p of this.players) {
           if (!p.alive || !p.connected) continue;
@@ -530,14 +522,13 @@
         }
       }
 
-      // Returns world positions of the 3 tips based on current rotation
       getBossTipPositions() {
         if (!this.boss) return [];
         const b = this.boss;
         const angles = [
-          b.rotation - Math.PI / 2,                    // top tip
-          b.rotation - Math.PI / 2 + (2 * Math.PI/3),  // bottom-left
-          b.rotation - Math.PI / 2 + (4 * Math.PI/3),  // bottom-right
+          b.rotation - Math.PI / 2,
+          b.rotation - Math.PI / 2 + (2 * Math.PI/3),
+          b.rotation - Math.PI / 2 + (4 * Math.PI/3),
         ];
         return angles.map(a => ({
           x: b.x + Math.cos(a) * b.radius,
@@ -590,9 +581,7 @@
         p.ammo--;
       }
 
-      // ── NEW: melee attack ───────────────────────────────────────────
       performMelee(p) {
-        // Add a visual flash for rendering
         this.meleeFlashes.push({ x: p.x, y: p.y, angle: p.angle, timer: 8, color: p.color });
 
         for (let j = this.zombies.length - 1; j >= 0; j--) {
@@ -601,10 +590,8 @@
           const dist = Math.sqrt(dx*dx + dy*dy);
           if (dist > MELEE_RANGE + z.size / 2) continue;
 
-          // Check angle — zombie must be within the arc in front of the player
           const angleToZombie = Math.atan2(dy, dx);
           let angleDiff = angleToZombie - p.angle;
-          // Normalise to [-π, π]
           while (angleDiff >  Math.PI) angleDiff -= Math.PI * 2;
           while (angleDiff < -Math.PI) angleDiff += Math.PI * 2;
           if (Math.abs(angleDiff) > MELEE_ARC / 2) continue;
@@ -612,12 +599,8 @@
           z.hp -= MELEE_DAMAGE;
 
           if (z.hp <= 0) {
-            // Award points to the knifing player
             p.points += z.points;
-
-            // Guaranteed ammo drop on melee kill so you can escape knife mode
             this.ammoPacks.push({ x: z.x, y: z.y });
-
             this.zombies.splice(j, 1);
             this.waveKilled++;
             if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
@@ -674,7 +657,7 @@
           p.hp = 100; p.ammo = 30; p.points = 0;
           p.currentWeapon = 'pistol';
           p.alive = true; p.firing = false; p.fireCooldown = 0;
-          p.meleeing = false; p.meleeCooldown = 0; // NEW reset
+          p.meleeing = false; p.meleeCooldown = 0;
         }
         document.getElementById('game-over-screen').style.display  = 'none';
         document.getElementById('game-info').style.display         = 'none';
@@ -698,8 +681,8 @@
         if (this.gameOver || !this.gameStarted) return;
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
+        const wi = this.WALL_INSET;
 
-        // Tick melee flash timers
         for (let i = this.meleeFlashes.length - 1; i >= 0; i--) {
           this.meleeFlashes[i].timer--;
           if (this.meleeFlashes[i].timer <= 0) this.meleeFlashes.splice(i, 1);
@@ -707,24 +690,23 @@
 
         for (let p of this.players) {
           if (!p.connected || !p.alive) continue;
-          p.x = Math.max(hs, Math.min(W-hs, p.x+p.vx));
-          p.y = Math.max(hs, Math.min(H-hs, p.y+p.vy));
+
+          // ── FIX 4: Player wall clamp — aligned to visible border ──
+          p.x = Math.max(hs + wi, Math.min(W - hs - wi, p.x + p.vx));
+          p.y = Math.max(hs + wi, Math.min(H - hs - wi, p.y + p.vy));
 
           const weapon = WEAPONS[p.currentWeapon];
           p.fireCooldown--;
           p.meleeCooldown--;
 
-          // Fire bullet only if has ammo
           if (p.firing && p.ammo > 0 && p.fireCooldown <= 0) {
             this.fireBullet(p);
             p.fireCooldown = weapon.fireRate;
           }
 
-          // ── NEW: melee attack (no cooldown, just register each press) ──
-          // meleeCooldown is 1 frame so we don't spam on same held press
           if (p.meleeing && p.ammo === 0 && p.meleeCooldown <= 0) {
             this.performMelee(p);
-            p.meleeCooldown = 1; // 1 frame gap prevents same-frame double-hit
+            p.meleeCooldown = 1;
           }
         }
 
@@ -762,7 +744,6 @@
           }
           if (hit) { this.bullets.splice(i, 1); continue; }
 
-          // Boss tip hit detection
           if (this.boss && !this.boss.dead && !this.boss.dropping) {
             const tips = this.getBossTipPositions();
             for (let t = 0; t < tips.length; t++) {
@@ -780,7 +761,7 @@
           if (hit) this.bullets.splice(i, 1);
         }
 
-        // Zombies move & attack
+        // Zombies
         for (let z of this.zombies) {
           let nearest = null, nearestDist = Infinity;
           for (let p of this.players) {
@@ -794,7 +775,8 @@
           const dist = Math.sqrt(dx*dx+dy*dy);
           if (dist > 0) { z.x += (dx/dist)*z.speed; z.y += (dy/dist)*z.speed; }
           const zhs = z.size / 2;
-          if (this.aabb(z.x-zhs, z.y-zhs, z.size, nearest.x-hs, nearest.y-hs, this.PLAYER_SIZE)) {
+          const hs2 = this.PLAYER_SIZE / 2;
+          if (this.aabb(z.x-zhs, z.y-zhs, z.size, nearest.x-hs2, nearest.y-hs2, this.PLAYER_SIZE)) {
             nearest.hp -= 0.5;
             if (nearest.hp <= 0 && nearest.alive) {
               nearest.alive = false; nearest.hp = 0;
@@ -806,10 +788,11 @@
         // Ammo pickups
         for (let i = this.ammoPacks.length-1; i >= 0; i--) {
           const a = this.ammoPacks[i];
+          const hs2 = this.PLAYER_SIZE / 2;
           for (let p of this.players) {
             if (!p.alive) continue;
             if (this.aabb(a.x-this.AMMO_SIZE/2, a.y-this.AMMO_SIZE/2, this.AMMO_SIZE,
-                          p.x-hs, p.y-hs, this.PLAYER_SIZE)) {
+                          p.x-hs2, p.y-hs2, this.PLAYER_SIZE)) {
               const weapon = WEAPONS[p.currentWeapon];
               p.ammo += Math.floor(weapon.ammoCapacity * 0.5);
               this.ammoPacks.splice(i, 1);
@@ -835,7 +818,7 @@
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
 
-        // Arena border drawn FIRST outside shake so it never moves
+        // Arena border — drawn outside shake so it never moves
         ctx.strokeStyle = '#00ff00';
         ctx.lineWidth = 4;
         ctx.shadowColor = '#00ff00';
@@ -843,13 +826,14 @@
         ctx.strokeRect(2, 2, W-4, H-4);
         ctx.shadowBlur = 0;
 
-        // Screen shake — only inner content shakes, border stays fixed
+        // Screen shake — only inner content shakes
         ctx.save();
         if (this.screenShake > 0) {
           const intensity = this.screenShake * 0.15;
-          const sx = (Math.random()-0.5) * intensity;
-          const sy = (Math.random()-0.5) * intensity;
-          ctx.translate(sx, sy);
+          ctx.translate(
+            (Math.random()-0.5) * intensity,
+            (Math.random()-0.5) * intensity
+          );
         }
 
         ctx.fillStyle = '#111';
@@ -901,7 +885,7 @@
           ctx.shadowBlur = 0;
         }
 
-        // ── NEW: render melee arc flashes ───────────────────────────
+        // Melee arc flashes
         for (let f of this.meleeFlashes) {
           const alpha = f.timer / 8;
           ctx.save();
@@ -917,7 +901,7 @@
           ctx.restore();
         }
 
-        // ── BOSS ─────────────────────────────────────────────────────
+        // Boss
         if (this.boss && !this.boss.dead) {
           const b = this.boss;
           const tips = this.getBossTipPositions();
@@ -927,7 +911,6 @@
           ctx.translate(b.x, b.y);
           ctx.rotate(b.rotation);
 
-          // Purple triangle body
           ctx.beginPath();
           for (let i = 0; i < 3; i++) {
             const a = -Math.PI/2 + (i * 2 * Math.PI / 3);
@@ -946,7 +929,6 @@
           ctx.shadowBlur  = 0;
           ctx.restore();
 
-          // Red tips — drawn in world space so we can show HP
           for (let t = 0; t < 3; t++) {
             const tip = tips[t];
             const bossT = b.tips[t];
@@ -972,7 +954,6 @@
             ctx.stroke();
             ctx.shadowBlur  = 0;
 
-            // Tip HP bar
             const barW = 40, barH = 5;
             ctx.fillStyle = '#330000';
             ctx.fillRect(-barW/2, tipSize + 4, barW, barH);
@@ -981,7 +962,6 @@
             ctx.restore();
           }
 
-          // BOSS label
           ctx.fillStyle = '#ff44ff';
           ctx.font = 'bold 16px Courier New';
           ctx.textAlign = 'center';
@@ -989,10 +969,9 @@
           ctx.fillText('BOSS', b.x, b.y - b.radius - 20);
         }
 
-        // Close screen shake transform
-        ctx.restore();
+        ctx.restore(); // end screen shake
 
-        // Players
+        // Players (drawn outside shake so they feel stable)
         for (let p of this.players) {
           if (!p.connected) continue;
           if (p.alive) {
@@ -1005,15 +984,12 @@
             ctx.moveTo(p.x, p.y);
             ctx.lineTo(p.x+Math.cos(p.angle)*(hs+12), p.y+Math.sin(p.angle)*(hs+12));
             ctx.stroke();
-            // HP bar
             ctx.fillStyle = '#ff0000'; ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE, 5);
             ctx.fillStyle = '#00ff00'; ctx.fillRect(p.x-hs, p.y-hs-10, this.PLAYER_SIZE*(p.hp/p.maxHp), 5);
-            // Points label
             ctx.fillStyle = '#ffff00'; ctx.font = 'bold 12px Courier New';
             ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
             ctx.fillText(`$${p.points}`, p.x, p.y-hs-20);
 
-            // show KNIFE text above player when in melee mode
             if (p.ammo === 0) {
               ctx.fillStyle = '#00ff66'; ctx.font = 'bold 11px Courier New';
               ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
@@ -1117,12 +1093,6 @@
       document.getElementById('vote-display').textContent =
         `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
     });
-    // ================================================================
-    // RESPONSIVE CANVAS SCALER
-    // Base resolution: 1334x750 — all game logic stays untouched.
-    // Uses CSS transform scale on the container so ALL child overlays
-    // (lobby, HUD, game-over screen) scale automatically with the canvas.
-    // ================================================================
 
     const BASE_W = 1334;
     const BASE_H = 750;
@@ -1130,31 +1100,18 @@
     function scaleCanvas() {
       const container = document.getElementById('game-container');
       const canvas    = document.getElementById('canvas');
-
-      const scaleX = window.innerWidth  / BASE_W;
-      const scaleY = window.innerHeight / BASE_H;
-
-      // Best-fit letterbox — never crop, always show full game area
-      const scale = Math.min(scaleX, scaleY);
-
-      // Canvas internal resolution stays locked at 1334x750
+      const scale = Math.min(window.innerWidth / BASE_W, window.innerHeight / BASE_H);
       canvas.width  = BASE_W;
       canvas.height = BASE_H;
-
-      // Container is always BASE size, scaled via CSS transform
-      // This means ALL child elements (overlays, HUD, lobby) scale too
       container.style.width     = BASE_W + 'px';
       container.style.height    = BASE_H + 'px';
       container.style.transform = `scale(${scale})`;
       container.style.transformOrigin = 'center center';
     }
 
-    // Scale on load and every time window resizes (rotation, etc.)
     scaleCanvas();
     window.addEventListener('resize', scaleCanvas);
-    window.addEventListener('orientationchange', () => {
-      setTimeout(scaleCanvas, 100); // small delay lets browser settle after rotation
-    });
+    window.addEventListener('orientationchange', () => setTimeout(scaleCanvas, 100));
 
   </script>
 </body>
