@@ -6,56 +6,28 @@
   <title>Zombie Survival - Host</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
+
     body {
       background: #000;
       display: flex;
       justify-content: center;
       align-items: center;
-      min-height: 100vh;
-      font-family: 'Courier New', monospace;
-      overflow: hidden;
-      padding: 10px;
-    }
-    
-    #game-container {
-      width: 100%;
+      width: 100vw;
       height: 100vh;
-      max-width: 1200px;
-      max-height: 750px;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      overflow: hidden;
+      font-family: 'Courier New', monospace;
+    }
+
+    #game-container {
       position: relative;
+      /* Size is set dynamically by the scaler JS */
     }
-    
+
     #canvas {
-      border: 2px solid #00ff00;
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
+      display: block;
+      /* Pixel-perfect scaling — critical for crisp sprites */
+      image-rendering: pixelated;
       image-rendering: crisp-edges;
-    }
-    
-    @media (max-width: 768px) and (orientation: landscape) {
-      body { padding: 5px; }
-      #game-container { max-width: 100vw; max-height: 100vh; }
-      #room-code-display { top: 5px; padding: 8px 15px; font-size: 0.8em; flex-direction: row; gap: 15px; }
-      #room-code { font-size: 24px; letter-spacing: 3px; }
-      #qr-code canvas { width: 80px !important; height: 80px !important; }
-      #game-info { top: 5px; right: 5px; padding: 8px; font-size: 0.8em; }
-      #lobby-screen { width: 95%; max-width: none; padding: 10px; }
-      #lobby-players { gap: 8px; }
-    }
-    
-    @media (max-width: 768px) and (orientation: portrait) {
-      #game-container { max-height: 70vh; max-width: 95vw; }
-      #room-code-display { flex-direction: column; gap: 10px; padding: 10px 20px; }
-      #room-code { font-size: 32px; }
-      #qr-code canvas { width: 100px !important; height: 100px !important; }
-    }
-    
-    @media (min-width: 769px) and (max-width: 1024px) {
-      #game-container { max-width: 95vw; max-height: 70vh; }
     }
 
     #room-code-display {
@@ -917,6 +889,48 @@
       document.getElementById('vote-display').textContent =
         `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
     });
+    // ================================================================
+    // RESPONSIVE CANVAS SCALER
+    // Base resolution: 1200x750 — all game logic stays untouched.
+    // The scaler uses ctx.scale() so zombie/player coordinates never
+    // need to change regardless of what screen this runs on.
+    // ================================================================
+
+    const BASE_W = 1200;
+    const BASE_H = 750;
+
+    function scaleCanvas() {
+      const canvas    = document.getElementById('canvas');
+      const container = document.getElementById('game-container');
+      const scaleX    = window.innerWidth  / BASE_W;
+      const scaleY    = window.innerHeight / BASE_H;
+
+      // Best-fit letterbox — never crop, always show full game area
+      const scale = Math.min(scaleX, scaleY);
+
+      const displayW = Math.floor(BASE_W * scale);
+      const displayH = Math.floor(BASE_H * scale);
+
+      // Canvas internal resolution stays at 1200x750 always
+      canvas.width  = BASE_W;
+      canvas.height = BASE_H;
+
+      // CSS size = the scaled display size
+      canvas.style.width  = displayW + 'px';
+      canvas.style.height = displayH + 'px';
+
+      // Container matches the scaled canvas exactly
+      container.style.width  = displayW + 'px';
+      container.style.height = displayH + 'px';
+    }
+
+    // Scale on load and every time the window resizes (rotation, etc.)
+    scaleCanvas();
+    window.addEventListener('resize', scaleCanvas);
+    window.addEventListener('orientationchange', () => {
+      setTimeout(scaleCanvas, 100); // small delay lets browser settle after rotation
+    });
+
   </script>
 </body>
 </html>
