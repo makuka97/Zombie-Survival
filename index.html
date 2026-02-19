@@ -426,7 +426,7 @@
         // Every 1st wave is a boss wave (TESTING - change back to % 5)
         if (this.wave % 1 === 0) {
           this.waveTotal = 1;
-          this.showBanner('⚠ BOSS WAVE ⚠');
+          this.showBanner('⚠ BOSS WAVE');
           setTimeout(() => this.spawnBoss(), 2000);
         } else {
           const baseCount = 3 + (this.wave - 1) * 2;
@@ -457,7 +457,7 @@
           flashTimer: 0,
           dead: false,
         };
-        this.screenShake = 20; // frames of shake while dropping
+        this.screenShake = 8; // frames of shake while dropping
       }
 
       updateBoss() {
@@ -475,7 +475,7 @@
           if (b.y >= b.dropTarget) {
             b.y = b.dropTarget;
             b.dropping = false;
-            this.screenShake = 45; // big shake on landing
+            this.screenShake = 20; // shake on landing
           }
           return;
         }
@@ -506,7 +506,7 @@
             if (p.alive && p.connected) p.points += 500;
           }
           // Death explosion shake
-          this.screenShake = 50;
+          this.screenShake = 25;
           setTimeout(() => {
             this.boss = null;
             this.waveKilled = this.waveTotal;
@@ -835,10 +835,18 @@
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
 
-        // Screen shake
+        // Arena border drawn FIRST outside shake so it never moves
+        ctx.strokeStyle = '#00ff00';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#00ff00';
+        ctx.shadowBlur = 12;
+        ctx.strokeRect(2, 2, W-4, H-4);
+        ctx.shadowBlur = 0;
+
+        // Screen shake — only inner content shakes, border stays fixed
         ctx.save();
         if (this.screenShake > 0) {
-          const intensity = this.screenShake * 0.4;
+          const intensity = this.screenShake * 0.15;
           const sx = (Math.random()-0.5) * intensity;
           const sy = (Math.random()-0.5) * intensity;
           ctx.translate(sx, sy);
@@ -851,14 +859,6 @@
         ctx.strokeStyle = 'rgba(0,255,0,0.05)'; ctx.lineWidth = 1;
         for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
         for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
-
-        // Arena border — drawn on canvas so it always contains players and boss
-        ctx.strokeStyle = '#00ff00';
-        ctx.lineWidth = 4;
-        ctx.shadowColor = '#00ff00';
-        ctx.shadowBlur = 12;
-        ctx.strokeRect(2, 2, W-4, H-4);
-        ctx.shadowBlur = 0;
 
         // Mystery box
         if (this.mysteryBox) {
