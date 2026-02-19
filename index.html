@@ -287,6 +287,8 @@
 
         // NEW: track active melee swings for rendering flash
         this.meleeFlashes = []; // { x, y, angle, timer }
+        this.boss = null;
+        this.screenShake = 0;
 
         this.socket   = null;
         this.roomCode = null;
@@ -421,13 +423,129 @@
 
       startWave() {
         const playerCount = Math.max(1, this.connectedCount());
-        const baseCount   = 3 + (this.wave - 1) * 2;
-        this.waveTotal    = Math.ceil(baseCount * (playerCount / 2));
-        this.waveKilled   = 0;
-        this.showBanner('WAVE ' + this.wave);
-        for (let i = 0; i < this.waveTotal; i++) {
-          setTimeout(() => this.spawnZombie(), i * 500);
+        this.waveKilled = 0;
+
+        // Every 1st wave is a boss wave (TESTING - change back to % 5)
+        if (this.wave % 1 === 0) {
+          this.waveTotal = 1;
+          this.showBanner('⚠ BOSS WAVE ⚠');
+          setTimeout(() => this.spawnBoss(), 2000);
+        } else {
+          const baseCount = 3 + (this.wave - 1) * 2;
+          this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
+          this.showBanner('WAVE ' + this.wave);
+          for (let i = 0; i < this.waveTotal; i++) {
+            setTimeout(() => this.spawnZombie(), i * 500);
+          }
         }
+      }
+
+      spawnBoss() {
+        const W = this.canvas.width, H = this.canvas.height;
+        // Drop from top center
+        this.boss = {
+          x: W / 2, y: -120,
+          dropping: true,       // falling entrance animation
+          dropTarget: H / 2,
+          vx: 3.5, vy: 2.5,    // bounce velocity
+          rotation: 0,
+          spinSpeed: 0.03,
+          radius: 90,           // triangle circumradius
+          tips: [
+            { hp: 10, maxHp: 10 }, // tip 0 — top
+            { hp: 10, maxHp: 10 }, // tip 1 — bottom-left
+            { hp: 10, maxHp: 10 }, // tip 2 — bottom-right
+          ],
+          flashTimer: 0,
+          dead: false,
+        };
+        this.screenShake = 20; // frames of shake on landing
+      }
+
+      updateBoss() {
+        if (!this.boss) return;
+        const b = this.boss;
+        const W = this.canvas.width, H = this.canvas.height;
+
+        // Screen shake countdown
+        if (this.screenShake > 0) this.screenShake--;
+
+        // Dropping entrance
+        if (b.dropping) {
+          b.y += 6;
+          b.rotation += b.spinSpeed;
+          if (b.y >= b.dropTarget) {
+            b.y = b.dropTarget;
+            b.dropping = false;
+            this.screenShake = 25; // big shake on landing
+            this.showBanner('SHOOT THE TIPS!');
+          }
+          return;
+        }
+
+        // Spin faster as tips are destroyed
+        const tipsAlive = b.tips.filter(t => t.hp > 0).length;
+        b.spinSpeed = 0.03 + (3 - tipsAlive) * 0.025;
+        b.rotation += b.spinSpeed;
+
+        // Bounce movement
+        b.x += b.vx;
+        b.y += b.vy;
+
+        // Bounce off edges (account for radius)
+        if (b.x - b.radius < 0)  { b.x = b.radius;   b.vx = Math.abs(b.vx); }
+        if (b.x + b.radius > W)  { b.x = W-b.radius;  b.vx = -Math.abs(b.vx); }
+        if (b.y - b.radius < 0)  { b.y = b.radius;    b.vy = Math.abs(b.vy); }
+        if (b.y + b.radius > H)  { b.y = H-b.radius;  b.vy = -Math.abs(b.vy); }
+
+        // Flash timer
+        if (b.flashTimer > 0) b.flashTimer--;
+
+        // Check if all tips destroyed
+        if (b.tips.every(t => t.hp <= 0) && !b.dead) {
+          b.dead = true;
+          // Award points to all alive players
+          for (let p of this.players) {
+            if (p.alive && p.connected) p.points += 500;
+          }
+          // Death explosion shake
+          this.screenShake = 30;
+          setTimeout(() => {
+            this.boss = null;
+            this.waveKilled = this.waveTotal;
+            this.wave++;
+            setTimeout(() => this.startWave(), 3000);
+          }, 800);
+        }
+
+        // Boss damages players on contact
+        const hs = this.PLAYER_SIZE / 2;
+        for (let p of this.players) {
+          if (!p.alive || !p.connected) continue;
+          const dx = p.x - b.x, dy = p.y - b.y;
+          if (Math.sqrt(dx*dx+dy*dy) < b.radius + hs) {
+            p.hp -= 1;
+            if (p.hp <= 0 && p.alive) {
+              p.alive = false; p.hp = 0;
+              this.checkGameOver();
+            }
+          }
+        }
+      }
+
+      // Returns world positions of the 3 tips based on current rotation
+      getBossTipPositions() {
+        if (!this.boss) return [];
+        const b = this.boss;
+        const angles = [
+          b.rotation - Math.PI / 2,                    // top tip
+          b.rotation - Math.PI / 2 + (2 * Math.PI/3),  // bottom-left
+          b.rotation - Math.PI / 2 + (4 * Math.PI/3),  // bottom-right
+        ];
+        return angles.map(a => ({
+          x: b.x + Math.cos(a) * b.radius,
+          y: b.y + Math.sin(a) * b.radius,
+        }));
       }
 
       showBanner(text) {
@@ -547,6 +665,7 @@
         this.gameOver = false; this.gameStarted = false;
         this.reviveMap.clear(); this.mysteryBox = null;
         this.meleeFlashes = [];
+        this.boss = null; this.screenShake = 0;
 
         const spawns = [
           { x: 80,   y: 80  }, { x: 1254, y: 80  },
@@ -644,6 +763,23 @@
               break;
             }
           }
+          if (hit) { this.bullets.splice(i, 1); continue; }
+
+          // Boss tip hit detection
+          if (this.boss && !this.boss.dead && !this.boss.dropping) {
+            const tips = this.getBossTipPositions();
+            for (let t = 0; t < tips.length; t++) {
+              const tip = tips[t];
+              const dx = b.x - tip.x, dy = b.y - tip.y;
+              if (Math.sqrt(dx*dx+dy*dy) < 22 && this.boss.tips[t].hp > 0) {
+                this.boss.tips[t].hp--;
+                this.boss.flashTimer = 6;
+                this.bullets.splice(i, 1);
+                hit = true;
+                break;
+              }
+            }
+          }
           if (hit) this.bullets.splice(i, 1);
         }
 
@@ -686,6 +822,7 @@
         }
 
         this.updateRevive();
+        this.updateBoss();
       }
 
       checkGameOver() {
@@ -700,6 +837,14 @@
         const ctx = this.ctx;
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
+
+        // Screen shake
+        ctx.save();
+        if (this.screenShake > 0) {
+          const sx = (Math.random()-0.5) * this.screenShake * 0.5;
+          const sy = (Math.random()-0.5) * this.screenShake * 0.5;
+          ctx.translate(sx, sy);
+        }
 
         ctx.fillStyle = '#111';
         ctx.fillRect(0, 0, W, H);
@@ -765,6 +910,81 @@
           ctx.fill();
           ctx.restore();
         }
+
+        // ── BOSS ─────────────────────────────────────────────────────
+        if (this.boss && !this.boss.dead) {
+          const b = this.boss;
+          const tips = this.getBossTipPositions();
+          const flashing = b.flashTimer > 0 && b.flashTimer % 2 === 0;
+
+          ctx.save();
+          ctx.translate(b.x, b.y);
+          ctx.rotate(b.rotation);
+
+          // Purple triangle body
+          ctx.beginPath();
+          for (let i = 0; i < 3; i++) {
+            const a = -Math.PI/2 + (i * 2 * Math.PI / 3);
+            const px = Math.cos(a) * b.radius;
+            const py = Math.sin(a) * b.radius;
+            i === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py);
+          }
+          ctx.closePath();
+          ctx.fillStyle   = flashing ? '#ff88ff' : '#8844cc';
+          ctx.shadowColor = '#bb00ff';
+          ctx.shadowBlur  = 30;
+          ctx.fill();
+          ctx.strokeStyle = '#000';
+          ctx.lineWidth   = 4;
+          ctx.stroke();
+          ctx.shadowBlur  = 0;
+          ctx.restore();
+
+          // Red tips — drawn in world space so we can show HP
+          for (let t = 0; t < 3; t++) {
+            const tip = tips[t];
+            const bossT = b.tips[t];
+            if (bossT.hp <= 0) continue;
+
+            const tipAngle = b.rotation - Math.PI/2 + t * (2*Math.PI/3);
+            const tipSize  = 18 + (bossT.hp / bossT.maxHp) * 10;
+
+            ctx.save();
+            ctx.translate(tip.x, tip.y);
+            ctx.rotate(tipAngle);
+            ctx.beginPath();
+            ctx.moveTo(0, -tipSize);
+            ctx.lineTo(-tipSize * 0.8, tipSize * 0.6);
+            ctx.lineTo(tipSize * 0.8, tipSize * 0.6);
+            ctx.closePath();
+            ctx.fillStyle   = flashing ? '#ffaaaa' : '#cc0000';
+            ctx.shadowColor = '#ff0000';
+            ctx.shadowBlur  = 15;
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth   = 2;
+            ctx.stroke();
+            ctx.shadowBlur  = 0;
+
+            // Tip HP bar
+            const barW = 40, barH = 5;
+            ctx.fillStyle = '#330000';
+            ctx.fillRect(-barW/2, tipSize + 4, barW, barH);
+            ctx.fillStyle = '#ff0000';
+            ctx.fillRect(-barW/2, tipSize + 4, barW * (bossT.hp / bossT.maxHp), barH);
+            ctx.restore();
+          }
+
+          // BOSS label
+          ctx.fillStyle = '#ff44ff';
+          ctx.font = 'bold 16px Courier New';
+          ctx.textAlign = 'center';
+          ctx.textBaseline = 'middle';
+          ctx.fillText('BOSS', b.x, b.y - b.radius - 20);
+        }
+
+        // Close screen shake transform
+        ctx.restore();
 
         // Players
         for (let p of this.players) {
