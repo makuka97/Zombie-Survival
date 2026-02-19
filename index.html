@@ -20,12 +20,12 @@
 
     #game-container {
       position: relative;
+      overflow: hidden;
       /* Size is set dynamically by the scaler JS */
     }
 
     #canvas {
       display: block;
-      /* Pixel-perfect scaling — critical for crisp sprites */
       image-rendering: pixelated;
       image-rendering: crisp-edges;
     }
@@ -174,55 +174,55 @@
   </style>
 </head>
 <body>
-  <div id="room-code-display">
-    <div id="room-code-text">
-      <p>SCAN TO JOIN</p>
-      <div id="room-code">----</div>
-    </div>
-    <div id="qr-code"></div>
-  </div>
-
-  <div id="lobby-screen">
-    <div id="lobby-players">
-      <div class="lobby-slot" id="slot-1">
-        <div class="slot-color" style="background:#00ffff"></div>
-        <div class="slot-name">PLAYER 1</div>
-        <div class="slot-status status-waiting">EMPTY</div>
-      </div>
-      <div class="lobby-slot" id="slot-2">
-        <div class="slot-color" style="background:#ff44ff"></div>
-        <div class="slot-name">PLAYER 2</div>
-        <div class="slot-status status-waiting">EMPTY</div>
-      </div>
-      <div class="lobby-slot" id="slot-3">
-        <div class="slot-color" style="background:#4488ff"></div>
-        <div class="slot-name">PLAYER 3</div>
-        <div class="slot-status status-waiting">EMPTY</div>
-      </div>
-      <div class="lobby-slot" id="slot-4">
-        <div class="slot-color" style="background:#ffff00"></div>
-        <div class="slot-name">PLAYER 4</div>
-        <div class="slot-status status-waiting">EMPTY</div>
-      </div>
-    </div>
-    <div id="countdown"></div>
-  </div>
-
-  <div id="game-info">
-    <div class="info-line">WAVE: <span id="wave">1</span></div>
-    <div class="info-line">ZOMBIES: <span id="zombie-count">0</span></div>
-    <div class="info-line">PLAYERS: <span id="player-count">0</span>/4</div>
-  </div>
-
-  <div id="wave-banner"></div>
-  <div id="game-over-screen">
-    <h1>GAME OVER</h1>
-    <p>All players have fallen</p>
-    <div id="vote-display">Waiting for restart votes...</div>
-  </div>
-
   <div id="game-container">
     <canvas id="canvas" width="1200" height="750"></canvas>
+
+    <div id="room-code-display">
+      <div id="room-code-text">
+        <p>SCAN TO JOIN</p>
+        <div id="room-code">----</div>
+      </div>
+      <div id="qr-code"></div>
+    </div>
+
+    <div id="lobby-screen">
+      <div id="lobby-players">
+        <div class="lobby-slot" id="slot-1">
+          <div class="slot-color" style="background:#00ffff"></div>
+          <div class="slot-name">PLAYER 1</div>
+          <div class="slot-status status-waiting">EMPTY</div>
+        </div>
+        <div class="lobby-slot" id="slot-2">
+          <div class="slot-color" style="background:#ff44ff"></div>
+          <div class="slot-name">PLAYER 2</div>
+          <div class="slot-status status-waiting">EMPTY</div>
+        </div>
+        <div class="lobby-slot" id="slot-3">
+          <div class="slot-color" style="background:#4488ff"></div>
+          <div class="slot-name">PLAYER 3</div>
+          <div class="slot-status status-waiting">EMPTY</div>
+        </div>
+        <div class="lobby-slot" id="slot-4">
+          <div class="slot-color" style="background:#ffff00"></div>
+          <div class="slot-name">PLAYER 4</div>
+          <div class="slot-status status-waiting">EMPTY</div>
+        </div>
+      </div>
+      <div id="countdown"></div>
+    </div>
+
+    <div id="game-info">
+      <div class="info-line">WAVE: <span id="wave">1</span></div>
+      <div class="info-line">ZOMBIES: <span id="zombie-count">0</span></div>
+      <div class="info-line">PLAYERS: <span id="player-count">0</span>/4</div>
+    </div>
+
+    <div id="wave-banner"></div>
+    <div id="game-over-screen">
+      <h1>GAME OVER</h1>
+      <p>All players have fallen</p>
+      <div id="vote-display">Waiting for restart votes...</div>
+    </div>
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
@@ -892,39 +892,36 @@
     // ================================================================
     // RESPONSIVE CANVAS SCALER
     // Base resolution: 1200x750 — all game logic stays untouched.
-    // The scaler uses ctx.scale() so zombie/player coordinates never
-    // need to change regardless of what screen this runs on.
+    // Uses CSS transform scale on the container so ALL child overlays
+    // (lobby, HUD, game-over screen) scale automatically with the canvas.
     // ================================================================
 
     const BASE_W = 1200;
     const BASE_H = 750;
 
     function scaleCanvas() {
-      const canvas    = document.getElementById('canvas');
       const container = document.getElementById('game-container');
-      const scaleX    = window.innerWidth  / BASE_W;
-      const scaleY    = window.innerHeight / BASE_H;
+      const canvas    = document.getElementById('canvas');
+
+      const scaleX = window.innerWidth  / BASE_W;
+      const scaleY = window.innerHeight / BASE_H;
 
       // Best-fit letterbox — never crop, always show full game area
       const scale = Math.min(scaleX, scaleY);
 
-      const displayW = Math.floor(BASE_W * scale);
-      const displayH = Math.floor(BASE_H * scale);
-
-      // Canvas internal resolution stays at 1200x750 always
+      // Canvas internal resolution stays locked at 1200x750
       canvas.width  = BASE_W;
       canvas.height = BASE_H;
 
-      // CSS size = the scaled display size
-      canvas.style.width  = displayW + 'px';
-      canvas.style.height = displayH + 'px';
-
-      // Container matches the scaled canvas exactly
-      container.style.width  = displayW + 'px';
-      container.style.height = displayH + 'px';
+      // Container is always BASE size, scaled via CSS transform
+      // This means ALL child elements (overlays, HUD, lobby) scale too
+      container.style.width     = BASE_W + 'px';
+      container.style.height    = BASE_H + 'px';
+      container.style.transform = `scale(${scale})`;
+      container.style.transformOrigin = 'center center';
     }
 
-    // Scale on load and every time the window resizes (rotation, etc.)
+    // Scale on load and every time window resizes (rotation, etc.)
     scaleCanvas();
     window.addEventListener('resize', scaleCanvas);
     window.addEventListener('orientationchange', () => {
