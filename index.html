@@ -419,10 +419,28 @@
         this.waveKilled = 0;
 
         if (this.wave % 1 === 0) {
+          this.isBossWave = true;
           this.waveTotal = 1;
           this.showBanner('⚠ BOSS WAVE');
+          // Unlimited ammo for boss wave — save each player's ammo to restore after
+          for (let p of this.players) {
+            if (!p.connected) continue;
+            p.savedAmmo = p.ammo;
+            p.ammo = Infinity;
+          }
           setTimeout(() => this.spawnBoss(), 2000);
         } else {
+          this.isBossWave = false;
+          // Restore finite ammo coming out of a boss wave
+          for (let p of this.players) {
+            if (!p.connected) continue;
+            if (p.savedAmmo !== undefined) {
+              const weapon = WEAPONS[p.currentWeapon];
+              // Give them back their saved ammo, minimum a half-mag so they're not helpless
+              p.ammo = Math.max(p.savedAmmo, Math.floor(weapon.ammoCapacity * 0.5));
+              p.savedAmmo = undefined;
+            }
+          }
           const baseCount = 3 + (this.wave - 1) * 2;
           this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
           this.showBanner('WAVE ' + this.wave);
@@ -592,7 +610,7 @@
           damage: weapon.damage,
           color: p.color
         });
-        p.ammo--;
+        if (p.ammo !== Infinity) p.ammo--;
       }
 
       performMelee(p) {
@@ -678,6 +696,8 @@
         this.reviveMap.clear(); this.mysteryBox = null;
         this.meleeFlashes = [];
         this.boss = null;
+        this.isBossWave = false;
+        for (let p of this.players) { p.savedAmmo = undefined; }
 
         const spawns = [
           { x: 80,   y: 80  }, { x: 1254, y: 80  },
@@ -734,12 +754,12 @@
           p.fireCooldown--;
           p.meleeCooldown--;
 
-          if (p.firing && p.ammo > 0 && p.fireCooldown <= 0) {
+          if (p.firing && (p.ammo > 0 || p.ammo === Infinity) && p.fireCooldown <= 0) {
             this.fireBullet(p);
             p.fireCooldown = weapon.fireRate;
           }
 
-          if (p.meleeing && p.ammo === 0 && p.meleeCooldown <= 0) {
+          if (p.meleeing && p.ammo === 0 && p.ammo !== Infinity && p.meleeCooldown <= 0) {
             this.performMelee(p);
             p.meleeCooldown = 1;
           }
@@ -1071,7 +1091,7 @@
                   gameOver: this.gameOver,
                   players: this.players.map(p => ({
                     health: p.hp,
-                    ammo: p.ammo,
+                    ammo: p.ammo === Infinity ? -1 : p.ammo,
                     isAlive: p.alive,
                     points: p.points,
                     weapon: p.currentWeapon,
