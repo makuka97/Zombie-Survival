@@ -299,6 +299,7 @@
       // Other players
       for (const sp of state.players) {
         if (sp.slot === mySlot) continue;  // skip self — we use prediction for ourselves
+        if (!sp.connected) { this.players.delete(sp.slot); continue; } // skip empty slots
         const existing = this.players.get(sp.slot);
         if (existing) {
           existing.prev  = { x: existing.x, y: existing.y, angle: existing.angle };
@@ -520,9 +521,8 @@
       // ── Players ───────────────────────────────────────────────────
       for (const sp of state.players) {
         const isMe = sp.slot === mySlot;
-        // Skip empty slots (never connected, not us, not in interp map)
-        const inInterp = interp && interp.players.has(sp.slot);
-        if (!sp.connected && !isMe && !inInterp) continue;
+        // Only render: ourselves, or players who are actually connected
+        if (!isMe && !sp.connected) continue;
         // Our player: use local prediction. Other players: use interpolated position (fallback to server).
         const ip = (!isMe && interp) ? interp.getPlayer(sp.slot) : null;
         const px = isMe && pred ? pred.x     : (ip ? ip.x     : sp.x);
