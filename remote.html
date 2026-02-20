@@ -282,14 +282,37 @@
   // ================================================================
   class Interpolator {
     constructor() {
-      this.players  = new Map();  // slot -> { snapshots: [{t, x, y, angle, ...}], x, y, angle, ... }
-      this.zombies  = [];
-      this._snapshots = [];       // [{time, zombies}] ring buffer for zombie interp
-      this.BUFFER   = 34;         // ~2 server ticks at 60Hz (16ms each)
+      this.players    = new Map();
+      this.zombies    = [];
+      this._snapshots = [];
+
+      // ── Adaptive jitter buffer ─────────────────────────────────────
+      // Measures real packet arrival jitter and sets buffer just large
+      // enough to always have a prev+next pair, minimising lag.
+      this._minBuffer  = 16;   // ms — floor (1 server tick at 60Hz)
+      this._maxBuffer  = 150;  // ms — ceiling for very bad connections
+      this.BUFFER      = 50;   // ms — starting value, self-tunes
+      this._lastArrival = 0;
+      this._jitterSamples = [];
+    }
+
+    _updateJitter(now) {
+      if (this._lastArrival > 0) {
+        const interval = now - this._lastArrival;
+        const expected = 1000 / 60; // 16ms
+        const jitter   = Math.abs(interval - expected);
+        this._jitterSamples.push(jitter);
+        if (this._jitterSamples.length > 20) this._jitterSamples.shift();
+        // Buffer = 2 ticks + average jitter, clamped
+        const avgJitter = this._jitterSamples.reduce((a,b) => a+b, 0) / this._jitterSamples.length;
+        this.BUFFER = Math.min(this._maxBuffer, Math.max(this._minBuffer, (1000/60)*2 + avgJitter));
+      }
+      this._lastArrival = now;
     }
 
     onServerState(state, mySlot) {
       const now = Date.now();
+      this._updateJitter(now);
 
       // ── Players ────────────────────────────────────────────────────
       for (const sp of state.players) {
@@ -298,45 +321,56 @@
         let p = this.players.get(sp.slot);
         if (!p) {
           p = { snapshots: [], x: sp.x, y: sp.y, angle: sp.angle,
+                vx: 0, vy: 0,  // velocity for dead reckoning
                 alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
                 points: sp.points, color: sp.color, slot: sp.slot };
           this.players.set(sp.slot, p);
         }
+        // Compute velocity from last snapshot for dead reckoning
+        const last = p.snapshots[p.snapshots.length - 1];
+        if (last) {
+          const dt = now - last.t;
+          p.vx = dt > 0 ? (sp.x - last.x) / dt : 0;
+          p.vy = dt > 0 ? (sp.y - last.y) / dt : 0;
+        }
         p.snapshots.push({ t: now, x: sp.x, y: sp.y, angle: sp.angle,
                            alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
                            points: sp.points, color: sp.color });
-        // Keep only last 10 snapshots
-        if (p.snapshots.length > 10) p.snapshots.shift();
-        // Always update non-positional state immediately
+        if (p.snapshots.length > 20) p.snapshots.shift();
         p.alive = sp.alive; p.hp = sp.hp; p.maxHp = sp.maxHp;
         p.points = sp.points; p.color = sp.color;
       }
-      // Remove gone players
       for (const [slot] of this.players) {
         if (!state.players.find(p => p.slot === slot)) this.players.delete(slot);
       }
 
       // ── Zombies ────────────────────────────────────────────────────
-      this._snapshots.push({ t: now, zombies: state.zombies });
-      if (this._snapshots.length > 10) this._snapshots.shift();
+      // Compute per-zombie velocities for dead reckoning
+      const prevSnap = this._snapshots[this._snapshots.length - 1];
+      const zombiesWithVel = state.zombies.map((z, i) => {
+        const prev = prevSnap && prevSnap.zombies[i];
+        const dt   = prevSnap ? (now - prevSnap.t) : 0;
+        return { ...z,
+          vx: (prev && dt > 0) ? (z.x - prev.x) / dt : 0,
+          vy: (prev && dt > 0) ? (z.y - prev.y) / dt : 0
+        };
+      });
+      this._snapshots.push({ t: now, zombies: zombiesWithVel });
+      if (this._snapshots.length > 20) this._snapshots.shift();
     }
 
-    // Find the two snapshots straddling renderTime from a sorted array
     _findFrame(snaps, renderTime) {
-      // renderTime is before all snapshots — use first
-      if (renderTime <= snaps[0].t) return [snaps[0], snaps[0]];
-      // renderTime is after all snapshots — extrapolate from last two
+      if (renderTime <= snaps[0].t) return [snaps[0], snaps[0], false];
       if (renderTime >= snaps[snaps.length - 1].t) {
         const a = snaps[snaps.length - 2] || snaps[0];
         const b = snaps[snaps.length - 1];
-        return [a, b];
+        return [a, b, true]; // true = extrapolating (dead reckoning)
       }
-      // Find straddling pair
       for (let i = 0; i < snaps.length - 1; i++) {
-        if (snaps[i].t <= renderTime && snaps[i + 1].t >= renderTime)
-          return [snaps[i], snaps[i + 1]];
+        if (snaps[i].t <= renderTime && snaps[i+1].t >= renderTime)
+          return [snaps[i], snaps[i+1], false];
       }
-      return [snaps[snaps.length - 2] || snaps[0], snaps[snaps.length - 1]];
+      return [snaps[snaps.length-2] || snaps[0], snaps[snaps.length-1], true];
     }
 
     _lerpVal(a, b, t) { return a + (b - a) * t; }
@@ -344,33 +378,53 @@
     tick() {
       const renderTime = Date.now() - this.BUFFER;
 
-      // ── Interpolate players ────────────────────────────────────────
+      // ── Players ───────────────────────────────────────────────────
       for (const [, p] of this.players) {
         if (!p.snapshots.length) continue;
-        const [prev, next] = this._findFrame(p.snapshots, renderTime);
+        const [prev, next, extrapolating] = this._findFrame(p.snapshots, renderTime);
         const span = next.t - prev.t;
-        const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.2) : 1;
-        p.x = this._lerpVal(prev.x, next.x, t);
-        p.y = this._lerpVal(prev.y, next.y, t);
-        let da = next.angle - prev.angle;
-        while (da >  Math.PI) da -= Math.PI * 2;
-        while (da < -Math.PI) da += Math.PI * 2;
-        p.angle = prev.angle + da * t;
+
+        if (extrapolating) {
+          // Dead reckoning — keep moving in last known direction
+          const dt = renderTime - next.t; // ms past last known snapshot
+          p.x = next.x + p.vx * dt;
+          p.y = next.y + p.vy * dt;
+          p.angle = next.angle; // hold last angle
+        } else {
+          const t = span > 0 ? (renderTime - prev.t) / span : 1;
+          p.x = this._lerpVal(prev.x, next.x, t);
+          p.y = this._lerpVal(prev.y, next.y, t);
+          let da = next.angle - prev.angle;
+          while (da >  Math.PI) da -= Math.PI * 2;
+          while (da < -Math.PI) da += Math.PI * 2;
+          p.angle = prev.angle + da * t;
+        }
       }
 
-      // ── Interpolate zombies ────────────────────────────────────────
+      // ── Zombies ───────────────────────────────────────────────────
       if (!this._snapshots.length) return;
-      const [prev, next] = this._findFrame(this._snapshots, renderTime);
+      const [prev, next, extrapolating] = this._findFrame(this._snapshots, renderTime);
       const span = next.t - prev.t;
-      const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.2) : 1;
-      this.zombies = next.zombies.map((zNext, i) => {
-        const zPrev = prev.zombies[i];
-        if (!zPrev) return zNext;
-        return { ...zNext,
-          x: this._lerpVal(zPrev.x, zNext.x, t),
-          y: this._lerpVal(zPrev.y, zNext.y, t)
-        };
-      });
+
+      if (extrapolating) {
+        // Dead reckoning — each zombie keeps moving in its last direction
+        const dt = renderTime - next.t;
+        this.zombies = next.zombies.map(z => ({
+          ...z,
+          x: z.x + z.vx * dt,
+          y: z.y + z.vy * dt
+        }));
+      } else {
+        const t = span > 0 ? (renderTime - prev.t) / span : 1;
+        this.zombies = next.zombies.map((zNext, i) => {
+          const zPrev = prev.zombies[i];
+          if (!zPrev) return zNext;
+          return { ...zNext,
+            x: this._lerpVal(zPrev.x, zNext.x, t),
+            y: this._lerpVal(zPrev.y, zNext.y, t)
+          };
+        });
+      }
     }
 
     getPlayer(slot) { return this.players.get(slot) || null; }
