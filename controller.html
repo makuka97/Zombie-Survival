@@ -89,8 +89,6 @@
     }
     #lobby-screen p { font-size: 14px; color: #555; letter-spacing: 2px; text-align: center; }
 
-
-
     #ready-btn {
       width: 260px; height: 80px; font-size: 28px;
       font-weight: bold; background: #00ff00; color: #000;
@@ -184,12 +182,14 @@
     #mystery-box-btn:disabled { background: #1a001a; color: #444; border-color: #333; cursor: default; }
     #mystery-box-btn.pulse {
       background: #2a0044; color: #ff00ff; border-color: #bb00ff;
-      box-shadow: 0 0 20px rgba(187,0,255,0.6); animation: pulse-box 1s infinite;
+      box-shadow: 0 0 20px rgba(187,0,255,0.6);
+      animation: pulse-box 1s infinite;
     }
+    /* FIXED: removed extra ) that was breaking the animation */
     @keyframes pulse-box {
       0%   { box-shadow: 0 0 20px rgba(187,0,255,0.6); }
       50%  { box-shadow: 0 0 35px rgba(187,0,255,1); }
-      100% { box-shadow: 0 0 20px rgba(187,0,255,0.6)); }
+      100% { box-shadow: 0 0 20px rgba(187,0,255,0.6); }
     }
 
     #gameover-screen {
@@ -321,7 +321,7 @@
 
     class ControllerLink {
       constructor() {
-        this.socket      = io({ transports: ['websocket'] }); // Phase 1: websocket only
+        this.socket      = io({ transports: ['websocket'] });
         this.roomCode    = null;
         this.slot        = null;
         this.color       = null;
@@ -344,7 +344,7 @@
         this.bindReadyBtn();
         this.bindRestartBtn();
         this.bindMysteryBoxBtn();
-        this.checkDeepLink();      // Phase 1: auto-fill code from /join/:code URL
+        this.checkDeepLink();
       }
 
       loadFingerprint() {
@@ -355,18 +355,14 @@
         }
       }
 
-      // Phase 1: read ?room=XXXX from URL and auto-fill + auto-join
       checkDeepLink() {
         const params = new URLSearchParams(window.location.search);
         const code   = params.get('room');
         if (code && code.length === 4) {
           document.getElementById('room-code-input').value = code.toUpperCase();
-          // Small delay so socket connects first
           setTimeout(() => this.join(code.toUpperCase()), 600);
         }
       }
-
-
 
       bindSocket() {
         this.socket.on('connect',    () => { this.setStatus('CONNECTED'); const saved = sessionStorage.getItem('zs-room'); if (saved) this.join(saved); });
@@ -530,9 +526,8 @@
         this.ammo = ammo;
         const el  = document.getElementById('ammo-display');
         if (ammo === -1) {
-          // Phase 1: boss wave — unlimited ammo signal
           el.innerHTML = `<span>AMMO </span>∞`;
-          el.className = 'ammo-display';
+          el.className = '';
           this.setMeleeMode(false);
         } else if (ammo === 0) {
           el.innerHTML = `<span>AMMO </span>OUT`;
