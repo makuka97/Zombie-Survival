@@ -35,7 +35,6 @@
     #rotate-warning .arrow { font-size: 60px; animation: spin 2s linear infinite; }
     @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
 
-    /* Only hide post-join screens in portrait — join screen stays visible */
     body.joined-portrait #rotate-warning  { display: flex; }
     body.joined-portrait #lobby-screen    { display: none !important; }
     body.joined-portrait #ctrl-screen     { display: none !important; }
@@ -82,127 +81,70 @@
       gap: 24px;
       background: #111;
     }
-
-    #lobby-screen h1 {
-      font-size: 22px;
-      color: #00ff00;
-      letter-spacing: 4px;
-    }
-
+    #lobby-screen h1 { font-size: 22px; color: #00ff00; letter-spacing: 4px; }
     #player-badge {
-      font-size: 28px;
-      font-weight: bold;
-      padding: 14px 30px;
-      border-radius: 12px;
-      border: 3px solid;
+      font-size: 28px; font-weight: bold;
+      padding: 14px 30px; border-radius: 12px; border: 3px solid;
       letter-spacing: 3px;
     }
+    #lobby-screen p { font-size: 14px; color: #555; letter-spacing: 2px; text-align: center; }
 
-    #lobby-screen p {
-      font-size: 14px;
-      color: #555;
-      letter-spacing: 2px;
-      text-align: center;
+    /* Phase 1: Share invite button */
+    #share-btn {
+      width: 260px; height: 50px; font-size: 16px;
+      font-weight: bold; background: transparent; color: #00ff00;
+      border: 2px solid #00ff00; border-radius: 12px; letter-spacing: 2px;
+      cursor: pointer; font-family: 'Courier New', monospace;
+      display: none; /* shown after join */
     }
+    #share-btn:active { background: rgba(0,255,0,0.1); }
 
     #ready-btn {
-      width: 260px;
-      height: 80px;
-      font-size: 28px;
-      font-weight: bold;
-      background: #00ff00;
-      color: #000;
-      border: none;
-      border-radius: 16px;
-      letter-spacing: 4px;
-      cursor: pointer;
-      font-family: 'Courier New', monospace;
-      box-shadow: 0 0 30px rgba(0,255,0,0.5);
-      transition: all 0.1s;
+      width: 260px; height: 80px; font-size: 28px;
+      font-weight: bold; background: #00ff00; color: #000;
+      border: none; border-radius: 16px; letter-spacing: 4px;
+      cursor: pointer; font-family: 'Courier New', monospace;
+      box-shadow: 0 0 30px rgba(0,255,0,0.5); transition: all 0.1s;
     }
     #ready-btn:active { transform: scale(0.95); }
     #ready-btn.voted {
-      background: #333;
-      color: #00ff00;
-      border: 3px solid #00ff00;
-      box-shadow: none;
-      font-size: 22px;
+      background: #333; color: #00ff00;
+      border: 3px solid #00ff00; box-shadow: none; font-size: 22px;
     }
-
     #waiting-text {
-      font-size: 14px;
-      color: #00ff00;
-      letter-spacing: 2px;
-      min-height: 20px;
-      animation: pulse 1.5s infinite;
+      font-size: 14px; color: #00ff00; letter-spacing: 2px;
+      min-height: 20px; animation: pulse 1.5s infinite;
     }
     @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
 
     #ctrl-screen {
-      display: none;
-      flex-direction: column;
-      width: 100vw;
-      height: 100vh;
-      position: relative;
+      display: none; flex-direction: column;
+      width: 100vw; height: 100vh; position: relative;
     }
-
-    /* HUD at top */
     #hud {
-      position: absolute;
-      top: 10px;
-      left: 0;
-      right: 0;
-      display: flex;
-      justify-content: space-between;
-      padding: 0 16px;
-      z-index: 10;
+      position: absolute; top: 10px; left: 0; right: 0;
+      display: flex; justify-content: space-between;
+      padding: 0 16px; z-index: 10;
     }
-
-    #weapon-display {
-      font-size: 16px;
-      font-weight: bold;
-      color: #fff;
-      letter-spacing: 2px;
-    }
+    #weapon-display { font-size: 16px; font-weight: bold; color: #fff; letter-spacing: 2px; }
     #weapon-display span { font-size: 12px; color: #888; }
-
-    #ammo-display {
-      font-size: 20px;
-      font-weight: bold;
-      color: #ffff00;
-      letter-spacing: 2px;
-    }
+    #ammo-display { font-size: 20px; font-weight: bold; color: #ffff00; letter-spacing: 2px; }
     #ammo-display span { font-size: 13px; color: #555; letter-spacing: 1px; }
     #ammo-display.low { color: #ff3333; animation: flash 0.5s infinite; }
     #ammo-display.empty { color: #888; }
     @keyframes flash { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
-
-    #points-display {
-      font-size: 18px;
-      font-weight: bold;
-      color: #00ff00;
-      letter-spacing: 2px;
-    }
+    #points-display { font-size: 18px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
     #points-display span { font-size: 12px; color: #555; }
 
     #controls {
-      display: flex;
-      flex: 1;
-      align-items: center;
-      justify-content: space-around;
-      padding: 20px 40px;
-      width: 100%;
-      height: 100%;
+      display: flex; flex: 1; align-items: center;
+      justify-content: space-around; padding: 20px 40px;
+      width: 100%; height: 100%;
     }
-
     #joystick-zone {
-      width: 190px; height: 190px;
-      border-radius: 50%;
-      background: rgba(0,255,0,0.04);
-      border: 3px solid #00ff00;
-      position: relative;
-      touch-action: none;
-      flex-shrink: 0;
+      width: 190px; height: 190px; border-radius: 50%;
+      background: rgba(0,255,0,0.04); border: 3px solid #00ff00;
+      position: relative; touch-action: none; flex-shrink: 0;
     }
     #joystick-zone::before, #joystick-zone::after {
       content: ''; position: absolute; background: rgba(0,255,0,0.15);
@@ -210,133 +152,65 @@
     #joystick-zone::before { width:2px; height:100%; top:0; left:50%; transform:translateX(-50%); }
     #joystick-zone::after  { height:2px; width:100%; left:0; top:50%; transform:translateY(-50%); }
     #joystick-knob {
-      width: 70px; height: 70px;
-      border-radius: 50%; background: #00ff00;
+      width: 70px; height: 70px; border-radius: 50%; background: #00ff00;
       position: absolute; top:50%; left:50%;
-      transform: translate(-50%,-50%);
-      pointer-events: none;
+      transform: translate(-50%,-50%); pointer-events: none;
       box-shadow: 0 0 20px rgba(0,255,0,0.8);
     }
-
-    /* FIRE button - normal mode */
     #fire-btn {
-      width: 165px; height: 165px;
-      border-radius: 50%;
-      background: rgba(255,40,40,0.12);
-      border: 4px solid #ff3333;
-      color: #ff3333; font-size: 22px;
-      font-weight: bold;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 3px;
+      width: 165px; height: 165px; border-radius: 50%;
+      background: rgba(255,40,40,0.12); border: 4px solid #ff3333;
+      color: #ff3333; font-size: 22px; font-weight: bold;
+      font-family: 'Courier New', monospace; letter-spacing: 3px;
       display: flex; align-items: center; justify-content: center;
       touch-action: none; user-select: none; flex-shrink: 0;
-      transition: all 0.15s;
-      box-shadow: 0 0 20px rgba(255,50,50,0.2);
-      flex-direction: column;
-      gap: 4px;
+      transition: all 0.15s; box-shadow: 0 0 20px rgba(255,50,50,0.2);
+      flex-direction: column; gap: 4px;
     }
-    #fire-btn.active {
-      background: #ff3333; color: #000;
-      transform: scale(0.92);
-      box-shadow: 0 0 40px rgba(255,50,50,0.9);
-    }
-
-    /* KNIFE / melee mode */
-    #fire-btn.melee-mode {
-      background: rgba(0,255,100,0.08);
-      border-color: #00ff66;
-      color: #00ff66;
-      box-shadow: 0 0 20px rgba(0,255,100,0.25);
-    }
-    #fire-btn.melee-mode.active {
-      background: #00ff66;
-      color: #000;
-      transform: scale(0.92);
-      box-shadow: 0 0 50px rgba(0,255,100,1);
-    }
-    #fire-btn .btn-icon { font-size: 36px; line-height: 1; }
+    #fire-btn.active { background: #ff3333; color: #000; transform: scale(0.92); box-shadow: 0 0 40px rgba(255,50,50,0.9); }
+    #fire-btn.melee-mode { background: rgba(0,255,100,0.08); border-color: #00ff66; color: #00ff66; box-shadow: 0 0 20px rgba(0,255,100,0.25); }
+    #fire-btn.melee-mode.active { background: #00ff66; color: #000; transform: scale(0.92); box-shadow: 0 0 50px rgba(0,255,100,1); }
     #fire-btn .btn-label { font-size: 14px; letter-spacing: 3px; }
 
-    /* Melee mode HUD banner */
     #melee-banner {
-      position: absolute;
-      top: 48px;
-      left: 50%;
-      transform: translateX(-50%);
-      background: rgba(0,0,0,0.85);
-      border: 2px solid #00ff66;
-      border-radius: 8px;
-      padding: 4px 14px;
-      font-size: 12px;
-      color: #00ff66;
-      letter-spacing: 2px;
-      display: none;
-      z-index: 20;
+      position: absolute; top: 48px; left: 50%; transform: translateX(-50%);
+      background: rgba(0,0,0,0.85); border: 2px solid #00ff66;
+      border-radius: 8px; padding: 4px 14px; font-size: 12px;
+      color: #00ff66; letter-spacing: 2px; display: none; z-index: 20;
       animation: pulse 1.2s infinite;
     }
-
-    /* Mystery Box Button - centered between joystick and fire btn */
     #mystery-box-btn {
-      position: absolute;
-      top: 50%;
-      left: 50%;
+      position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 120px;
-      height: 120px;
-      font-size: 12px;
-      font-weight: bold;
-      background: #1a001a;
-      color: #666;
-      border: 3px solid #444;
-      border-radius: 50%;
-      letter-spacing: 1px;
-      font-family: 'Courier New', monospace;
-      box-shadow: none;
-      transition: all 0.2s;
-      z-index: 20;
-      line-height: 1.3;
-      cursor: pointer;
+      width: 120px; height: 120px; font-size: 12px; font-weight: bold;
+      background: #1a001a; color: #666; border: 3px solid #444;
+      border-radius: 50%; letter-spacing: 1px;
+      font-family: 'Courier New', monospace; transition: all 0.2s;
+      z-index: 20; line-height: 1.3; cursor: pointer;
     }
     #mystery-box-btn:active { transform: translate(-50%, -50%) scale(0.95); }
-    #mystery-box-btn:disabled {
-      background: #1a001a;
-      color: #444;
-      border-color: #333;
-      box-shadow: none;
-      cursor: default;
-    }
+    #mystery-box-btn:disabled { background: #1a001a; color: #444; border-color: #333; cursor: default; }
     #mystery-box-btn.pulse {
-      background: #2a0044;
-      color: #ff00ff;
-      border-color: #bb00ff;
-      box-shadow: 0 0 20px rgba(187,0,255,0.6), 0 0 40px rgba(187,0,255,0.3);
-      animation: pulse-box 1s infinite;
+      background: #2a0044; color: #ff00ff; border-color: #bb00ff;
+      box-shadow: 0 0 20px rgba(187,0,255,0.6); animation: pulse-box 1s infinite;
     }
     @keyframes pulse-box {
-      0%   { box-shadow: 0 0 20px rgba(187,0,255,0.6), 0 0 40px rgba(187,0,255,0.3); }
-      50%  { box-shadow: 0 0 35px rgba(187,0,255,1),   0 0 70px rgba(187,0,255,0.6); }
-      100% { box-shadow: 0 0 20px rgba(187,0,255,0.6), 0 0 40px rgba(187,0,255,0.3); }
+      0%   { box-shadow: 0 0 20px rgba(187,0,255,0.6); }
+      50%  { box-shadow: 0 0 35px rgba(187,0,255,1); }
+      100% { box-shadow: 0 0 20px rgba(187,0,255,0.6)); }
     }
 
     #gameover-screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100vw; height: 100vh;
+      display: none; flex-direction: column; align-items: center;
+      justify-content: center; width: 100vw; height: 100vh;
       gap: 20px; background: #000;
     }
-    #gameover-screen h1 {
-      font-size: 48px; color: #ff0000;
-      letter-spacing: 6px;
-      text-shadow: 0 0 20px #ff0000;
-    }
-    #gameover-screen p { font-size: 16px; color: #888; letter-spacing: 2px; }
+    #gameover-screen h1 { font-size: 48px; color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
+    #gameover-screen p  { font-size: 16px; color: #888; letter-spacing: 2px; }
     #restart-btn {
-      width: 240px; height: 70px; font-size: 24px;
-      font-weight: bold; background: #00ff00; color: #000;
-      border: none; border-radius: 14px; letter-spacing: 3px;
-      cursor: pointer; font-family: 'Courier New', monospace;
+      width: 240px; height: 70px; font-size: 24px; font-weight: bold;
+      background: #00ff00; color: #000; border: none; border-radius: 14px;
+      letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
       box-shadow: 0 0 20px rgba(0,255,0,0.5);
     }
     #restart-btn:active { transform: scale(0.95); }
@@ -345,38 +219,22 @@
 
     #status-bar {
       position: fixed; bottom: 4px; left: 50%;
-      transform: translateX(-50%);
-      font-size: 10px; color: #333; letter-spacing: 1px;
+      transform: translateX(-50%); font-size: 10px; color: #333; letter-spacing: 1px;
     }
-
-    /* Weapon acquired popup */
     #weapon-popup {
-      position: fixed;
-      top: 50%;
-      left: 50%;
+      position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.95);
-      padding: 30px 50px;
-      border-radius: 15px;
-      border: 3px solid #bb00ff;
-      text-align: center;
-      display: none;
-      z-index: 100;
+      background: rgba(0,0,0,0.95); padding: 30px 50px;
+      border-radius: 15px; border: 3px solid #bb00ff;
+      text-align: center; display: none; z-index: 100;
       animation: popup-appear 0.3s ease;
     }
     @keyframes popup-appear {
-      0% { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
-      100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+      0%   { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
+      100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
     }
-    #weapon-popup h2 {
-      font-size: 32px;
-      color: #bb00ff;
-      margin-bottom: 10px;
-    }
-    #weapon-popup p {
-      font-size: 18px;
-      color: #fff;
-    }
+    #weapon-popup h2 { font-size: 32px; color: #bb00ff; margin-bottom: 10px; }
+    #weapon-popup p  { font-size: 18px; color: #fff; }
   </style>
 </head>
 <body>
@@ -399,6 +257,7 @@
     <h1>ZOMBIE SURVIVAL</h1>
     <div id="player-badge">PLAYER ?</div>
     <p>Waiting for all players to ready up...</p>
+    <button id="share-btn">⬆ INVITE FRIENDS</button>
     <button id="ready-btn">READY UP</button>
     <div id="waiting-text"></div>
   </div>
@@ -409,19 +268,10 @@
       <div id="points-display"><span>$ </span>0</div>
       <div id="ammo-display"><span>AMMO </span>30</div>
     </div>
-
-    <!-- melee mode hint shown below HUD when out of ammo -->
     <div id="melee-banner">⚔ KNIFE MODE — FIND AMMO!</div>
-
     <div id="controls">
-      <div id="joystick-zone">
-        <div id="joystick-knob"></div>
-      </div>
-
-      <!-- Fire / Knife button — same element, different styles -->
-      <div id="fire-btn">
-        <div class="btn-label">FIRE</div>
-      </div>
+      <div id="joystick-zone"><div id="joystick-knob"></div></div>
+      <div id="fire-btn"><div class="btn-label">FIRE</div></div>
     </div>
     <button id="mystery-box-btn" disabled>MYSTERY<br>BOX<br>$950</button>
   </div>
@@ -450,7 +300,6 @@
         this.angle  = null;
         this.active = false;
         this.maxR   = 58;
-
         const o = { passive: false };
         this.zone.addEventListener('touchstart',  e => this.onStart(e), o);
         this.zone.addEventListener('touchmove',   e => this.onMove(e),  o);
@@ -461,56 +310,40 @@
         this.zone.addEventListener('mouseup',     e => this.onEnd(e));
         this.zone.addEventListener('mouseleave',  e => this.onEnd(e));
       }
-
       getOffset(e) {
         const rect = this.zone.getBoundingClientRect();
         const src  = e.touches ? e.touches[0] : e;
-        return {
-          x: src.clientX - rect.left  - rect.width  / 2,
-          y: src.clientY - rect.top   - rect.height / 2
-        };
+        return { x: src.clientX - rect.left - rect.width/2, y: src.clientY - rect.top - rect.height/2 };
       }
-
       onStart(e) { e.preventDefault(); this.active = true; this.onMove(e); }
-
       onMove(e) {
         if (!this.active) return;
         e.preventDefault();
         const { x, y } = this.getOffset(e);
         this.angle = Math.atan2(y, x);
         const clamp = Math.min(Math.sqrt(x*x + y*y), this.maxR);
-        const kx = Math.cos(this.angle) * clamp;
-        const ky = Math.sin(this.angle) * clamp;
-        this.knob.style.transform = `translate(calc(-50% + ${kx}px), calc(-50% + ${ky}px))`;
+        this.knob.style.transform = `translate(calc(-50% + ${Math.cos(this.angle)*clamp}px), calc(-50% + ${Math.sin(this.angle)*clamp}px))`;
       }
-
-      onEnd(e) {
-        e.preventDefault();
-        this.active = false;
-        this.angle  = null;
-        this.knob.style.transform = 'translate(-50%, -50%)';
-      }
-
+      onEnd(e) { e.preventDefault(); this.active = false; this.angle = null; this.knob.style.transform = 'translate(-50%, -50%)'; }
       getAngle() { return this.active ? this.angle : null; }
     }
 
     class ControllerLink {
       constructor() {
-        this.socket   = io();
-        this.roomCode = null;
-        this.slot     = null;
-        this.color    = null;
-        this.firing   = false;
-        this.meleeing = false;       // NEW: melee state
-        this.inMeleeMode = false;    // NEW: are we out of ammo?
-        this.joystick = new Joystick('joystick-zone', 'joystick-knob');
-        this.loop     = null;
-        this.hasVoted = false;
-        this.isReady  = false;
-        
-        this.ammo     = 30;
-        this.points   = 0;
-        this.weapon   = 'pistol';
+        this.socket      = io({ transports: ['websocket'] }); // Phase 1: websocket only
+        this.roomCode    = null;
+        this.slot        = null;
+        this.color       = null;
+        this.firing      = false;
+        this.meleeing    = false;
+        this.inMeleeMode = false;
+        this.joystick    = new Joystick('joystick-zone', 'joystick-knob');
+        this.loop        = null;
+        this.hasVoted    = false;
+        this.isReady     = false;
+        this.ammo        = 30;
+        this.points      = 0;
+        this.weapon      = 'pistol';
         this.canUseMysteryBox = false;
 
         this.loadFingerprint();
@@ -520,6 +353,8 @@
         this.bindReadyBtn();
         this.bindRestartBtn();
         this.bindMysteryBoxBtn();
+        this.bindShareBtn();       // Phase 1
+        this.checkDeepLink();      // Phase 1: auto-fill code from /join/:code URL
       }
 
       loadFingerprint() {
@@ -530,27 +365,48 @@
         }
       }
 
+      // Phase 1: read ?room=XXXX from URL and auto-fill + auto-join
+      checkDeepLink() {
+        const params = new URLSearchParams(window.location.search);
+        const code   = params.get('room');
+        if (code && code.length === 4) {
+          document.getElementById('room-code-input').value = code.toUpperCase();
+          // Small delay so socket connects first
+          setTimeout(() => this.join(code.toUpperCase()), 600);
+        }
+      }
+
+      // Phase 1: Web Share API — native share sheet on mobile
+      bindShareBtn() {
+        const btn = document.getElementById('share-btn');
+        btn.addEventListener('click', async () => {
+          const url = `${window.location.origin}/join/${this.roomCode}`;
+          if (navigator.share) {
+            try {
+              await navigator.share({
+                title: 'Zombie Survival',
+                text: `Join my game! Room code: ${this.roomCode}`,
+                url
+              });
+            } catch(e) { /* user cancelled */ }
+          } else {
+            // Fallback: copy to clipboard
+            try {
+              await navigator.clipboard.writeText(url);
+              btn.textContent = '✓ LINK COPIED!';
+              setTimeout(() => { btn.textContent = '⬆ INVITE FRIENDS'; }, 2000);
+            } catch(e) {}
+          }
+        });
+      }
+
       bindSocket() {
-        this.socket.on('connect', () => {
-          this.setStatus('CONNECTED');
-          const saved = sessionStorage.getItem('zs-room');
-          if (saved) this.join(saved);
-        });
-
-        this.socket.on('disconnect', () => {
-          this.setStatus('DISCONNECTED');
-          this.stopLoop();
-        });
-
+        this.socket.on('connect',    () => { this.setStatus('CONNECTED'); const saved = sessionStorage.getItem('zs-room'); if (saved) this.join(saved); });
+        this.socket.on('disconnect', () => { this.setStatus('DISCONNECTED'); this.stopLoop(); });
         this.socket.on('join-success',  d => this.onJoinSuccess(d));
         this.socket.on('join-failed',   d => this.showError(d.reason));
         this.socket.on('ping',          () => this.socket.emit('pong'));
-
-        this.socket.on('game-starting', () => {
-          this.showController();
-          this.startLoop();
-        });
-
+        this.socket.on('game-starting', () => { this.showController(); this.startLoop(); });
         this.socket.on('game-state-update', d => {
           this.updateAmmo(d.ammo);
           this.updatePoints(d.points);
@@ -558,22 +414,14 @@
           this.updateMysteryBoxButton(d.canUseMysteryBox, d.points);
           if (d.gameOver) this.showGameOver();
         });
-
         this.socket.on('restart-vote-update', d => {
-          document.getElementById('vote-status').textContent =
-            `Votes: ${d.votes} / ${d.needed}`;
+          document.getElementById('vote-status').textContent = `Votes: ${d.votes} / ${d.needed}`;
         });
-
         this.socket.on('game-restarting', () => {
-          this.hasVoted  = false;
-          this.isReady   = false;
-          this.ammo      = 30;
-          this.points    = 0;
-          this.weapon    = 'pistol';
+          this.hasVoted = false; this.isReady = false;
+          this.ammo = 30; this.points = 0; this.weapon = 'pistol';
           this.stopLoop();
-          this.updateAmmo(30);
-          this.updatePoints(0);
-          this.updateWeapon('pistol');
+          this.updateAmmo(30); this.updatePoints(0); this.updateWeapon('pistol');
           this.showLobby();
         });
       }
@@ -600,7 +448,6 @@
         this.slot  = data.slotNumber;
         this.color = data.color;
         sessionStorage.setItem('zs-fp', data.deviceFingerprint);
-        // Now that they've joined, enable the rotate warning for portrait mode
         this.enableRotateWarning();
         this.showLobby();
         this.setStatus('PLAYER ' + this.slot);
@@ -614,7 +461,7 @@
         };
         window.addEventListener('orientationchange', check);
         window.addEventListener('resize', check);
-        check(); // run immediately
+        check();
       }
 
       showError(msg) {
@@ -639,34 +486,14 @@
         const btn = document.getElementById('mystery-box-btn');
         btn.addEventListener('click', () => {
           if (!this.canUseMysteryBox || this.points < 950) return;
-          this.socket.emit('mystery-box-purchase', { 
-            roomCode: this.roomCode, 
-            slotNumber: this.slot 
-          });
+          this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode, slotNumber: this.slot });
         });
       }
 
-      // ── NEW: bind fire button for both fire and melee ──────────────────
       bindFireBtn() {
         const btn = document.getElementById('fire-btn');
-
-        const press = e => {
-          e.preventDefault();
-          if (this.inMeleeMode) {
-            this.meleeing = true;
-          } else {
-            this.firing = true;
-          }
-          btn.classList.add('active');
-        };
-
-        const release = e => {
-          e.preventDefault();
-          this.firing   = false;
-          this.meleeing = false;
-          btn.classList.remove('active');
-        };
-
+        const press   = e => { e.preventDefault(); if (this.inMeleeMode) { this.meleeing = true; } else { this.firing = true; } btn.classList.add('active'); };
+        const release = e => { e.preventDefault(); this.firing = false; this.meleeing = false; btn.classList.remove('active'); };
         btn.addEventListener('touchstart',  press,   { passive: false });
         btn.addEventListener('touchend',    release, { passive: false });
         btn.addEventListener('touchcancel', release, { passive: false });
@@ -675,24 +502,16 @@
         btn.addEventListener('mouseleave',  release);
       }
 
-      // ── NEW: switch button between FIRE and KNIFE visually ─────────────
       setMeleeMode(active) {
-        if (this.inMeleeMode === active) return; // no change
+        if (this.inMeleeMode === active) return;
         this.inMeleeMode = active;
         const btn    = document.getElementById('fire-btn');
         const banner = document.getElementById('melee-banner');
         const label  = btn.querySelector('.btn-label');
-
         if (active) {
-          btn.classList.add('melee-mode');
-          label.textContent = 'KNIFE';
-          banner.style.display = 'block';
-          this.firing = false;
+          btn.classList.add('melee-mode'); label.textContent = 'KNIFE'; banner.style.display = 'block'; this.firing = false;
         } else {
-          btn.classList.remove('melee-mode');
-          label.textContent = 'FIRE';
-          banner.style.display = 'none';
-          this.meleeing = false;
+          btn.classList.remove('melee-mode'); label.textContent = 'FIRE'; banner.style.display = 'none'; this.meleeing = false;
         }
       }
 
@@ -701,35 +520,26 @@
         this.loop = setInterval(() => {
           this.socket.emit('player-input', {
             roomCode: this.roomCode,
-            input: {
-              angle:  this.joystick.getAngle(),
-              fire:   this.firing,
-              melee:  this.meleeing   // NEW: send melee flag
-            }
+            input: { angle: this.joystick.getAngle(), fire: this.firing, melee: this.meleeing }
           });
         }, 50);
       }
 
-      stopLoop() {
-        if (this.loop) { clearInterval(this.loop); this.loop = null; }
-      }
+      stopLoop() { if (this.loop) { clearInterval(this.loop); this.loop = null; } }
 
       showLobby() {
         document.getElementById('join-screen').style.display     = 'none';
         document.getElementById('ctrl-screen').style.display     = 'none';
         document.getElementById('gameover-screen').style.display = 'none';
         document.getElementById('lobby-screen').style.display    = 'flex';
-
         const badge = document.getElementById('player-badge');
-        badge.textContent        = 'PLAYER ' + this.slot;
-        badge.style.color        = this.color;
-        badge.style.borderColor  = this.color;
-        badge.style.background   = 'rgba(0,0,0,0.5)';
-
+        badge.textContent = 'PLAYER ' + this.slot;
+        badge.style.color = this.color; badge.style.borderColor = this.color;
+        badge.style.background = 'rgba(0,0,0,0.5)';
         const btn = document.getElementById('ready-btn');
-        btn.textContent = 'READY UP';
-        btn.classList.remove('voted');
+        btn.textContent = 'READY UP'; btn.classList.remove('voted');
         document.getElementById('waiting-text').textContent = '';
+        document.getElementById('share-btn').style.display = 'block'; // Phase 1: show share btn
         this.isReady = false;
       }
 
@@ -743,32 +553,29 @@
       showGameOver() {
         document.getElementById('ctrl-screen').style.display     = 'none';
         document.getElementById('gameover-screen').style.display = 'flex';
-
         const btn = document.getElementById('restart-btn');
-        btn.textContent = 'RESTART';
-        btn.classList.remove('voted');
+        btn.textContent = 'RESTART'; btn.classList.remove('voted');
         document.getElementById('vote-status').textContent = '';
         this.hasVoted = false;
       }
 
       updateAmmo(ammo) {
-        this.ammo    = ammo;
-        const el     = document.getElementById('ammo-display');
-
-        if (ammo === 0) {
+        this.ammo = ammo;
+        const el  = document.getElementById('ammo-display');
+        if (ammo === -1) {
+          // Phase 1: boss wave — unlimited ammo signal
+          el.innerHTML = `<span>AMMO </span>∞`;
+          el.className = 'ammo-display';
+          this.setMeleeMode(false);
+        } else if (ammo === 0) {
           el.innerHTML = `<span>AMMO </span>OUT`;
-          el.classList.remove('low');
-          el.classList.add('empty');
-          this.setMeleeMode(true);   // ← switch to knife
+          el.classList.remove('low'); el.classList.add('empty');
+          this.setMeleeMode(true);
         } else {
           el.innerHTML = `<span>AMMO </span>${ammo}`;
           el.classList.remove('empty');
-          if (ammo <= 5) {
-            el.classList.add('low');
-          } else {
-            el.classList.remove('low');
-          }
-          this.setMeleeMode(false);  // ← switch back to gun
+          ammo <= 5 ? el.classList.add('low') : el.classList.remove('low');
+          this.setMeleeMode(false);
         }
       }
 
@@ -778,34 +585,25 @@
       }
 
       updateWeapon(weapon) {
-        if (this.weapon !== weapon) {
-          this.showWeaponPopup(weapon);
-        }
+        if (this.weapon !== weapon) this.showWeaponPopup(weapon);
         this.weapon = weapon;
-        const weaponName = weapon.toUpperCase().replace('_', ' ');
-        document.getElementById('weapon-display').innerHTML = `<span>WEAPON </span>${weaponName}`;
+        document.getElementById('weapon-display').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
       }
 
       showWeaponPopup(weapon) {
-        const weaponName = weapon.toUpperCase().replace('_', ' ');
-        document.getElementById('weapon-popup-name').textContent = weaponName;
+        document.getElementById('weapon-popup-name').textContent = weapon.toUpperCase().replace('_',' ');
         const popup = document.getElementById('weapon-popup');
         popup.style.display = 'block';
-        setTimeout(() => {
-          popup.style.display = 'none';
-        }, 2000);
+        setTimeout(() => { popup.style.display = 'none'; }, 2000);
       }
 
       updateMysteryBoxButton(canUse, points) {
         this.canUseMysteryBox = canUse;
         const btn = document.getElementById('mystery-box-btn');
-        
         if (canUse && points >= 950) {
-          btn.disabled = false;
-          btn.classList.add('pulse');
+          btn.disabled = false; btn.classList.add('pulse');
         } else {
-          btn.disabled = true;
-          btn.classList.remove('pulse');
+          btn.disabled = true; btn.classList.remove('pulse');
         }
       }
 
@@ -814,8 +612,7 @@
         btn.addEventListener('click', () => {
           if (this.hasVoted) return;
           this.hasVoted = true;
-          btn.textContent = 'VOTED!';
-          btn.classList.add('voted');
+          btn.textContent = 'VOTED!'; btn.classList.add('voted');
           document.getElementById('vote-status').textContent = 'Waiting for others...';
           this.socket.emit('restart-vote', { roomCode: this.roomCode });
         });
@@ -834,13 +631,10 @@
         } catch(e) {}
       }
 
-      setStatus(msg) {
-        document.getElementById('status-bar').textContent = msg;
-      }
+      setStatus(msg) { document.getElementById('status-bar').textContent = msg; }
     }
 
     const ctrl = new ControllerLink();
-
     document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
     history.pushState(null, null, location.href);
     window.addEventListener('popstate', () => history.pushState(null, null, location.href));
