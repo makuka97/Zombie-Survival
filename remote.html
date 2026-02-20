@@ -6,38 +6,23 @@
   <title>Z-TEAM Remote</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-    html, body {
-      width: 100%; height: 100%; overflow: hidden;
-      background: #000; font-family: 'Courier New', monospace;
-      color: #fff; touch-action: none;
-    }
+    html, body { width: 100%; height: 100%; overflow: hidden; background: #000; font-family: 'Courier New', monospace; color: #fff; touch-action: none; }
     .screen { display: none; position: fixed; inset: 0; flex-direction: column; align-items: center; justify-content: center; }
     .screen.active { display: flex; }
 
+    /* JOIN */
     #join-screen { gap: 16px; background: #000; }
     #join-screen h1 { font-size: clamp(28px,8vw,48px); color: #00ff00; letter-spacing: 8px; text-shadow: 0 0 20px rgba(0,255,0,0.6); }
     #join-screen h2 { font-size: 12px; color: #333; letter-spacing: 4px; }
-    #room-code-input {
-      width: 200px; height: 56px; font-size: 30px; text-align: center;
-      background: #000; border: 3px solid #00ff00; border-radius: 10px;
-      color: #00ff00; letter-spacing: 10px; font-family: 'Courier New', monospace;
-    }
-    #join-btn {
-      width: 200px; height: 50px; font-size: 18px; font-weight: bold;
-      background: #00ff00; color: #000; border: none; border-radius: 10px;
-      letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
-    }
+    #room-code-input { width: 200px; height: 56px; font-size: 30px; text-align: center; background: #000; border: 3px solid #00ff00; border-radius: 10px; color: #00ff00; letter-spacing: 10px; font-family: 'Courier New', monospace; }
+    #join-btn { width: 200px; height: 50px; font-size: 18px; font-weight: bold; background: #00ff00; color: #000; border: none; border-radius: 10px; letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace; }
     #join-btn:active { transform: scale(0.95); }
-    #new-room-btn {
-      width: 200px; height: 50px; font-size: 14px; font-weight: bold;
-      background: transparent; color: #00ff00; border: 2px solid #00ff00;
-      border-radius: 10px; letter-spacing: 2px; cursor: pointer;
-      font-family: 'Courier New', monospace;
-    }
+    #new-room-btn { width: 200px; height: 50px; font-size: 14px; font-weight: bold; background: transparent; color: #00ff00; border: 2px solid #00ff00; border-radius: 10px; letter-spacing: 2px; cursor: pointer; font-family: 'Courier New', monospace; }
     #new-room-btn:active { background: rgba(0,255,0,0.1); }
     #join-divider { color: #333; font-size: 12px; letter-spacing: 3px; }
     #join-error { color: #ff4444; font-size: 13px; min-height: 18px; letter-spacing: 1px; }
 
+    /* LOBBY */
     #lobby-screen { gap: 0; background: #000; justify-content: flex-start; padding: 40px 24px 24px; }
     #lobby-title { font-size: clamp(28px,8vw,48px); color: #00ff00; letter-spacing: 8px; text-shadow: 0 0 20px rgba(0,255,0,0.5); margin-bottom: 6px; }
     #lobby-sub { font-size: 11px; color: #333; letter-spacing: 4px; margin-bottom: 28px; }
@@ -52,16 +37,16 @@
     .player-row .pname { font-weight: bold; }
     .player-row .pstatus { font-size: 11px; color: #444; letter-spacing: 2px; }
     .player-row .pstatus.ready { color: #00ff00; }
-    .player-row.me { border-color: #333; }
     #my-badge { font-size: 18px; font-weight: bold; letter-spacing: 3px; padding: 10px 24px; border-radius: 10px; border: 2px solid; margin-bottom: 20px; text-align: center; }
     #ready-btn { width: 100%; max-width: 420px; height: 64px; font-size: 22px; font-weight: bold; background: #00ff00; color: #000; border: none; border-radius: 14px; letter-spacing: 4px; cursor: pointer; font-family: 'Courier New', monospace; box-shadow: 0 0 24px rgba(0,255,0,0.4); }
     #ready-btn:active { transform: scale(0.97); }
     #ready-btn.voted { background: #1a1a1a; color: #00ff00; border: 2px solid #00ff00; box-shadow: none; font-size: 16px; }
     #waiting-text { font-size: 12px; color: #555; letter-spacing: 2px; margin-top: 10px; animation: pulse 1.5s infinite; }
 
+    /* GAME */
     #game-screen { flex-direction: column; background: #000; justify-content: flex-start; align-items: stretch; }
     #canvas-wrap { position: relative; flex-shrink: 0; width: 100%; background: #000; display: flex; align-items: center; justify-content: center; overflow: hidden; }
-    #game-canvas { display: block; image-rendering: pixelated; }
+    #game-canvas { display: block; }
     #hud-bar { display: flex; justify-content: space-between; align-items: center; padding: 4px 16px; background: #050505; border-top: 1px solid #111; border-bottom: 1px solid #111; flex-shrink: 0; height: 36px; }
     #hud-weapon { font-size: 13px; color: #aaa; letter-spacing: 2px; }
     #hud-wave   { font-size: 13px; color: #555; letter-spacing: 2px; }
@@ -85,6 +70,7 @@
     #fire-btn.melee-mode { border-color: #00ff66; color: #00ff66; background: rgba(0,255,100,0.08); }
     #fire-btn.melee-mode.active { background: #00ff66; color: #000; box-shadow: 0 0 50px rgba(0,255,100,1); }
 
+    /* GAME OVER */
     #gameover-screen { gap: 20px; background: rgba(0,0,0,0.95); }
     #gameover-screen h1 { font-size: clamp(36px,10vw,64px); color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
     #gameover-screen p  { font-size: 14px; color: #555; letter-spacing: 2px; }
@@ -92,6 +78,8 @@
     #restart-btn:active { transform: scale(0.95); }
     #restart-btn.voted  { background: #222; color: #555; }
     #vote-status { font-size: 16px; color: #00ff00; letter-spacing: 2px; min-height: 22px; }
+
+    #ping-display { position: fixed; top: 4px; right: 8px; font-size: 9px; color: #333; z-index: 99; }
     #status-bar { position: fixed; bottom: 4px; left: 50%; transform: translateX(-50%); font-size: 9px; color: #222; letter-spacing: 1px; z-index: 99; }
 
     @keyframes pulse { 0%,100%{opacity:1}50%{opacity:0.2} }
@@ -125,9 +113,7 @@
   </div>
 
   <div id="game-screen" class="screen">
-    <div id="canvas-wrap">
-      <canvas id="game-canvas"></canvas>
-    </div>
+    <div id="canvas-wrap"><canvas id="game-canvas"></canvas></div>
     <div id="hud-bar">
       <div id="hud-weapon">PISTOL</div>
       <div id="hud-wave">WAVE 1</div>
@@ -148,18 +134,34 @@
     <div id="vote-status"></div>
   </div>
 
+  <div id="ping-display">-- ms</div>
   <div id="status-bar">CONNECTING...</div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script>
+  'use strict';
+
+  // ── Shared constants (must match server) ─────────────────────────
+  const PLAYER_SPEED = 2.5;
+  const PLAYER_SIZE  = 28;
+  const BULLET_SPEED = 8;
+  const CANVAS_W     = 1334;
+  const CANVAS_H     = 750;
+  const WALL_PAD     = PLAYER_SIZE / 2 + 6;
+  const PRED_CORRECT = 0.22;   // lerp strength toward server position per frame
+  const SNAP_DIST    = 100;    // px — snap if correction gap is this large
+
+  const WEAPON_FIRE_RATES = {
+    pistol: 10, smg: 5, shotgun: 20, ar: 7, lmg: 8, raygun: 12, thundergun: 30
+  };
 
   // ================================================================
   // JOYSTICK
   // ================================================================
   class Joystick {
     constructor(zoneId, knobId) {
-      this.zone = document.getElementById(zoneId);
-      this.knob = document.getElementById(knobId);
+      this.zone  = document.getElementById(zoneId);
+      this.knob  = document.getElementById(knobId);
       this.angle = null; this.active = false; this.maxR = 46;
       const o = { passive: false };
       this.zone.addEventListener('touchstart',  e => this.onStart(e), o);
@@ -185,20 +187,106 @@
   }
 
   // ================================================================
-  // RENDERER
+  // CLIENT-SIDE PREDICTION ENGINE
+  // Runs our player locally at 60 fps so movement feels instant.
+  // Server state reconciles the position smoothly every ~33ms.
   // ================================================================
-  class RemoteRenderer {
+  class Prediction {
+    constructor(slot, color) {
+      this.slot    = slot;
+      this.color   = color;
+      this.x       = 80;
+      this.y       = 80;
+      this.angle   = 0;
+      this.alive   = true;
+      this.hp      = 100;
+      this.maxHp   = 100;
+      this.seeded  = false;
+      this.fireRate = 10;
+      this.fireCd   = 0;
+      this.bullets  = []; // local predicted bullets (visual only)
+    }
+
+    // Called once when first server state arrives
+    seed(sp) {
+      this.x = sp.x; this.y = sp.y; this.angle = sp.angle;
+      this.alive = sp.alive; this.hp = sp.hp; this.maxHp = sp.maxHp;
+      this.seeded = true;
+    }
+
+    // 60Hz local tick — runs physics locally for zero-latency feel
+    tick(joystickAngle, firing, inMeleeMode) {
+      // Move
+      if (joystickAngle !== null && this.alive) {
+        this.angle = joystickAngle;
+        this.x = Math.max(WALL_PAD, Math.min(CANVAS_W - WALL_PAD, this.x + Math.cos(joystickAngle) * PLAYER_SPEED));
+        this.y = Math.max(WALL_PAD, Math.min(CANVAS_H - WALL_PAD, this.y + Math.sin(joystickAngle) * PLAYER_SPEED));
+      }
+
+      // Fire predicted bullets (visual only — damage handled server side)
+      this.fireCd--;
+      if (firing && !inMeleeMode && this.alive && this.fireCd <= 0) {
+        this.bullets.push({
+          x: this.x + Math.cos(this.angle) * PLAYER_SIZE,
+          y: this.y + Math.sin(this.angle) * PLAYER_SIZE,
+          vx: Math.cos(this.angle) * BULLET_SPEED,
+          vy: Math.sin(this.angle) * BULLET_SPEED,
+          life: 55, color: this.color
+        });
+        this.fireCd = this.fireRate;
+      }
+
+      // Advance predicted bullets
+      for (let i = this.bullets.length - 1; i >= 0; i--) {
+        const b = this.bullets[i];
+        b.x += b.vx; b.y += b.vy; b.life--;
+        if (b.life <= 0 || b.x < 0 || b.x > CANVAS_W || b.y < 0 || b.y > CANVAS_H)
+          this.bullets.splice(i, 1);
+      }
+    }
+
+    // Called each time server state arrives — smooth correction
+    reconcile(sp) {
+      // Always sync non-positional state from server (hp, alive)
+      this.alive = sp.alive;
+      this.hp    = sp.hp;
+      this.maxHp = sp.maxHp;
+
+      if (!this.alive) { this.x = sp.x; this.y = sp.y; return; }
+
+      const dx   = sp.x - this.x;
+      const dy   = sp.y - this.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+
+      if (dist > SNAP_DIST) {
+        // Large correction — snap instantly (shouldn't happen often)
+        this.x = sp.x; this.y = sp.y;
+      } else if (dist > 1.5) {
+        // Small drift — lerp smoothly so it's invisible to the player
+        this.x += dx * PRED_CORRECT;
+        this.y += dy * PRED_CORRECT;
+      }
+    }
+
+    // Remove predicted bullets near a confirmed server hit
+    clearNear(x, y) {
+      this.bullets = this.bullets.filter(b => Math.sqrt((b.x-x)**2+(b.y-y)**2) > 40);
+    }
+  }
+
+  // ================================================================
+  // RENDERER — draws server state + local prediction at 60fps
+  // ================================================================
+  class Renderer {
     constructor(canvas) {
-      this.canvas = canvas;
-      this.ctx    = canvas.getContext('2d');
-      this.BASE_W = 1334; this.BASE_H = 750;
-      this.mySlot = 1;
+      this.canvas    = canvas;
+      this.ctx       = canvas.getContext('2d');
+      this.BASE_W    = CANVAS_W;
+      this.BASE_H    = CANVAS_H;
       this.particles = [];
-      this.meleeFlashes = [];
-      this.waveText = '';
-      this.waveTextTimer = 0;
-      // LAG FIX: client-side bullet prediction
-      this.localBullets = [];
+      this.melees    = [];
+      this.waveText  = '';
+      this.waveTimer = 0;
       this.resize();
       window.addEventListener('resize', () => this.resize());
     }
@@ -207,7 +295,6 @@
       const W      = window.innerWidth;
       const availH = window.innerHeight - 170 - 36;
       const scale  = Math.min(W / this.BASE_W, availH / this.BASE_H);
-      this.scale   = scale;
       this.canvas.width  = this.BASE_W;
       this.canvas.height = this.BASE_H;
       this.canvas.style.width  = Math.floor(this.BASE_W * scale) + 'px';
@@ -215,130 +302,90 @@
       document.getElementById('canvas-wrap').style.height = Math.floor(this.BASE_H * scale) + 'px';
     }
 
-    showWaveText(text) { this.waveText = text; this.waveTextTimer = 120; }
+    showWave(text) { this.waveText = text; this.waveTimer = 150; }
 
     spawnParticles(x, y, color, count = 10) {
       for (let i = 0; i < count; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const speed = 1.5 + Math.random() * 4;
-        const life  = 18 + Math.floor(Math.random() * 20);
-        this.particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color, life, maxLife: life, size: 2 + Math.random()*4 });
+        const a = Math.random() * Math.PI * 2, s = 1.5 + Math.random()*4, l = 18 + Math.random()*20|0;
+        this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color, life: l, maxLife: l, size: 2+Math.random()*4 });
       }
     }
 
-    // LAG FIX: fire a predicted local bullet immediately on input
-    firePredictedBullet(x, y, angle, color) {
-      this.localBullets.push({
-        x: x + Math.cos(angle) * 14,
-        y: y + Math.sin(angle) * 14,
-        vx: Math.cos(angle) * 8,
-        vy: Math.sin(angle) * 8,
-        color,
-        life: 60
-      });
-    }
+    // state      = latest server snapshot
+    // pred       = Prediction instance (our player + local bullets)
+    // mySlot     = which slot is us
+    draw(state, pred, mySlot) {
+      const ctx = this.ctx, W = this.BASE_W, H = this.BASE_H;
 
-    render(state) {
-      const ctx = this.ctx;
-      const W = this.BASE_W, H = this.BASE_H;
-
-      // Update particles
-      for (let i = this.particles.length - 1; i >= 0; i--) {
+      // Tick particles + effects
+      for (let i = this.particles.length-1; i >= 0; i--) {
         const p = this.particles[i];
         p.x += p.vx; p.y += p.vy; p.vx *= 0.92; p.vy *= 0.92; p.life--;
         if (p.life <= 0) this.particles.splice(i, 1);
       }
-      for (let i = this.meleeFlashes.length - 1; i >= 0; i--) {
-        this.meleeFlashes[i].timer--;
-        if (this.meleeFlashes[i].timer <= 0) this.meleeFlashes.splice(i, 1);
+      for (let i = this.melees.length-1; i >= 0; i--) {
+        if (--this.melees[i].timer <= 0) this.melees.splice(i, 1);
       }
-      if (this.waveTextTimer > 0) this.waveTextTimer--;
+      if (this.waveTimer > 0) this.waveTimer--;
 
-      // Update local predicted bullets
-      for (let i = this.localBullets.length - 1; i >= 0; i--) {
-        const b = this.localBullets[i];
-        b.x += b.vx; b.y += b.vy; b.life--;
-        if (b.life <= 0 || b.x < 0 || b.x > W || b.y < 0 || b.y > H) {
-          this.localBullets.splice(i, 1);
-        }
-      }
-
-      // Spawn effects from server explosion events
+      // Consume server explosion events
       if (state.explosions) {
-        for (let ex of state.explosions) {
-          if (ex.melee) {
-            this.meleeFlashes.push({ x: ex.x, y: ex.y, angle: ex.angle, timer: 8, color: ex.color });
-          } else {
-            this.spawnParticles(ex.x, ex.y, ex.color, ex.big ? 24 : 10);
-            // Clear any local bullets near this hit to avoid visual doubling
-            this.localBullets = this.localBullets.filter(b => {
-              const dx = b.x - ex.x, dy = b.y - ex.y;
-              return Math.sqrt(dx*dx + dy*dy) > 30;
-            });
-          }
+        for (const ex of state.explosions) {
+          if (ex.melee) this.melees.push({ x: ex.x, y: ex.y, angle: ex.angle, color: ex.color, timer: 8 });
+          else          this.spawnParticles(ex.x, ex.y, ex.color, ex.big ? 24 : 10);
+          if (pred)     pred.clearNear(ex.x, ex.y);
         }
       }
 
-      // Background
+      // ── Background ────────────────────────────────────────────────
       ctx.fillStyle = '#111'; ctx.fillRect(0, 0, W, H);
-
-      // Grid
       ctx.strokeStyle = '#1a1a1a'; ctx.lineWidth = 1;
       for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
       for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
 
-      // Border
-      ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 4;
-      ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 10;
-      ctx.strokeRect(2, 2, W-4, H-4);
-      ctx.shadowBlur = 0;
-
-      // Mystery box
+      // ── Mystery box ───────────────────────────────────────────────
       if (state.mysteryBox) {
         const b = state.mysteryBox;
         ctx.fillStyle = '#1a001a'; ctx.fillRect(b.x-18, b.y-18, 36, 36);
         ctx.strokeStyle = '#bb00ff'; ctx.lineWidth = 2; ctx.strokeRect(b.x-18, b.y-18, 36, 36);
         ctx.fillStyle = '#bb00ff'; ctx.font = 'bold 18px Courier New';
-        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('?', b.x, b.y);
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('?', b.x, b.y);
       }
 
-      // Ammo packs
-      for (let a of state.ammoPacks) {
+      // ── Ammo packs ────────────────────────────────────────────────
+      for (const a of state.ammoPacks) {
         ctx.fillStyle = '#ffff00'; ctx.fillRect(a.x-10, a.y-10, 20, 20);
         ctx.strokeStyle = '#ffaa00'; ctx.lineWidth = 2; ctx.strokeRect(a.x-10, a.y-10, 20, 20);
         ctx.fillStyle = '#000'; ctx.font = 'bold 11px Courier New';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText('A', a.x, a.y);
       }
 
-      // Health packs
-      for (let h of state.healthPacks) {
+      // ── Health packs ──────────────────────────────────────────────
+      for (const h of state.healthPacks) {
         ctx.fillStyle = '#222'; ctx.fillRect(h.x-10, h.y-10, 20, 20);
         ctx.strokeStyle = '#ff4444'; ctx.lineWidth = 2; ctx.strokeRect(h.x-10, h.y-10, 20, 20);
-        ctx.fillStyle = '#ff3333';
-        ctx.fillRect(h.x-7, h.y-2, 14, 4);
-        ctx.fillRect(h.x-2, h.y-7, 4, 14);
+        ctx.fillStyle = '#ff3333'; ctx.fillRect(h.x-7, h.y-2, 14, 4); ctx.fillRect(h.x-2, h.y-7, 4, 14);
       }
 
-      // Particles
-      for (let pt of this.particles) {
-        const alpha = pt.life / pt.maxLife;
-        ctx.save(); ctx.globalAlpha = alpha;
+      // ── Particles ─────────────────────────────────────────────────
+      for (const pt of this.particles) {
+        const a = pt.life / pt.maxLife;
+        ctx.save(); ctx.globalAlpha = a;
         ctx.fillStyle = pt.color; ctx.shadowColor = pt.color; ctx.shadowBlur = 6;
-        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size * alpha, 0, Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(pt.x, pt.y, pt.size*a, 0, Math.PI*2); ctx.fill();
         ctx.restore();
       }
 
-      // Melee flashes
-      for (let f of this.meleeFlashes) {
-        ctx.save(); ctx.globalAlpha = f.timer / 8;
+      // ── Melee flashes ─────────────────────────────────────────────
+      for (const f of this.melees) {
+        ctx.save(); ctx.globalAlpha = f.timer/8;
         ctx.strokeStyle = f.color; ctx.lineWidth = 3;
-        ctx.beginPath(); ctx.arc(f.x, f.y, 55, f.angle - Math.PI*0.3, f.angle + Math.PI*0.3); ctx.stroke();
+        ctx.beginPath(); ctx.arc(f.x, f.y, 55, f.angle-Math.PI*0.3, f.angle+Math.PI*0.3); ctx.stroke();
         ctx.restore();
       }
 
-      // Zombies
-      for (let z of state.zombies) {
+      // ── Zombies ───────────────────────────────────────────────────
+      for (const z of state.zombies) {
         const hs = z.size/2;
         ctx.fillStyle = z.color; ctx.fillRect(z.x-hs, z.y-hs, z.size, z.size);
         ctx.strokeStyle = z.borderColor; ctx.lineWidth = 2; ctx.strokeRect(z.x-hs, z.y-hs, z.size, z.size);
@@ -346,91 +393,109 @@
         ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-hs, z.y-hs-8, z.size*(z.hp/z.maxHp), 4);
       }
 
-      // Local predicted bullets (drawn instead of server bullets — zero latency feel)
-      for (let b of this.localBullets) {
-        ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
-        ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
-        ctx.shadowBlur = 0;
+      // ── Local predicted bullets (instant feel) ────────────────────
+      if (pred) {
+        for (const b of pred.bullets) {
+          ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
       }
 
-      // Boss
+      // ── Boss ──────────────────────────────────────────────────────
       if (state.boss && !state.boss.dead) {
         const b = state.boss;
-        const flashing = b.flashTimer > 0 && b.flashTimer % 2 === 0;
+        const flash = b.flashTimer > 0 && b.flashTimer % 2 === 0;
         ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rotation);
         ctx.beginPath();
         for (let i = 0; i < 3; i++) {
-          const a = -Math.PI/2 + i * (2*Math.PI/3);
-          i === 0 ? ctx.moveTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius)
-                  : ctx.lineTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius);
+          const a = -Math.PI/2 + i*(2*Math.PI/3);
+          i===0 ? ctx.moveTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius)
+                : ctx.lineTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius);
         }
         ctx.closePath();
-        ctx.fillStyle = flashing ? '#ffffff' : b.color;
+        ctx.fillStyle = flash ? '#ffffff' : b.color;
         ctx.shadowColor = '#bb00ff'; ctx.shadowBlur = 30; ctx.fill();
         ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
         ctx.shadowBlur = 0; ctx.restore();
-
         const tipAngles = [0,1,2].map(i => b.rotation - Math.PI/2 + i*(2*Math.PI/3));
         for (let t = 0; t < 3; t++) {
           if (b.tips[t].hp <= 0) continue;
           const tx = b.x + Math.cos(tipAngles[t])*b.radius;
           const ty = b.y + Math.sin(tipAngles[t])*b.radius;
-          ctx.save(); ctx.translate(tx, ty); ctx.rotate(b.rotation + t*(2*Math.PI/3));
+          ctx.save(); ctx.translate(tx, ty); ctx.rotate(b.rotation+t*(2*Math.PI/3));
           ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(12,14); ctx.lineTo(-12,14); ctx.closePath();
-          ctx.fillStyle = flashing ? '#ffffff' : '#ff00ff';
-          ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 15; ctx.fill(); ctx.shadowBlur = 0;
-          ctx.restore();
+          ctx.fillStyle = flash ? '#ffffff' : '#ff00ff';
+          ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 15; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
           ctx.fillStyle = '#440044'; ctx.fillRect(tx-18, ty-30, 36, 5);
           ctx.fillStyle = '#ff00ff'; ctx.fillRect(tx-18, ty-30, 36*(b.tips[t].hp/b.tips[t].maxHp), 5);
         }
-
         ctx.fillStyle = '#ff44ff'; ctx.font = 'bold 16px Courier New';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
         ctx.fillText('BOSS', b.x, b.y - b.radius - 20);
       }
 
-      // Players
-      for (let p of state.players) {
-        if (!p.connected) continue;
+      // ── Players ───────────────────────────────────────────────────
+      for (const sp of state.players) {
+        if (!sp.connected) continue;
+        const isMe = sp.slot === mySlot;
+        // Use predicted position for our player, server position for others
+        const px = isMe && pred ? pred.x     : sp.x;
+        const py = isMe && pred ? pred.y     : sp.y;
+        const pa = isMe && pred ? pred.angle : sp.angle;
+        const ph = isMe && pred ? pred.hp    : sp.hp;
+        const pm = isMe && pred ? pred.maxHp : sp.maxHp;
+        const alive = isMe && pred ? pred.alive : sp.alive;
         const hs = 14;
-        if (!p.alive) {
+
+        if (!alive) {
           ctx.globalAlpha = 0.3;
-          ctx.fillStyle = p.color; ctx.fillRect(p.x-hs, p.y-hs, hs*2, hs*2);
+          ctx.fillStyle = sp.color; ctx.fillRect(px-hs, py-hs, hs*2, hs*2);
           ctx.globalAlpha = 1; continue;
         }
-        ctx.save(); ctx.translate(p.x, p.y); ctx.rotate(p.angle);
-        ctx.fillStyle = p.color; ctx.shadowColor = p.color; ctx.shadowBlur = 10;
+
+        ctx.save(); ctx.translate(px, py); ctx.rotate(pa);
+        ctx.fillStyle = sp.color; ctx.shadowColor = sp.color; ctx.shadowBlur = 10;
         ctx.fillRect(-hs, -hs, hs*2, hs*2);
         ctx.fillStyle = '#000'; ctx.fillRect(4, -4, 12, 8);
         ctx.shadowBlur = 0; ctx.restore();
-        ctx.fillStyle = '#333'; ctx.fillRect(p.x-hs, p.y-hs-10, hs*2, 5);
-        ctx.fillStyle = p.hp > 40 ? '#00ff00' : p.hp > 20 ? '#ffff00' : '#ff0000';
-        ctx.fillRect(p.x-hs, p.y-hs-10, (hs*2)*(p.hp/p.maxHp), 5);
+
+        ctx.fillStyle = '#333'; ctx.fillRect(px-hs, py-hs-10, hs*2, 5);
+        ctx.fillStyle = ph > 40 ? '#00ff00' : ph > 20 ? '#ffff00' : '#ff0000';
+        ctx.fillRect(px-hs, py-hs-10, (hs*2)*(ph/pm), 5);
+
         ctx.fillStyle = '#fff'; ctx.font = 'bold 11px Courier New';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('P'+p.slot, p.x, p.y);
-        ctx.fillStyle = p.color; ctx.font = 'bold 10px Courier New';
+        ctx.fillText('P'+sp.slot, px, py);
+
+        ctx.fillStyle = sp.color; ctx.font = 'bold 10px Courier New';
         ctx.textBaseline = 'bottom';
-        ctx.fillText('$'+p.points, p.x, p.y-hs-12);
-        if (p.slot === this.mySlot) {
-          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.3;
-          ctx.strokeRect(p.x-hs-3, p.y-hs-3, (hs+3)*2, (hs+3)*2);
+        ctx.fillText('$'+sp.points, px, py-hs-12);
+
+        if (isMe) {
+          ctx.strokeStyle = '#fff'; ctx.lineWidth = 1.5; ctx.globalAlpha = 0.35;
+          ctx.strokeRect(px-hs-4, py-hs-4, (hs+4)*2, (hs+4)*2);
           ctx.globalAlpha = 1;
         }
       }
 
-      // Wave banner
-      if (this.waveTextTimer > 0) {
-        const alpha = Math.min(1, this.waveTextTimer / 30);
+      // ── Border (always on top) ────────────────────────────────────
+      ctx.strokeStyle = '#00ff00'; ctx.lineWidth = 4;
+      ctx.shadowColor = '#00ff00'; ctx.shadowBlur = 12;
+      ctx.strokeRect(2, 2, W-4, H-4);
+      ctx.shadowBlur = 0;
+
+      // ── Wave banner ───────────────────────────────────────────────
+      if (this.waveTimer > 0) {
+        const alpha = Math.min(1, this.waveTimer/30);
         ctx.save(); ctx.globalAlpha = alpha;
         ctx.font = 'bold 48px Courier New'; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillStyle = this.waveText.includes('BOSS') ? '#ff00ff' : '#ff0000';
+        ctx.fillStyle = this.waveText.includes('BOSS') ? '#ff00ff' : '#ff3300';
         ctx.shadowColor = ctx.fillStyle; ctx.shadowBlur = 30;
         ctx.fillText(this.waveText, W/2, H/2);
         ctx.shadowBlur = 0; ctx.restore();
       }
 
-      // Wave number top-right
       ctx.fillStyle = '#333'; ctx.font = '14px Courier New';
       ctx.textAlign = 'right'; ctx.textBaseline = 'top';
       ctx.fillText('WAVE ' + state.wave, W-12, 12);
@@ -442,28 +507,33 @@
   // ================================================================
   class RemoteClient {
     constructor() {
-      // LAG FIX: aggressive reconnection options + websocket only
       this.socket = io({
         transports: ['websocket'],
         reconnection: true,
         reconnectionAttempts: Infinity,
-        reconnectionDelay: 500,        // retry fast
-        reconnectionDelayMax: 2000,    // cap at 2s
-        timeout: 5000                  // give up on a connect attempt after 5s
+        reconnectionDelay: 500,
+        reconnectionDelayMax: 2000,
+        timeout: 5000
       });
 
-      this.roomCode = null;
-      this.slot     = null;
-      this.color    = null;
-      this.firing   = false;
-      this.meleeing = false;
+      this.roomCode    = null;
+      this.slot        = null;
+      this.color       = null;
+      this.firing      = false;
+      this.meleeing    = false;
       this.inMeleeMode = false;
-      this.isReady  = false;
-      this.hasVoted = false;
-      this.inputLoop = null;
-      this.renderLoop = null;
-      this.renderer = null;
-      this.lastState = null;
+      this.isReady     = false;
+      this.hasVoted    = false;
+
+      this.pred      = null;   // Prediction engine
+      this.renderer  = null;   // Renderer
+      this.lastState = null;   // Latest server snapshot
+
+      this.inputTimer = null;  // 20Hz input send loop
+      this.simTimer   = null;  // 60Hz local sim + render loop
+      this.pingTimer  = null;
+      this.pingStart  = 0;
+
       this.joystick = new Joystick('joystick-zone', 'joystick-knob');
       this.fp = this.loadFP();
 
@@ -482,56 +552,54 @@
     }
 
     checkDeepLink() {
-      const params = new URLSearchParams(window.location.search);
-      const code   = params.get('room');
+      const code = new URLSearchParams(window.location.search).get('room');
       if (code && code.length === 4) {
         document.getElementById('room-code-input').value = code.toUpperCase();
-        // LAG FIX: try immediately on connect rather than arbitrary delay
-        this._pendingCode = code.toUpperCase();
+        this._pending = code.toUpperCase();
       }
     }
 
     bindSocket() {
       this.socket.on('connect', () => {
-        this.setStatus('CONNECTED · ' + this.socket.id.slice(0,6));
-        // Join pending room immediately on connect (deep link or reconnect)
-        if (this._pendingCode) {
-          this.joinRoom(this._pendingCode);
-          this._pendingCode = null;
-        }
+        this.setStatus('OK');
+        if (this._pending) { this.joinRoom(this._pending); this._pending = null; }
+        else if (this.roomCode) this.socket.emit('join-room', { roomCode: this.roomCode, deviceFingerprint: this.fp });
+        this.startPingLoop();
       });
 
-      this.socket.on('disconnect', (reason) => {
+      this.socket.on('disconnect', () => {
         this.setStatus('RECONNECTING...');
-        // Stop input loop during disconnect to avoid queued stale inputs
-        if (this.inputLoop) { clearInterval(this.inputLoop); this.inputLoop = null; }
+        this.stopGame();
       });
 
-      this.socket.on('reconnect', () => {
-        this.setStatus('RECONNECTED');
-        // Re-join room automatically with fingerprint for slot recovery
-        if (this.roomCode) {
-          this.socket.emit('join-room', { roomCode: this.roomCode, deviceFingerprint: this.fp });
-        }
+      this.socket.on('pong-ack', () => {
+        const ms = Date.now() - this.pingStart;
+        document.getElementById('ping-display').textContent = ms + ' ms';
       });
 
-      this.socket.on('join-success', d => this.onJoinSuccess(d));
-      this.socket.on('join-failed',  d => this.showError(d.reason));
-      this.socket.on('lobby-update', d => this.updateLobby(d));
-
+      this.socket.on('join-success',  d => this.onJoinSuccess(d));
+      this.socket.on('join-failed',   d => this.showError(d.reason));
+      this.socket.on('lobby-update',  d => this.updateLobby(d));
       this.socket.on('game-starting-remote', () => this.startGame());
 
+      // Server state arrives ~30Hz — reconcile prediction, update HUD
       this.socket.on('remote-game-state', state => {
         this.lastState = state;
-        if (this.renderer) this.renderer.render(state);
+
+        if (this.pred && state.players) {
+          const sp = state.players[this.slot - 1];
+          if (sp) {
+            if (!this.pred.seeded) this.pred.seed(sp);
+            else                   this.pred.reconcile(sp);
+          }
+        }
+
         this.updateHUD(state);
         if (state.gameOver) this.showScreen('gameover-screen');
       });
 
       this.socket.on('wave-event', d => {
-        if (this.renderer) {
-          this.renderer.showWaveText(d.type === 'boss' ? '⚠ BOSS WAVE' : 'WAVE ' + d.wave);
-        }
+        if (this.renderer) this.renderer.showWave(d.type === 'boss' ? 'BOSS WAVE' : 'WAVE ' + d.wave);
       });
 
       this.socket.on('game-over', () => this.showScreen('gameover-screen'));
@@ -544,10 +612,18 @@
         this.isReady = false; this.hasVoted = false;
         this.stopGame();
         this.showScreen('lobby-screen');
-        const btn = document.getElementById('ready-btn');
-        btn.textContent = 'READY UP'; btn.classList.remove('voted');
+        document.getElementById('ready-btn').textContent = 'READY UP';
+        document.getElementById('ready-btn').classList.remove('voted');
         document.getElementById('waiting-text').textContent = '';
       });
+    }
+
+    startPingLoop() {
+      if (this.pingTimer) clearInterval(this.pingTimer);
+      this.pingTimer = setInterval(() => {
+        this.pingStart = Date.now();
+        this.socket.emit('ping-measure');
+      }, 2000);
     }
 
     bindJoinUI() {
@@ -561,7 +637,7 @@
       });
       const input = document.getElementById('room-code-input');
       input.addEventListener('input',    e => { e.target.value = e.target.value.toUpperCase(); });
-      input.addEventListener('keypress', e => { if (e.key === 'Enter') document.getElementById('join-btn').click(); });
+      input.addEventListener('keypress', e => { if (e.key==='Enter') document.getElementById('join-btn').click(); });
     }
 
     joinRoom(code) {
@@ -571,18 +647,14 @@
     }
 
     onJoinSuccess(data) {
-      this.slot     = data.slotNumber;
-      this.color    = data.color;
-      this.roomCode = data.roomCode;
+      this.slot = data.slotNumber; this.color = data.color; this.roomCode = data.roomCode;
       sessionStorage.setItem('zt-fp', data.deviceFingerprint);
-
       document.getElementById('room-code-display').textContent = this.roomCode;
       const badge = document.getElementById('my-badge');
       badge.textContent = 'PLAYER ' + this.slot;
       badge.style.color = this.color; badge.style.borderColor = this.color;
-
       this.showScreen('lobby-screen');
-      this.setStatus('PLAYER ' + this.slot);
+      this.setStatus('P' + this.slot);
       this.requestWakeLock();
     }
 
@@ -591,7 +663,7 @@
         const url = `${window.location.origin}/join/${this.roomCode}`;
         const btn = document.getElementById('share-btn');
         if (navigator.share) {
-          try { await navigator.share({ title: 'Z-TEAM', text: `Join my Z-TEAM game! Room: ${this.roomCode}`, url }); } catch(e) {}
+          try { await navigator.share({ title: 'Z-TEAM', text: `Join! Room: ${this.roomCode}`, url }); } catch(e) {}
         } else {
           try {
             await navigator.clipboard.writeText(url);
@@ -617,10 +689,10 @@
       for (let s = 1; s <= 4; s++) {
         const p = data.players.find(p => p.slotNumber === s);
         const row = document.createElement('div');
-        row.className = 'player-row' + (p && p.slotNumber === this.slot ? ' me' : '');
+        row.className = 'player-row';
         if (p) {
-          row.innerHTML = `<span class="pname" style="color:${p.color}">PLAYER ${p.slotNumber}${p.slotNumber === this.slot ? ' (YOU)' : ''}</span>
-            <span class="pstatus ${p.ready ? 'ready' : ''}">${p.ready ? 'READY' : 'WAITING'}</span>`;
+          row.innerHTML = `<span class="pname" style="color:${p.color}">PLAYER ${p.slotNumber}${p.slotNumber===this.slot?' (YOU)':''}</span>
+            <span class="pstatus ${p.ready?'ready':''}">${p.ready?'READY':'WAITING'}</span>`;
         } else {
           row.innerHTML = `<span class="pname" style="color:#333">PLAYER ${s}</span><span class="pstatus">OPEN</span>`;
         }
@@ -634,21 +706,13 @@
         e.preventDefault();
         if (this.inMeleeMode) this.meleeing = true; else this.firing = true;
         fireBtn.classList.add('active');
-        // LAG FIX: predict bullet visually on press, don't wait for server echo
-        if (!this.inMeleeMode && this.renderer && this.lastState) {
-          const me = this.lastState.players[this.slot - 1];
-          if (me && me.alive) this.renderer.firePredictedBullet(me.x, me.y, me.angle, me.color);
-        }
       };
       const release = e => {
-        e.preventDefault();
-        this.firing = false; this.meleeing = false;
-        fireBtn.classList.remove('active');
+        e.preventDefault(); this.firing = false; this.meleeing = false; fireBtn.classList.remove('active');
       };
       fireBtn.addEventListener('touchstart',  press,   { passive: false });
       fireBtn.addEventListener('touchend',    release, { passive: false });
       fireBtn.addEventListener('touchcancel', release, { passive: false });
-
       document.getElementById('mystery-box-btn').addEventListener('click', () => {
         this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
       });
@@ -657,67 +721,63 @@
     startGame() {
       this.showScreen('game-screen');
       setTimeout(() => {
-        const canvas = document.getElementById('game-canvas');
-        this.renderer = new RemoteRenderer(canvas);
-        this.renderer.mySlot = this.slot;
+        // Init renderer + prediction engine
+        this.renderer = new Renderer(document.getElementById('game-canvas'));
+        this.pred     = new Prediction(this.slot, this.color);
 
-        // LAG FIX: input at 20ms (50Hz) — fast enough to feel responsive
-        this.inputLoop = setInterval(() => {
+        // 60Hz sim loop — prediction ticks + renders every frame
+        this.simTimer = setInterval(() => {
+          if (!this.lastState) return;
+          this.pred.tick(this.joystick.getAngle(), this.firing, this.inMeleeMode);
+          this.renderer.draw(this.lastState, this.pred, this.slot);
+        }, 1000 / 60);
+
+        // 20Hz input loop — send to server independently of render
+        this.inputTimer = setInterval(() => {
+          if (!this.roomCode) return;
           this.socket.emit('player-input', {
             roomCode: this.roomCode,
             input: { angle: this.joystick.getAngle(), fire: this.firing, melee: this.meleeing }
           });
-        }, 20);
+        }, 50); // 20Hz
+
       }, 100);
     }
 
     stopGame() {
-      if (this.inputLoop) { clearInterval(this.inputLoop); this.inputLoop = null; }
+      if (this.simTimer)   { clearInterval(this.simTimer);   this.simTimer   = null; }
+      if (this.inputTimer) { clearInterval(this.inputTimer); this.inputTimer = null; }
     }
 
     updateHUD(state) {
-      const p = state.players ? state.players[this.slot - 1] : null;
+      const p = state.players?.[this.slot - 1];
       if (!p) return;
 
-      const ammo = p.ammo;
       const ammoEl = document.getElementById('hud-ammo');
-      if (ammo === -1) {
-        ammoEl.textContent = '∞'; ammoEl.className = '';
+      if (p.ammo === -1)    { ammoEl.textContent = '∞';   ammoEl.className = ''; this.setMeleeMode(false); }
+      else if (p.ammo === 0){ ammoEl.textContent = 'OUT'; ammoEl.className = 'empty'; this.setMeleeMode(true); }
+      else {
+        ammoEl.textContent = p.ammo;
+        ammoEl.className   = p.ammo <= 5 ? 'low' : '';
         this.setMeleeMode(false);
-      } else if (ammo === 0) {
-        ammoEl.textContent = 'OUT'; ammoEl.className = 'empty';
-        this.setMeleeMode(true);
-      } else {
-        ammoEl.textContent = ammo;
-        ammoEl.className = ammo <= 5 ? 'low' : '';
-        this.setMeleeMode(false);
+        if (this.pred) this.pred.fireRate = WEAPON_FIRE_RATES[p.weapon] || 10;
       }
 
       document.getElementById('hud-weapon').textContent = (p.weapon||'pistol').toUpperCase().replace('_',' ');
-      document.getElementById('hud-points').textContent = '$'+p.points;
-      document.getElementById('hud-wave').textContent   = 'WAVE '+state.wave;
+      document.getElementById('hud-points').textContent = '$' + p.points;
+      document.getElementById('hud-wave').textContent   = 'WAVE ' + state.wave;
 
-      const boxBtn = document.getElementById('mystery-box-btn');
-      if (p.canUseMysteryBox && p.points >= 950) {
-        boxBtn.disabled = false; boxBtn.classList.add('pulse');
-      } else {
-        boxBtn.disabled = true; boxBtn.classList.remove('pulse');
-      }
+      const box = document.getElementById('mystery-box-btn');
+      if (p.canUseMysteryBox && p.points >= 950) { box.disabled = false; box.classList.add('pulse'); }
+      else                                        { box.disabled = true;  box.classList.remove('pulse'); }
     }
 
     setMeleeMode(active) {
       if (this.inMeleeMode === active) return;
       this.inMeleeMode = active;
       const btn = document.getElementById('fire-btn');
-      if (active) {
-        btn.classList.add('melee-mode');
-        btn.childNodes[0].textContent = 'KNIFE';
-        this.firing = false;
-      } else {
-        btn.classList.remove('melee-mode');
-        btn.childNodes[0].textContent = 'FIRE';
-        this.meleeing = false;
-      }
+      if (active) { btn.classList.add('melee-mode'); btn.childNodes[0].textContent = 'KNIFE'; this.firing = false; }
+      else        { btn.classList.remove('melee-mode'); btn.childNodes[0].textContent = 'FIRE'; this.meleeing = false; }
     }
 
     bindGameoverUI() {
@@ -750,9 +810,7 @@
         if ('wakeLock' in navigator) {
           await navigator.wakeLock.request('screen');
           document.addEventListener('visibilitychange', async () => {
-            if (document.visibilityState === 'visible') {
-              try { await navigator.wakeLock.request('screen'); } catch(_) {}
-            }
+            if (document.visibilityState === 'visible') try { await navigator.wakeLock.request('screen'); } catch(_){}
           });
         }
       } catch(e) {}
@@ -761,7 +819,6 @@
 
   const client = new RemoteClient();
   document.body.addEventListener('touchmove', e => e.preventDefault(), { passive: false });
-
   </script>
 </body>
 </html>
