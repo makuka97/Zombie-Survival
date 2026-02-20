@@ -28,7 +28,7 @@ app.get('/join/:roomCode', (req, res) => {
 // ================================================================
 // SHARED GAME CONSTANTS (mirrored in client renderers)
 // ================================================================
-const TICK_RATE    = 30; // Hz
+const TICK_RATE    = 60; // Hz — 60Hz for smooth interpolation on clients
 const TICK_MS      = 1000 / TICK_RATE;
 
 const WEAPONS = {
@@ -42,17 +42,17 @@ const WEAPONS = {
 };
 
 const ZOMBIE_TYPES = {
-  regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.9, hp: 2,  points: 60,  weight: 70 },
-  runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.8, hp: 1,  points: 80,  weight: 20 },
-  tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 8,  points: 150, weight: 10 }
+  regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.45, hp: 2,  points: 60,  weight: 70 },
+  runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 0.9,  hp: 1,  points: 80,  weight: 20 },
+  tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.25, hp: 8,  points: 150, weight: 10 }
 };
 
 const CANVAS_W         = 1334;
 const CANVAS_H         = 750;
 const PLAYER_SIZE      = 28;
 const BULLET_SIZE      = 6;
-const BULLET_SPEED     = 8;
-const PLAYER_SPEED     = 2.5;
+const BULLET_SPEED     = 4;    // halved — tick rate doubled to 60Hz
+const PLAYER_SPEED     = 1.25; // halved — tick rate doubled to 60Hz
 const AMMO_DROP_CHANCE = 0.3;
 const HEALTH_DROP_CHANCE = 0.08;
 const MYSTERY_BOX_COST = 950;
@@ -841,7 +841,7 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: socket.id, roomCode, mode: 'remote'
     });
-    
+    // socket.io built-in ping handles connection monitoring
     console.log(`[ROOM ${roomCode}] Remote room created by Player 1`);
   });
 
@@ -856,7 +856,7 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: playerData.deviceFingerprint, roomCode, mode: room.mode
     });
-    
+    // socket.io built-in ping handles connection monitoring
   });
 
   socket.on('player-ready',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleReady(socket.id); });
@@ -900,4 +900,3 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Modes     : local + remote`);
   console.log('============================================');
 });
-
