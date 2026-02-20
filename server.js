@@ -9,26 +9,27 @@ const server = http.createServer(app);
 
 const io = socketIo(server, {
   transports: ['websocket'],
+  // LAG FIX 1: Tune socket.io for low latency
+  pingInterval: 5000,
+  pingTimeout:  10000,
   cors: { origin: '*' }
 });
 
-// ── Landing page as root — MUST be before express.static ─────────────────
 app.get('/', (req, res) => {
   res.sendFile(path.resolve(__dirname, 'landing.html'));
 });
 
 app.use(express.static(path.join(__dirname)));
 
-// ── Deep link: /join/:roomCode ────────────────────────────────────────────
 app.get('/join/:roomCode', (req, res) => {
   const code = req.params.roomCode.toUpperCase();
   res.redirect(`/remote.html?room=${code}`);
 });
 
 // ================================================================
-// SHARED GAME CONSTANTS (mirrored in client renderers)
+// CONSTANTS
 // ================================================================
-const TICK_RATE    = 30; // Hz
+const TICK_RATE    = 30;
 const TICK_MS      = 1000 / TICK_RATE;
 
 const WEAPONS = {
@@ -63,35 +64,34 @@ const MELEE_ARC        = Math.PI * 0.6;
 const WALL             = 6;
 const MAX_PLAYERS      = 4;
 const PLAYER_COLORS    = ['#00ffff', '#ff44ff', '#4488ff', '#ffff00'];
-const GRACE_PERIOD_MS  = 10000;
-const HEARTBEAT_MS     = 2000;
+const GRACE_PERIOD_MS  = 15000;
 const BOSS_RADIUS      = 90;
 const BOSS_PAD         = BOSS_RADIUS + 35;
 const REVIVE_RADIUS    = 40;
 const REVIVE_TIME      = 3000;
 
 // ================================================================
-// SERVER-SIDE GAME ENGINE (Phase 2a)
+// SERVER-SIDE GAME ENGINE
 // ================================================================
 class ServerGame {
   constructor(room) {
-    this.room       = room;
-    this.players    = [];
-    this.zombies    = [];
-    this.bullets    = [];
-    this.ammoPacks  = [];
+    this.room        = room;
+    this.players     = [];
+    this.zombies     = [];
+    this.bullets     = [];
+    this.ammoPacks   = [];
     this.healthPacks = [];
-    this.wave       = 1;
-    this.waveTotal  = 0;
-    this.waveKilled = 0;
-    this.gameOver   = false;
+    this.wave        = 1;
+    this.waveTotal   = 0;
+    this.waveKilled  = 0;
+    this.gameOver    = false;
     this.gameStarted = false;
-    this.isBossWave = false;
-    this.boss       = null;
-    this.mysteryBox = null;
-    this.reviveMap  = new Map();
+    this.isBossWave  = false;
+    this.boss        = null;
+    this.mysteryBox  = null;
+    this.reviveMap   = new Map();
     this.tickInterval = null;
-    this.explosions = []; // queued this tick, sent then cleared
+    this.explosions  = [];
 
     const spawns = [
       { x: 80,   y: 80  }, { x: 1254, y: 80  },
@@ -143,6 +143,7 @@ class ServerGame {
       p.savedAmmo = undefined;
     }
     this.spawnMysteryBox();
+    this.gameStarted = true;
     this.start();
   }
 
@@ -407,20 +408,17 @@ class ServerGame {
 
   tick() {
     if (this.gameOver || !this.gameStarted) return;
-    this.explosions = []; // clear per-tick explosion queue
+    this.explosions = [];
 
     const hs = PLAYER_SIZE / 2;
 
-    // Players
     for (let p of this.players) {
       if (!p.connected || !p.alive) continue;
       const clamp = hs + WALL;
       p.x = Math.max(clamp, Math.min(CANVAS_W - clamp, p.x + p.vx));
       p.y = Math.max(clamp, Math.min(CANVAS_H - clamp, p.y + p.vy));
-
       const weapon = WEAPONS[p.currentWeapon];
       p.fireCooldown--; p.meleeCooldown--;
-
       if (p.firing && (p.ammo > 0 || p.ammo === Infinity) && p.fireCooldown <= 0) {
         this.fireBullet(p); p.fireCooldown = weapon.fireRate;
       }
@@ -429,7 +427,6 @@ class ServerGame {
       }
     }
 
-    // Bullets
     for (let i = this.bullets.length - 1; i >= 0; i--) {
       const b = this.bullets[i];
       b.x += b.vx; b.y += b.vy;
@@ -476,7 +473,6 @@ class ServerGame {
       if (hit) this.bullets.splice(i, 1);
     }
 
-    // Zombies move + attack
     for (let z of this.zombies) {
       let nearest = null, nearestDist = Infinity;
       for (let p of this.players) {
@@ -494,7 +490,6 @@ class ServerGame {
       }
     }
 
-    // Ammo pickups
     for (let i = this.ammoPacks.length - 1; i >= 0; i--) {
       const a = this.ammoPacks[i];
       for (let p of this.players) {
@@ -506,7 +501,6 @@ class ServerGame {
       }
     }
 
-    // Health pickups
     for (let i = this.healthPacks.length - 1; i >= 0; i--) {
       const h = this.healthPacks[i];
       for (let p of this.players) {
@@ -520,8 +514,6 @@ class ServerGame {
 
     this.updateRevive();
     this.updateBoss();
-
-    // Broadcast state to all clients in room
     this.room.broadcastGameState(this);
   }
 
@@ -539,7 +531,8 @@ class ServerGame {
         x: z.x, y: z.y, hp: z.hp, maxHp: z.maxHp,
         size: z.size, color: z.color, borderColor: z.borderColor
       })),
-      bullets: this.bullets.map(b => ({ x: b.x, y: b.y, color: b.color })),
+      // LAG FIX 2: Don't send bullets in state — they're too fast and small to need sync,
+      // each client predicts them locally from explosion events
       ammoPacks:   this.ammoPacks.map(a => ({ x: a.x, y: a.y })),
       healthPacks: this.healthPacks.map(h => ({ x: h.x, y: h.y })),
       mysteryBox: this.mysteryBox ? { x: this.mysteryBox.x, y: this.mysteryBox.y } : null,
@@ -549,7 +542,6 @@ class ServerGame {
         color: this.boss.color, dropping: this.boss.dropping,
         tips: this.boss.tips, flashTimer: this.boss.flashTimer, dead: this.boss.dead
       } : null,
-      reviveMap: Array.from(this.reviveMap.entries()),
       wave: this.wave, gameOver: this.gameOver,
       isBossWave: this.isBossWave,
       explosions: this.explosions
@@ -558,19 +550,19 @@ class ServerGame {
 }
 
 // ================================================================
-// GAME ROOM — handles both Local and Remote modes
+// GAME ROOM
 // ================================================================
 class GameRoom {
   constructor(roomCode, mode = 'local') {
     this.roomCode  = roomCode;
-    this.mode      = mode; // 'local' or 'remote'
+    this.mode      = mode;
     this.hostSocket = null;
     this.players   = new Map();
     this.disconnectedPlayers = new Map();
     this.restartVotes = new Set();
     this.readyPlayers = new Set();
     this.gameStarted  = false;
-    this.serverGame   = null; // only used in remote mode
+    this.serverGame   = null;
     console.log(`[ROOM ${roomCode}] Created (${mode} mode)`);
   }
 
@@ -584,7 +576,6 @@ class GameRoom {
     return code;
   }
 
-  // Broadcast to all connected players
   broadcast(event, data) {
     for (let [sid] of this.players) {
       const sock = io.sockets.sockets.get(sid);
@@ -593,19 +584,15 @@ class GameRoom {
     if (this.hostSocket) this.hostSocket.emit(event, data);
   }
 
-  // Broadcast game state — remote sends to all players, local sends to host
   broadcastGameState(game) {
     const state = game.getState();
     if (this.mode === 'remote') {
-      // Send full state to every player for rendering
-      for (let [sid, player] of this.players) {
+      for (let [sid] of this.players) {
         const sock = io.sockets.sockets.get(sid);
         if (sock) sock.emit('remote-game-state', state);
       }
     } else {
-      // Local mode: send full state to host for rendering
       if (this.hostSocket) this.hostSocket.emit('remote-game-state', state);
-      // Send per-player HUD state to each controller
       for (let [sid, player] of this.players) {
         const sock = io.sockets.sockets.get(sid);
         if (!sock) continue;
@@ -649,7 +636,7 @@ class GameRoom {
       socketId: socket.id, slotNumber,
       color: PLAYER_COLORS[slotNumber - 1],
       connected: true, lastPong: Date.now(),
-      deviceFingerprint: socket.id
+      deviceFingerprint: deviceFingerprint || socket.id
     };
     this.players.set(socket.id, playerData);
     if (this.hostSocket) this.hostSocket.emit('player-joined', { slotNumber, color: playerData.color });
@@ -675,41 +662,25 @@ class GameRoom {
   handleDisconnect(socketId) {
     const player = this.players.get(socketId);
     if (!player) return;
-    this.disconnectedPlayers.set(player.deviceFingerprint, { ...player, connected: false });
+    this.disconnectedPlayers.set(player.deviceFingerprint, {
+      ...player, connected: false,
+      gracePeriodTimeout: setTimeout(() => {
+        this.disconnectedPlayers.delete(player.deviceFingerprint);
+        if (this.hostSocket) this.hostSocket.emit('player-removed', { slotNumber: player.slotNumber });
+      }, GRACE_PERIOD_MS)
+    });
     this.players.delete(socketId);
     this.restartVotes.delete(player.slotNumber);
     this.readyPlayers.delete(player.slotNumber);
     if (this.hostSocket) this.hostSocket.emit('player-disconnected', { slotNumber: player.slotNumber });
     if (this.serverGame) this.serverGame.players[player.slotNumber-1].connected = false;
-    player.gracePeriodTimeout = setTimeout(() => {
-      this.disconnectedPlayers.delete(player.deviceFingerprint);
-      if (this.hostSocket) this.hostSocket.emit('player-removed', { slotNumber: player.slotNumber });
-    }, GRACE_PERIOD_MS);
     console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} disconnected`);
-  }
-
-  startHeartbeat(socket) {
-    const interval = setInterval(() => {
-      const player = this.players.get(socket.id);
-      if (!player) { clearInterval(interval); return; }
-      socket.emit('ping');
-      if (Date.now() - player.lastPong > HEARTBEAT_MS * 2) {
-        clearInterval(interval); this.handleDisconnect(socket.id);
-      }
-    }, HEARTBEAT_MS);
-    const player = this.players.get(socket.id);
-    if (player) player.heartbeatInterval = interval;
-  }
-
-  updateLastPong(socketId) {
-    const p = this.players.get(socketId);
-    if (p) p.lastPong = Date.now();
   }
 
   relayPlayerInput(socketId, input) {
     const player = this.players.get(socketId);
     if (!player) return;
-    if (this.mode === 'remote' && this.serverGame) {
+    if (this.serverGame) {
       this.serverGame.handleInput(player.slotNumber, input);
     } else if (this.hostSocket) {
       this.hostSocket.emit('player-input', { slotNumber: player.slotNumber, input });
@@ -719,7 +690,7 @@ class GameRoom {
   handleMysteryBox(socketId) {
     const player = this.players.get(socketId);
     if (!player) return;
-    if (this.mode === 'remote' && this.serverGame) {
+    if (this.serverGame) {
       this.serverGame.handleMysteryBox(player.slotNumber);
     } else if (this.hostSocket) {
       this.hostSocket.emit('mystery-box-purchase', { slotNumber: player.slotNumber });
@@ -734,14 +705,13 @@ class GameRoom {
     console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} READY (${this.readyPlayers.size}/${this.players.size})`);
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
+      if (!this.serverGame) this.serverGame = new ServerGame(this);
+      for (let [, p] of this.players) {
+        this.serverGame.players[p.slotNumber - 1].connected = true;
+      }
+      this.serverGame.gameStarted = true;
+      this.serverGame.start();
       if (this.mode === 'remote') {
-        // Reuse existing serverGame (created in create-remote-room), mark all players connected
-        if (!this.serverGame) this.serverGame = new ServerGame(this);
-        for (let [, p] of this.players) {
-          this.serverGame.players[p.slotNumber - 1].connected = true;
-        }
-        this.serverGame.gameStarted = true;
-        this.serverGame.start();
         this.broadcast('game-starting-remote', { mode: 'remote' });
       } else {
         if (this.hostSocket) this.hostSocket.emit('all-ready');
@@ -770,22 +740,18 @@ class GameRoom {
     this.broadcast('restart-vote-update', { votes: this.restartVotes.size, needed: this.players.size });
     if (this.restartVotes.size >= this.players.size) {
       this.restartVotes.clear(); this.readyPlayers.clear(); this.gameStarted = false;
-      if (this.mode === 'remote' && this.serverGame) {
+      if (this.serverGame) {
         this.serverGame.restart();
-        this.broadcast('game-restarting-remote', {});
-      } else {
-        if (this.hostSocket) this.hostSocket.emit('restart-game');
-        this.broadcast('game-restarting', {});
+        if (this.mode === 'remote') {
+          this.broadcast('game-restarting-remote', {});
+        } else {
+          if (this.hostSocket) this.hostSocket.emit('restart-game');
+          this.broadcast('game-restarting', {});
+        }
       }
     }
   }
 
-  broadcastExplosion(data) {
-    this.broadcast('explosion', data);
-    if (this.hostSocket) this.hostSocket.emit('explosion', data);
-  }
-
-  // Legacy local mode game state broadcast
   broadcastLocalGameState(gameState) {
     for (let [socketId, player] of this.players) {
       const socket = io.sockets.sockets.get(socketId);
@@ -795,8 +761,7 @@ class GameRoom {
           health: ps.health, ammo: ps.ammo === Infinity ? -1 : ps.ammo,
           isAlive: ps.isAlive, points: ps.points, weapon: ps.weapon,
           canUseMysteryBox: ps.canUseMysteryBox,
-          wave: gameState.wave || 1, zombiesRemaining: gameState.zombiesRemaining || 0,
-          gameOver: gameState.gameOver || false
+          wave: gameState.wave || 1, gameOver: gameState.gameOver || false
         });
       }
     }
@@ -805,7 +770,6 @@ class GameRoom {
   destroy() {
     if (this.serverGame) this.serverGame.stop();
     for (let p of this.disconnectedPlayers.values()) if (p.gracePeriodTimeout) clearTimeout(p.gracePeriodTimeout);
-    for (let p of this.players.values()) if (p.heartbeatInterval) clearInterval(p.heartbeatInterval);
     this.players.clear(); this.disconnectedPlayers.clear();
     console.log(`[ROOM ${this.roomCode}] Destroyed`);
   }
@@ -819,21 +783,21 @@ const gameRooms = new Map();
 io.on('connection', (socket) => {
   console.log(`[SERVER] Connected: ${socket.id}`);
 
-  // Local mode: host creates room
   socket.on('create-room', () => {
     const roomCode = GameRoom.generateRoomCode();
     const room = new GameRoom(roomCode, 'local');
+    // LAG FIX 3: local mode now uses server-side game engine too
+    room.serverGame = new ServerGame(room);
     gameRooms.set(roomCode, room);
     room.setHost(socket);
     socket.join(roomCode);
   });
 
-  // Remote mode: first player creates room, becomes player 1
   socket.on('create-remote-room', () => {
     const roomCode = GameRoom.generateRoomCode();
     const room = new GameRoom(roomCode, 'remote');
-    gameRooms.set(roomCode, room);
     room.serverGame = new ServerGame(room);
+    gameRooms.set(roomCode, room);
     socket.join(roomCode);
     const playerData = room.addPlayer(socket, socket.id);
     if (!playerData) return;
@@ -841,7 +805,6 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: socket.id, roomCode, mode: 'remote'
     });
-    room.startHeartbeat(socket);
     console.log(`[ROOM ${roomCode}] Remote room created by Player 1`);
   });
 
@@ -856,7 +819,6 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: playerData.deviceFingerprint, roomCode, mode: room.mode
     });
-    room.startHeartbeat(socket);
   });
 
   socket.on('player-ready',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleReady(socket.id); });
@@ -865,7 +827,7 @@ io.on('connection', (socket) => {
   socket.on('restart-vote',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleRestartVote(socket.id); });
   socket.on('restart-vote-remote',  (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleRestartVote(socket.id); });
 
-  // Local mode: host broadcasts game state to players
+  // LAG FIX 4: local mode still sends game-state-broadcast for controller HUD updates
   socket.on('game-state-broadcast', (data) => {
     const r = gameRooms.get(data.roomCode);
     if (r) r.broadcastLocalGameState(data.gameState);
@@ -873,19 +835,26 @@ io.on('connection', (socket) => {
 
   socket.on('explosion', (data) => {
     const r = gameRooms.get(data.roomCode);
-    if (r) r.broadcastExplosion({ x: data.x, y: data.y, color: data.color });
+    if (r) r.broadcast('explosion', { x: data.x, y: data.y, color: data.color });
   });
 
-  socket.on('pong', () => {
-    for (let room of gameRooms.values()) {
-      if (room.players.has(socket.id)) { room.updateLastPong(socket.id); break; }
-    }
-  });
+  // LAG FIX 5: remove heartbeat polling — rely on socket.io's built-in ping/pong
+  // instead of a custom heartbeat that adds overhead
 
   socket.on('disconnect', () => {
     console.log(`[SERVER] Disconnected: ${socket.id}`);
     for (let [roomCode, room] of gameRooms.entries()) {
-      if (room.players.has(socket.id)) { room.handleDisconnect(socket.id); break; }
+      if (room.players.has(socket.id)) {
+        room.handleDisconnect(socket.id);
+        // Clean up empty rooms after grace period
+        setTimeout(() => {
+          if (room.players.size === 0 && !room.hostSocket) {
+            room.destroy();
+            gameRooms.delete(roomCode);
+          }
+        }, GRACE_PERIOD_MS + 1000);
+        break;
+      }
       if (room.hostSocket && room.hostSocket.id === socket.id) {
         room.destroy(); gameRooms.delete(roomCode); break;
       }
