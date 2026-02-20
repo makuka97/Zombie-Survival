@@ -148,7 +148,7 @@
   const CANVAS_W     = 1334;
   const CANVAS_H     = 750;
   const WALL_PAD     = PLAYER_SIZE / 2 + 6;
-  const PRED_CORRECT = 0.22;   // lerp strength toward server position per frame
+  const PRED_CORRECT = 0.15;   // lerp strength toward server position per frame (lower = smoother)
   const SNAP_DIST    = 100;    // px — snap if correction gap is this large
 
   const WEAPON_FIRE_RATES = {
@@ -270,7 +270,7 @@
 
     // Remove predicted bullets near a confirmed server hit
     clearNear(x, y) {
-      this.bullets = this.bullets.filter(b => Math.sqrt((b.x-x)**2+(b.y-y)**2) > 40);
+      this.bullets = this.bullets.filter(b => Math.sqrt((b.x-x)**2+(b.y-y)**2) > 60);
     }
   }
 
@@ -282,71 +282,86 @@
   // ================================================================
   class Interpolator {
     constructor() {
-      this.players = new Map(); // slot -> interpolated player state
-      this.zombies = [];        // interpolated zombie array for rendering
-      this._zombiePrev = [];
-      this._zombieNext = [];
-      this._t = 0;
-      this._lastServerTime = 0;
-      this.SERVER_TICK = 1000 / 30; // 33ms
+      this.players  = new Map();  // slot -> { snapshots: [{t, x, y, angle, ...}], x, y, angle, ... }
+      this.zombies  = [];
+      this._snapshots = [];       // [{time, zombies}] ring buffer for zombie interp
+      this.BUFFER   = 100;        // ms of intentional delay — always have prev+next
     }
 
-    // Call every time a new server state arrives
     onServerState(state, mySlot) {
-      this._t = 0;
-      this._lastServerTime = Date.now();
+      const now = Date.now();
 
-      // Other players
+      // ── Players ────────────────────────────────────────────────────
       for (const sp of state.players) {
-        if (sp.slot === mySlot) continue;  // skip self — we use prediction for ourselves
-        if (!sp.connected) { this.players.delete(sp.slot); continue; } // skip empty slots
-        const existing = this.players.get(sp.slot);
-        if (existing) {
-          existing.prev  = { x: existing.x, y: existing.y, angle: existing.angle };
-          existing.next  = { x: sp.x, y: sp.y, angle: sp.angle };
-          existing.alive = sp.alive; existing.hp = sp.hp; existing.maxHp = sp.maxHp;
-          existing.points = sp.points; existing.color = sp.color;
-        } else {
-          // Seed x/y to server position so player renders immediately on first frame
-          this.players.set(sp.slot, {
-            prev:  { x: sp.x, y: sp.y, angle: sp.angle },
-            next:  { x: sp.x, y: sp.y, angle: sp.angle },
-            x: sp.x, y: sp.y, angle: sp.angle,
-            alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
-            points: sp.points, color: sp.color, slot: sp.slot
-          });
+        if (sp.slot === mySlot) continue;
+        if (!sp.connected) { this.players.delete(sp.slot); continue; }
+        let p = this.players.get(sp.slot);
+        if (!p) {
+          p = { snapshots: [], x: sp.x, y: sp.y, angle: sp.angle,
+                alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
+                points: sp.points, color: sp.color, slot: sp.slot };
+          this.players.set(sp.slot, p);
         }
+        p.snapshots.push({ t: now, x: sp.x, y: sp.y, angle: sp.angle,
+                           alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
+                           points: sp.points, color: sp.color });
+        // Keep only last 10 snapshots
+        if (p.snapshots.length > 10) p.snapshots.shift();
+        // Always update non-positional state immediately
+        p.alive = sp.alive; p.hp = sp.hp; p.maxHp = sp.maxHp;
+        p.points = sp.points; p.color = sp.color;
       }
-      // Remove players who are completely gone (slot not in state at all)
+      // Remove gone players
       for (const [slot] of this.players) {
         if (!state.players.find(p => p.slot === slot)) this.players.delete(slot);
       }
 
-      // Zombies — prev = current interpolated positions (smooth), fallback to server pos for new zombies
-      this._zombiePrev = state.zombies.map((zNext, i) => {
-        const cur = this.zombies[i];
-        return cur ? { x: cur.x, y: cur.y } : { x: zNext.x, y: zNext.y };
-      });
-      this._zombieNext = state.zombies;
+      // ── Zombies ────────────────────────────────────────────────────
+      this._snapshots.push({ t: now, zombies: state.zombies });
+      if (this._snapshots.length > 10) this._snapshots.shift();
     }
 
-    // Call every frame (60Hz) — advances interpolation progress
     tick() {
-      const t = Math.min((Date.now() - this._lastServerTime) / this.SERVER_TICK, 1);
+      const renderTime = Date.now() - this.BUFFER;
 
-      // Interpolate other players
+      // ── Interpolate players ────────────────────────────────────────
       for (const [, p] of this.players) {
-        p.x = p.prev.x + (p.next.x - p.prev.x) * t;
-        p.y = p.prev.y + (p.next.y - p.prev.y) * t;
-        let da = p.next.angle - p.prev.angle;
+        const snaps = p.snapshots;
+        if (!snaps.length) continue;
+        // Find the two snapshots that straddle renderTime
+        let prev = snaps[0], next = snaps[0];
+        for (let i = 0; i < snaps.length - 1; i++) {
+          if (snaps[i].t <= renderTime && snaps[i+1].t >= renderTime) {
+            prev = snaps[i]; next = snaps[i+1]; break;
+          }
+          // If renderTime is beyond all snapshots, extrapolate from last two
+          prev = snaps[snaps.length - 2] || snaps[0];
+          next = snaps[snaps.length - 1];
+        }
+        const span = next.t - prev.t;
+        const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.5) : 1;
+        p.x = prev.x + (next.x - prev.x) * t;
+        p.y = prev.y + (next.y - prev.y) * t;
+        let da = next.angle - prev.angle;
         while (da >  Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
-        p.angle = p.prev.angle + da * t;
+        p.angle = prev.angle + da * t;
       }
 
-      // Interpolate zombies
-      this.zombies = this._zombieNext.map((zNext, i) => {
-        const zPrev = this._zombiePrev[i];
+      // ── Interpolate zombies ────────────────────────────────────────
+      if (!this._snapshots.length) return;
+      let prev = this._snapshots[0], next = this._snapshots[0];
+      for (let i = 0; i < this._snapshots.length - 1; i++) {
+        if (this._snapshots[i].t <= renderTime && this._snapshots[i+1].t >= renderTime) {
+          prev = this._snapshots[i]; next = this._snapshots[i+1]; break;
+        }
+        prev = this._snapshots[this._snapshots.length - 2] || this._snapshots[0];
+        next = this._snapshots[this._snapshots.length - 1];
+      }
+      const span = next.t - prev.t;
+      const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.5) : 1;
+      this.zombies = next.zombies.map((zNext, i) => {
+        const zPrev = prev.zombies[i];
         if (!zPrev) return zNext;
         return { ...zNext, x: zPrev.x + (zNext.x - zPrev.x) * t, y: zPrev.y + (zNext.y - zPrev.y) * t };
       });
@@ -476,19 +491,20 @@
         ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-hs, z.y-hs-8, z.size*(z.hp/z.maxHp), 4);
       }
 
-      // ── Server bullets (other players' bullets, authoritative) ─────
+      // ── Bullets ──────────────────────────────────────────────────
+      // Draw server bullets for ALL players (authoritative positions)
+      // For our own slot: skip server bullets and show predicted instead (zero latency)
+      const myColor = pred ? pred.color : null;
       if (state.bullets) {
         for (const b of state.bullets) {
-          // Skip server bullets that are close to our own predicted bullets (avoid doubling)
-          const nearPred = pred && pred.bullets.some(pb => Math.sqrt((b.x-pb.x)**2+(b.y-pb.y)**2) < 30);
-          if (nearPred) continue;
+          // If this bullet matches our color, skip — we draw predicted version instead
+          if (b.color === myColor) continue;
           ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
           ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
           ctx.shadowBlur = 0;
         }
       }
-
-      // ── Local predicted bullets (instant feel for our own shots) ──
+      // Our predicted bullets (instant feel)
       if (pred) {
         for (const b of pred.bullets) {
           ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
