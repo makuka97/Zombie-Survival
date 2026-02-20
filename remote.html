@@ -124,7 +124,7 @@
       display: flex; justify-content: space-between; align-items: center;
       padding: 4px 16px; background: #050505;
       border-top: 1px solid #111; border-bottom: 1px solid #111;
-      flex-shrink: 0; min-height: 34px;
+      flex-shrink: 0; height: 36px;
     }
     #hud-weapon  { font-size: 13px; color: #aaa; letter-spacing: 2px; }
     #hud-wave    { font-size: 13px; color: #555; letter-spacing: 2px; }
@@ -135,9 +135,10 @@
 
     /* Controls area — bottom portion */
     #ctrl-area {
-      flex: 1; display: flex; align-items: center;
+      height: 170px; flex-shrink: 0;
+      display: flex; align-items: center;
       justify-content: space-between;
-      padding: 0 28px; min-height: 0;
+      padding: 0 28px;
     }
 
     #joystick-zone {
@@ -324,12 +325,12 @@
     }
 
     resize() {
-      const wrap = document.getElementById('canvas-wrap');
-      const W = wrap.clientWidth;
-      const ctrlH = document.getElementById('ctrl-area').offsetHeight || 170;
-      const hudH  = document.getElementById('hud-bar').offsetHeight   || 34;
-      const availH = window.innerHeight - ctrlH - hudH;
+      const wrap  = document.getElementById('canvas-wrap');
+      const W     = window.innerWidth;
+      // Reserve 170px for controls + 36px for HUD bar
+      const availH = window.innerHeight - 170 - 36;
       const scale  = Math.min(W / this.BASE_W, availH / this.BASE_H);
+      this.scale   = scale;
       this.canvas.width  = this.BASE_W;
       this.canvas.height = this.BASE_H;
       this.canvas.style.width  = Math.floor(this.BASE_W * scale) + 'px';
@@ -726,10 +727,12 @@
     startGame() {
       this.showScreen('game-screen');
 
-      // Init renderer
-      const canvas = document.getElementById('game-canvas');
-      this.renderer = new RemoteRenderer(canvas);
-      this.renderer.mySlot = this.slot;
+      // Init renderer after layout settles
+      setTimeout(() => {
+        const canvas = document.getElementById('game-canvas');
+        this.renderer = new RemoteRenderer(canvas);
+        this.renderer.mySlot = this.slot;
+      }, 100);
 
       // Input loop at 30Hz
       this.inputLoop = setInterval(() => {
