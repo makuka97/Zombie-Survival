@@ -298,7 +298,7 @@
 
       // Other players
       for (const sp of state.players) {
-        if (!sp.connected || sp.slot === mySlot) continue;
+        if (sp.slot === mySlot) continue;  // skip self — we use prediction for ourselves
         const existing = this.players.get(sp.slot);
         if (existing) {
           existing.prev  = { x: existing.x, y: existing.y, angle: existing.angle };
@@ -316,9 +316,9 @@
           });
         }
       }
-      // Remove disconnected players
+      // Remove players who are completely gone (slot not in state at all)
       for (const [slot] of this.players) {
-        if (!state.players.find(p => p.slot === slot && p.connected)) this.players.delete(slot);
+        if (!state.players.find(p => p.slot === slot)) this.players.delete(slot);
       }
 
       // Zombies — prev = current interpolated positions (smooth), fallback to server pos for new zombies
@@ -518,9 +518,9 @@
       // ── Players ───────────────────────────────────────────────────
       for (const sp of state.players) {
         const isMe = sp.slot === mySlot;
-        // Always render ourselves even if server hasn't marked us connected yet.
-        // Skip others who aren't connected.
-        if (!sp.connected && !isMe) continue;
+        // Skip empty slots (never connected, not us, not in interp map)
+        const inInterp = interp && interp.players.has(sp.slot);
+        if (!sp.connected && !isMe && !inInterp) continue;
         // Our player: use local prediction. Other players: use interpolated position (fallback to server).
         const ip = (!isMe && interp) ? interp.getPlayer(sp.slot) : null;
         const px = isMe && pred ? pred.x     : (ip ? ip.x     : sp.x);
@@ -583,18 +583,6 @@
       ctx.textAlign = 'right'; ctx.textBaseline = 'top';
       ctx.fillText('WAVE ' + state.wave, W-12, 12);
 
-      // DEBUG OVERLAY — shows key state so we can diagnose rendering issues
-      ctx.fillStyle = '#00ff00'; ctx.font = '11px Courier New';
-      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
-      const myP = state.players ? state.players[mySlot - 1] : null;
-      const debugLines = [
-        'slot:' + mySlot + ' color:' + (pred ? pred.color : 'no-pred'),
-        'pred: ' + (pred ? (pred.seeded ? 'seeded' : 'UNSEEDED') : 'NULL'),
-        'pred.alive: ' + (pred ? pred.alive : '?'),
-        'sp.connected: ' + (myP ? myP.connected : '?') + ' sp.alive: ' + (myP ? myP.alive : '?'),
-        'pred.x: ' + (pred ? Math.round(pred.x) : '?') + ' pred.y: ' + (pred ? Math.round(pred.y) : '?'),
-      ];
-      debugLines.forEach((line, i) => ctx.fillText(line, 8, 12 + i * 14));
     }
   }
 
