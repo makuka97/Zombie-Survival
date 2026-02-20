@@ -89,15 +89,7 @@
     }
     #lobby-screen p { font-size: 14px; color: #555; letter-spacing: 2px; text-align: center; }
 
-    /* Phase 1: Share invite button */
-    #share-btn {
-      width: 260px; height: 50px; font-size: 16px;
-      font-weight: bold; background: transparent; color: #00ff00;
-      border: 2px solid #00ff00; border-radius: 12px; letter-spacing: 2px;
-      cursor: pointer; font-family: 'Courier New', monospace;
-      display: none; /* shown after join */
-    }
-    #share-btn:active { background: rgba(0,255,0,0.1); }
+
 
     #ready-btn {
       width: 260px; height: 80px; font-size: 28px;
@@ -257,7 +249,6 @@
     <h1>ZOMBIE SURVIVAL</h1>
     <div id="player-badge">PLAYER ?</div>
     <p>Waiting for all players to ready up...</p>
-    <button id="share-btn">INVITE FRIENDS</button>
     <button id="ready-btn">READY UP</button>
     <div id="waiting-text"></div>
   </div>
@@ -353,7 +344,6 @@
         this.bindReadyBtn();
         this.bindRestartBtn();
         this.bindMysteryBoxBtn();
-        this.bindShareBtn();       // Phase 1
         this.checkDeepLink();      // Phase 1: auto-fill code from /join/:code URL
       }
 
@@ -376,29 +366,7 @@
         }
       }
 
-      // Phase 1: Web Share API — native share sheet on mobile
-      bindShareBtn() {
-        const btn = document.getElementById('share-btn');
-        btn.addEventListener('click', async () => {
-          const url = `${window.location.origin}/join/${this.roomCode}`;
-          if (navigator.share) {
-            try {
-              await navigator.share({
-                title: 'Zombie Survival',
-                text: `Join my game! Room code: ${this.roomCode}`,
-                url
-              });
-            } catch(e) { /* user cancelled */ }
-          } else {
-            // Fallback: copy to clipboard
-            try {
-              await navigator.clipboard.writeText(url);
-              btn.textContent = 'LINK COPIED!';
-              setTimeout(() => { btn.textContent = 'INVITE FRIENDS'; }, 2000);
-            } catch(e) {}
-          }
-        });
-      }
+
 
       bindSocket() {
         this.socket.on('connect',    () => { this.setStatus('CONNECTED'); const saved = sessionStorage.getItem('zs-room'); if (saved) this.join(saved); });
@@ -539,7 +507,6 @@
         const btn = document.getElementById('ready-btn');
         btn.textContent = 'READY UP'; btn.classList.remove('voted');
         document.getElementById('waiting-text').textContent = '';
-        document.getElementById('share-btn').style.display = 'block'; // Phase 1: show share btn
         this.isReady = false;
       }
 
