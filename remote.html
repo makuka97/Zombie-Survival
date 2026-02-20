@@ -350,6 +350,8 @@
         return { ...zNext, x: zPrev.x + (zNext.x - zPrev.x) * t, y: zPrev.y + (zNext.y - zPrev.y) * t };
       });
     }
+
+    getPlayer(slot) { return this.players.get(slot) || null; }
   }
 
   // ================================================================
