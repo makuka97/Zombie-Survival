@@ -476,7 +476,19 @@
         ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-hs, z.y-hs-8, z.size*(z.hp/z.maxHp), 4);
       }
 
-      // ── Local predicted bullets (instant feel) ────────────────────
+      // ── Server bullets (other players' bullets, authoritative) ─────
+      if (state.bullets) {
+        for (const b of state.bullets) {
+          // Skip server bullets that are close to our own predicted bullets (avoid doubling)
+          const nearPred = pred && pred.bullets.some(pb => Math.sqrt((b.x-pb.x)**2+(b.y-pb.y)**2) < 30);
+          if (nearPred) continue;
+          ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+          ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+          ctx.shadowBlur = 0;
+        }
+      }
+
+      // ── Local predicted bullets (instant feel for our own shots) ──
       if (pred) {
         for (const b of pred.bullets) {
           ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
