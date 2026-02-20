@@ -841,7 +841,7 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: socket.id, roomCode, mode: 'remote'
     });
-    room.startHeartbeat(socket);
+    
     console.log(`[ROOM ${roomCode}] Remote room created by Player 1`);
   });
 
@@ -856,7 +856,7 @@ io.on('connection', (socket) => {
       slotNumber: playerData.slotNumber, color: playerData.color,
       deviceFingerprint: playerData.deviceFingerprint, roomCode, mode: room.mode
     });
-    room.startHeartbeat(socket);
+    
   });
 
   socket.on('player-ready',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleReady(socket.id); });
@@ -900,3 +900,4 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`  Modes     : local + remote`);
   console.log('============================================');
 });
+
