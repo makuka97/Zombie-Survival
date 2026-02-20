@@ -104,25 +104,12 @@
 
     #remote-btn {
       background: transparent;
-      color: #444;
-      border: 2px solid #333;
-      box-shadow: none;
-      cursor: default;
-      position: relative;
+      color: #00ff00;
+      border: 2px solid #00ff00;
+      box-shadow: 0 0 20px rgba(0,255,0,0.2);
     }
-
-    #coming-soon {
-      position: absolute;
-      top: -10px;
-      right: 16px;
-      background: #111;
-      color: #555;
-      font-size: 9px;
-      letter-spacing: 2px;
-      padding: 2px 8px;
-      border: 1px solid #333;
-      border-radius: 4px;
-    }
+    #remote-btn:hover  { box-shadow: 0 0 40px rgba(0,255,0,0.5); transform: scale(1.03); }
+    #remote-btn:active { transform: scale(0.97); }
 
     #version {
       position: fixed;
@@ -163,15 +150,14 @@
       <span class="btn-sub">ONE SCREEN / PHONES AS CONTROLLERS</span>
     </a>
 
-    <!-- Remote Multiplayer — Phase 2, disabled for now -->
-    <div id="remote-btn" class="menu-btn">
-      <span id="coming-soon">COMING SOON</span>
+    <!-- Remote Multiplayer — Phase 2a active -->
+    <a id="remote-btn" class="menu-btn" href="/remote.html">
       REMOTE MULTIPLAYER
-      <span class="btn-sub">EVERY DEVICE RENDERS / VOICE CHAT</span>
-    </div>
+      <span class="btn-sub">EVERY DEVICE RENDERS / UP TO 4 PLAYERS</span>
+    </a>
   </div>
 
-  <div id="version">PHASE 1 · BUILD 1.0</div>
+  <div id="version">PHASE 2a · BUILD 2.0</div>
 
 </body>
 </html>
