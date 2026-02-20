@@ -257,7 +257,7 @@
     <h1>ZOMBIE SURVIVAL</h1>
     <div id="player-badge">PLAYER ?</div>
     <p>Waiting for all players to ready up...</p>
-    <button id="share-btn">⬆ INVITE FRIENDS</button>
+    <button id="share-btn">INVITE FRIENDS</button>
     <button id="ready-btn">READY UP</button>
     <div id="waiting-text"></div>
   </div>
@@ -393,8 +393,8 @@
             // Fallback: copy to clipboard
             try {
               await navigator.clipboard.writeText(url);
-              btn.textContent = '✓ LINK COPIED!';
-              setTimeout(() => { btn.textContent = '⬆ INVITE FRIENDS'; }, 2000);
+              btn.textContent = 'LINK COPIED!';
+              setTimeout(() => { btn.textContent = 'INVITE FRIENDS'; }, 2000);
             } catch(e) {}
           }
         });
