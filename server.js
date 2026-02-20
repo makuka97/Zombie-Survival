@@ -735,8 +735,11 @@ class GameRoom {
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
       if (this.mode === 'remote') {
-        // Start server-side game engine
-        this.serverGame = new ServerGame(this);
+        // Reuse existing serverGame (created in create-remote-room), mark all players connected
+        if (!this.serverGame) this.serverGame = new ServerGame(this);
+        for (let [, p] of this.players) {
+          this.serverGame.players[p.slotNumber - 1].connected = true;
+        }
         this.serverGame.gameStarted = true;
         this.serverGame.start();
         this.broadcast('game-starting-remote', { mode: 'remote' });
