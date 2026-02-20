@@ -285,7 +285,7 @@
       this.players  = new Map();  // slot -> { snapshots: [{t, x, y, angle, ...}], x, y, angle, ... }
       this.zombies  = [];
       this._snapshots = [];       // [{time, zombies}] ring buffer for zombie interp
-      this.BUFFER   = 100;        // ms of intentional delay — always have prev+next
+      this.BUFFER   = 66;         // 2 server ticks of buffer — smooth but not laggy
     }
 
     onServerState(state, mySlot) {
@@ -431,13 +431,14 @@
       }
       if (this.waveTimer > 0) this.waveTimer--;
 
-      // Consume server explosion events
-      if (state.explosions) {
+      // Consume server explosion events — clear after processing so they don't replay
+      if (state.explosions && state.explosions.length) {
         for (const ex of state.explosions) {
           if (ex.melee) this.melees.push({ x: ex.x, y: ex.y, angle: ex.angle, color: ex.color, timer: 8 });
           else          this.spawnParticles(ex.x, ex.y, ex.color, ex.big ? 24 : 10);
           if (pred)     pred.clearNear(ex.x, ex.y);
         }
+        state.explosions = []; // consumed — don't replay next frame
       }
 
       // ── Background ────────────────────────────────────────────────
@@ -859,13 +860,15 @@
         if (sp && !this.pred.seeded) this.pred.seed(sp);
       }
 
-      // 60Hz sim loop — prediction ticks + renders every frame
-      this.simTimer = setInterval(() => {
+      // 60fps render loop via requestAnimationFrame — far smoother than setInterval on mobile
+      const loop = () => {
+        this.simTimer = requestAnimationFrame(loop);
         if (!this.lastState) return;
         this.pred.tick(this.joystick.getAngle(), this.firing, this.inMeleeMode);
         this.interp.tick();
         this.renderer.draw(this.lastState, this.pred, this.slot, this.interp);
-      }, 1000 / 60);
+      };
+      this.simTimer = requestAnimationFrame(loop);
 
       // 20Hz input loop — send to server independently of render
       this.inputTimer = setInterval(() => {
@@ -882,8 +885,8 @@
     }
 
     stopGame() {
-      if (this.simTimer)   { clearInterval(this.simTimer);   this.simTimer   = null; }
-      if (this.inputTimer) { clearInterval(this.inputTimer); this.inputTimer = null; }
+      if (this.simTimer)   { cancelAnimationFrame(this.simTimer); this.simTimer   = null; }
+      if (this.inputTimer) { clearInterval(this.inputTimer);      this.inputTimer = null; }
     }
 
     updateHUD(state) {
