@@ -142,9 +142,9 @@
   'use strict';
 
   // ── Shared constants (must match server) ─────────────────────────
-  const PLAYER_SPEED = 2.5;
+  const PLAYER_SPEED = 1.25; // halved — server now runs at 60Hz
   const PLAYER_SIZE  = 28;
-  const BULLET_SPEED = 8;
+  const BULLET_SPEED = 4;   // halved — server now runs at 60Hz
   const CANVAS_W     = 1334;
   const CANVAS_H     = 750;
   const WALL_PAD     = PLAYER_SIZE / 2 + 6;
@@ -285,7 +285,7 @@
       this.players  = new Map();  // slot -> { snapshots: [{t, x, y, angle, ...}], x, y, angle, ... }
       this.zombies  = [];
       this._snapshots = [];       // [{time, zombies}] ring buffer for zombie interp
-      this.BUFFER   = 66;         // 2 server ticks of buffer — smooth but not laggy
+      this.BUFFER   = 34;         // ~2 server ticks at 60Hz (16ms each)
     }
 
     onServerState(state, mySlot) {
