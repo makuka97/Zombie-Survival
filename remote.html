@@ -365,7 +365,8 @@
       this.melees    = [];
       this.waveText  = '';
       this.waveTimer = 0;
-      this.resize();
+      // Don't resize in constructor — canvas may not be visible yet.
+      // startGame() calls resize() explicitly after screen is shown.
       window.addEventListener('resize', () => this.resize());
     }
 
@@ -803,30 +804,40 @@
 
     startGame() {
       this.showScreen('game-screen');
-      setTimeout(() => {
-        // Init renderer + prediction engine
-        this.renderer = new Renderer(document.getElementById('game-canvas'));
-        this.pred     = new Prediction(this.slot, this.color);
-        this.interp   = new Interpolator();
 
-        // 60Hz sim loop — prediction ticks + renders every frame
-        this.simTimer = setInterval(() => {
-          if (!this.lastState) return;
-          this.pred.tick(this.joystick.getAngle(), this.firing, this.inMeleeMode);
-          this.interp.tick();  // advance interpolation progress at 60fps
-          this.renderer.draw(this.lastState, this.pred, this.slot, this.interp);
-        }, 1000 / 60);
+      // Init immediately — don't wait for setTimeout.
+      // Server starts sending state right away; we must be ready to receive it.
+      this.renderer = new Renderer(document.getElementById('game-canvas'));
+      this.pred     = new Prediction(this.slot, this.color);
+      this.interp   = new Interpolator();
 
-        // 20Hz input loop — send to server independently of render
-        this.inputTimer = setInterval(() => {
-          if (!this.roomCode) return;
-          this.socket.emit('player-input', {
-            roomCode: this.roomCode,
-            input: { angle: this.joystick.getAngle(), fire: this.firing, melee: this.meleeing }
-          });
-        }, 50); // 20Hz
+      // If lastState already arrived before we got here, seed now
+      if (this.lastState) {
+        this.interp.onServerState(this.lastState, this.slot);
+        const sp = this.lastState.players?.[this.slot - 1];
+        if (sp && !this.pred.seeded) this.pred.seed(sp);
+      }
 
-      }, 100);
+      // 60Hz sim loop — prediction ticks + renders every frame
+      this.simTimer = setInterval(() => {
+        if (!this.lastState) return;
+        this.pred.tick(this.joystick.getAngle(), this.firing, this.inMeleeMode);
+        this.interp.tick();
+        this.renderer.draw(this.lastState, this.pred, this.slot, this.interp);
+      }, 1000 / 60);
+
+      // 20Hz input loop — send to server independently of render
+      this.inputTimer = setInterval(() => {
+        if (!this.roomCode) return;
+        this.socket.emit('player-input', {
+          roomCode: this.roomCode,
+          input: { angle: this.joystick.getAngle(), fire: this.firing, melee: this.meleeing }
+        });
+      }, 50);
+
+      // Resize canvas now and again after layout settles
+      this.renderer.resize();
+      setTimeout(() => this.renderer.resize(), 150);
     }
 
     stopGame() {
