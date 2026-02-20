@@ -306,9 +306,10 @@
           existing.alive = sp.alive; existing.hp = sp.hp; existing.maxHp = sp.maxHp;
           existing.points = sp.points; existing.color = sp.color;
         } else {
+          // Seed x/y to server position so player renders immediately on first frame
           this.players.set(sp.slot, {
-            prev: { x: sp.x, y: sp.y, angle: sp.angle },
-            next: { x: sp.x, y: sp.y, angle: sp.angle },
+            prev:  { x: sp.x, y: sp.y, angle: sp.angle },
+            next:  { x: sp.x, y: sp.y, angle: sp.angle },
             x: sp.x, y: sp.y, angle: sp.angle,
             alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
             points: sp.points, color: sp.color, slot: sp.slot
@@ -320,8 +321,11 @@
         if (!state.players.find(p => p.slot === slot && p.connected)) this.players.delete(slot);
       }
 
-      // Zombies — store prev positions before updating next
-      this._zombiePrev = this.zombies.length ? this.zombies.map(z => ({ x: z.x, y: z.y })) : state.zombies.map(z => ({ x: z.x, y: z.y }));
+      // Zombies — prev = current interpolated positions (smooth), fallback to server pos for new zombies
+      this._zombiePrev = state.zombies.map((zNext, i) => {
+        const cur = this.zombies[i];
+        return cur ? { x: cur.x, y: cur.y } : { x: zNext.x, y: zNext.y };
+      });
       this._zombieNext = state.zombies;
     }
 
@@ -514,14 +518,14 @@
       for (const sp of state.players) {
         if (!sp.connected) continue;
         const isMe = sp.slot === mySlot;
-        // Our player: use local prediction. Other players: use interpolated position.
+        // Our player: use local prediction. Other players: use interpolated position (fallback to server).
         const ip = (!isMe && interp) ? interp.getPlayer(sp.slot) : null;
         const px = isMe && pred ? pred.x     : (ip ? ip.x     : sp.x);
         const py = isMe && pred ? pred.y     : (ip ? ip.y     : sp.y);
         const pa = isMe && pred ? pred.angle : (ip ? ip.angle : sp.angle);
-        const ph = isMe && pred ? pred.hp    : sp.hp;
-        const pm = isMe && pred ? pred.maxHp : sp.maxHp;
-        const alive = isMe && pred ? pred.alive : sp.alive;
+        const ph = isMe && pred ? pred.hp    : (ip ? ip.hp    : sp.hp);
+        const pm = isMe && pred ? pred.maxHp : (ip ? ip.maxHp : sp.maxHp);
+        const alive = isMe && pred ? pred.alive : (ip ? ip.alive : sp.alive);
         const hs = 14;
 
         if (!alive) {
