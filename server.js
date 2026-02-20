@@ -13,13 +13,13 @@ const io = socketIo(server, {
   cors: { origin: '*' }
 });
 
-app.use(express.static(path.join(__dirname)));
-
-// ── Landing page as root ──────────────────────────────────────────────────
-// Serves landing.html at / so players choose Local or Remote first
+// ── Landing page as root — must come BEFORE express.static ──────────────
+// If static middleware runs first it finds index.html and serves it instead
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'landing.html'));
 });
+
+app.use(express.static(path.join(__dirname)));
 
 // ── Phase 1: /join/:roomCode deep link ────────────────────────────────────
 // Allows shareable URLs like https://yourapp.onrender.com/join/AB12
