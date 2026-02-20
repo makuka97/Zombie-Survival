@@ -275,6 +275,80 @@
   }
 
   // ================================================================
+  // INTERPOLATOR — smooths other players + zombies between server ticks
+  // Server runs at 30Hz (33ms), we render at 60Hz (16ms).
+  // Each entity glides from its previous position to its new one
+  // over exactly one server tick duration — looks perfectly smooth.
+  // ================================================================
+  class Interpolator {
+    constructor() {
+      this.players = new Map(); // slot -> interpolated player state
+      this.zombies = [];        // interpolated zombie array for rendering
+      this._zombiePrev = [];
+      this._zombieNext = [];
+      this._t = 0;
+      this._lastServerTime = 0;
+      this.SERVER_TICK = 1000 / 30; // 33ms
+    }
+
+    // Call every time a new server state arrives
+    onServerState(state, mySlot) {
+      this._t = 0;
+      this._lastServerTime = Date.now();
+
+      // Other players
+      for (const sp of state.players) {
+        if (!sp.connected || sp.slot === mySlot) continue;
+        const existing = this.players.get(sp.slot);
+        if (existing) {
+          existing.prev  = { x: existing.x, y: existing.y, angle: existing.angle };
+          existing.next  = { x: sp.x, y: sp.y, angle: sp.angle };
+          existing.alive = sp.alive; existing.hp = sp.hp; existing.maxHp = sp.maxHp;
+          existing.points = sp.points; existing.color = sp.color;
+        } else {
+          this.players.set(sp.slot, {
+            prev: { x: sp.x, y: sp.y, angle: sp.angle },
+            next: { x: sp.x, y: sp.y, angle: sp.angle },
+            x: sp.x, y: sp.y, angle: sp.angle,
+            alive: sp.alive, hp: sp.hp, maxHp: sp.maxHp,
+            points: sp.points, color: sp.color, slot: sp.slot
+          });
+        }
+      }
+      // Remove disconnected players
+      for (const [slot] of this.players) {
+        if (!state.players.find(p => p.slot === slot && p.connected)) this.players.delete(slot);
+      }
+
+      // Zombies — store prev positions before updating next
+      this._zombiePrev = this.zombies.length ? this.zombies.map(z => ({ x: z.x, y: z.y })) : state.zombies.map(z => ({ x: z.x, y: z.y }));
+      this._zombieNext = state.zombies;
+    }
+
+    // Call every frame (60Hz) — advances interpolation progress
+    tick() {
+      const t = Math.min((Date.now() - this._lastServerTime) / this.SERVER_TICK, 1);
+
+      // Interpolate other players
+      for (const [, p] of this.players) {
+        p.x = p.prev.x + (p.next.x - p.prev.x) * t;
+        p.y = p.prev.y + (p.next.y - p.prev.y) * t;
+        let da = p.next.angle - p.prev.angle;
+        while (da >  Math.PI) da -= Math.PI * 2;
+        while (da < -Math.PI) da += Math.PI * 2;
+        p.angle = p.prev.angle + da * t;
+      }
+
+      // Interpolate zombies
+      this.zombies = this._zombieNext.map((zNext, i) => {
+        const zPrev = this._zombiePrev[i];
+        if (!zPrev) return zNext;
+        return { ...zNext, x: zPrev.x + (zNext.x - zPrev.x) * t, y: zPrev.y + (zNext.y - zPrev.y) * t };
+      });
+    }
+  }
+
+  // ================================================================
   // RENDERER — draws server state + local prediction at 60fps
   // ================================================================
   class Renderer {
@@ -314,7 +388,7 @@
     // state      = latest server snapshot
     // pred       = Prediction instance (our player + local bullets)
     // mySlot     = which slot is us
-    draw(state, pred, mySlot) {
+    draw(state, pred, mySlot, interp) {
       const ctx = this.ctx, W = this.BASE_W, H = this.BASE_H;
 
       // Tick particles + effects
@@ -384,8 +458,9 @@
         ctx.restore();
       }
 
-      // ── Zombies ───────────────────────────────────────────────────
-      for (const z of state.zombies) {
+      // ── Zombies (interpolated) ───────────────────────────────────
+      const zombiesToDraw = interp ? interp.zombies : state.zombies;
+      for (const z of zombiesToDraw) {
         const hs = z.size/2;
         ctx.fillStyle = z.color; ctx.fillRect(z.x-hs, z.y-hs, z.size, z.size);
         ctx.strokeStyle = z.borderColor; ctx.lineWidth = 2; ctx.strokeRect(z.x-hs, z.y-hs, z.size, z.size);
@@ -439,10 +514,11 @@
       for (const sp of state.players) {
         if (!sp.connected) continue;
         const isMe = sp.slot === mySlot;
-        // Use predicted position for our player, server position for others
-        const px = isMe && pred ? pred.x     : sp.x;
-        const py = isMe && pred ? pred.y     : sp.y;
-        const pa = isMe && pred ? pred.angle : sp.angle;
+        // Our player: use local prediction. Other players: use interpolated position.
+        const ip = (!isMe && interp) ? interp.getPlayer(sp.slot) : null;
+        const px = isMe && pred ? pred.x     : (ip ? ip.x     : sp.x);
+        const py = isMe && pred ? pred.y     : (ip ? ip.y     : sp.y);
+        const pa = isMe && pred ? pred.angle : (ip ? ip.angle : sp.angle);
         const ph = isMe && pred ? pred.hp    : sp.hp;
         const pm = isMe && pred ? pred.maxHp : sp.maxHp;
         const alive = isMe && pred ? pred.alive : sp.alive;
@@ -527,6 +603,7 @@
 
       this.pred      = null;   // Prediction engine
       this.renderer  = null;   // Renderer
+      this.interp    = null;   // Entity interpolator
       this.lastState = null;   // Latest server snapshot
 
       this.inputTimer = null;  // 20Hz input send loop
@@ -593,6 +670,8 @@
             else                   this.pred.reconcile(sp);
           }
         }
+        // Feed new state to interpolator for other players + zombies
+        if (this.interp) this.interp.onServerState(state, this.slot);
 
         this.updateHUD(state);
         if (state.gameOver) this.showScreen('gameover-screen');
@@ -724,12 +803,14 @@
         // Init renderer + prediction engine
         this.renderer = new Renderer(document.getElementById('game-canvas'));
         this.pred     = new Prediction(this.slot, this.color);
+        this.interp   = new Interpolator();
 
         // 60Hz sim loop — prediction ticks + renders every frame
         this.simTimer = setInterval(() => {
           if (!this.lastState) return;
           this.pred.tick(this.joystick.getAngle(), this.firing, this.inMeleeMode);
-          this.renderer.draw(this.lastState, this.pred, this.slot);
+          this.interp.tick();  // advance interpolation progress at 60fps
+          this.renderer.draw(this.lastState, this.pred, this.slot, this.interp);
         }, 1000 / 60);
 
         // 20Hz input loop — send to server independently of render
