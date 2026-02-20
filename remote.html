@@ -517,8 +517,10 @@
 
       // ── Players ───────────────────────────────────────────────────
       for (const sp of state.players) {
-        if (!sp.connected) continue;
         const isMe = sp.slot === mySlot;
+        // Always render ourselves even if server hasn't marked us connected yet.
+        // Skip others who aren't connected.
+        if (!sp.connected && !isMe) continue;
         // Our player: use local prediction. Other players: use interpolated position (fallback to server).
         const ip = (!isMe && interp) ? interp.getPlayer(sp.slot) : null;
         const px = isMe && pred ? pred.x     : (ip ? ip.x     : sp.x);
@@ -671,6 +673,8 @@
         if (this.pred && state.players) {
           const sp = state.players[this.slot - 1];
           if (sp) {
+            // Seed/reconcile using our slot data regardless of connected flag
+            // (server may not have marked us connected yet on first tick)
             if (!this.pred.seeded) this.pred.seed(sp);
             else                   this.pred.reconcile(sp);
           }
