@@ -582,6 +582,19 @@
       ctx.fillStyle = '#333'; ctx.font = '14px Courier New';
       ctx.textAlign = 'right'; ctx.textBaseline = 'top';
       ctx.fillText('WAVE ' + state.wave, W-12, 12);
+
+      // DEBUG OVERLAY — shows key state so we can diagnose rendering issues
+      ctx.fillStyle = '#00ff00'; ctx.font = '11px Courier New';
+      ctx.textAlign = 'left'; ctx.textBaseline = 'top';
+      const myP = state.players ? state.players[mySlot - 1] : null;
+      const debugLines = [
+        'slot:' + mySlot + ' color:' + (pred ? pred.color : 'no-pred'),
+        'pred: ' + (pred ? (pred.seeded ? 'seeded' : 'UNSEEDED') : 'NULL'),
+        'pred.alive: ' + (pred ? pred.alive : '?'),
+        'sp.connected: ' + (myP ? myP.connected : '?') + ' sp.alive: ' + (myP ? myP.alive : '?'),
+        'pred.x: ' + (pred ? Math.round(pred.x) : '?') + ' pred.y: ' + (pred ? Math.round(pred.y) : '?'),
+      ];
+      debugLines.forEach((line, i) => ctx.fillText(line, 8, 12 + i * 14));
     }
   }
 
