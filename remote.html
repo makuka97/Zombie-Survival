@@ -321,27 +321,37 @@
       if (this._snapshots.length > 10) this._snapshots.shift();
     }
 
+    // Find the two snapshots straddling renderTime from a sorted array
+    _findFrame(snaps, renderTime) {
+      // renderTime is before all snapshots — use first
+      if (renderTime <= snaps[0].t) return [snaps[0], snaps[0]];
+      // renderTime is after all snapshots — extrapolate from last two
+      if (renderTime >= snaps[snaps.length - 1].t) {
+        const a = snaps[snaps.length - 2] || snaps[0];
+        const b = snaps[snaps.length - 1];
+        return [a, b];
+      }
+      // Find straddling pair
+      for (let i = 0; i < snaps.length - 1; i++) {
+        if (snaps[i].t <= renderTime && snaps[i + 1].t >= renderTime)
+          return [snaps[i], snaps[i + 1]];
+      }
+      return [snaps[snaps.length - 2] || snaps[0], snaps[snaps.length - 1]];
+    }
+
+    _lerpVal(a, b, t) { return a + (b - a) * t; }
+
     tick() {
       const renderTime = Date.now() - this.BUFFER;
 
       // ── Interpolate players ────────────────────────────────────────
       for (const [, p] of this.players) {
-        const snaps = p.snapshots;
-        if (!snaps.length) continue;
-        // Find the two snapshots that straddle renderTime
-        let prev = snaps[0], next = snaps[0];
-        for (let i = 0; i < snaps.length - 1; i++) {
-          if (snaps[i].t <= renderTime && snaps[i+1].t >= renderTime) {
-            prev = snaps[i]; next = snaps[i+1]; break;
-          }
-          // If renderTime is beyond all snapshots, extrapolate from last two
-          prev = snaps[snaps.length - 2] || snaps[0];
-          next = snaps[snaps.length - 1];
-        }
+        if (!p.snapshots.length) continue;
+        const [prev, next] = this._findFrame(p.snapshots, renderTime);
         const span = next.t - prev.t;
-        const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.5) : 1;
-        p.x = prev.x + (next.x - prev.x) * t;
-        p.y = prev.y + (next.y - prev.y) * t;
+        const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.2) : 1;
+        p.x = this._lerpVal(prev.x, next.x, t);
+        p.y = this._lerpVal(prev.y, next.y, t);
         let da = next.angle - prev.angle;
         while (da >  Math.PI) da -= Math.PI * 2;
         while (da < -Math.PI) da += Math.PI * 2;
@@ -350,20 +360,16 @@
 
       // ── Interpolate zombies ────────────────────────────────────────
       if (!this._snapshots.length) return;
-      let prev = this._snapshots[0], next = this._snapshots[0];
-      for (let i = 0; i < this._snapshots.length - 1; i++) {
-        if (this._snapshots[i].t <= renderTime && this._snapshots[i+1].t >= renderTime) {
-          prev = this._snapshots[i]; next = this._snapshots[i+1]; break;
-        }
-        prev = this._snapshots[this._snapshots.length - 2] || this._snapshots[0];
-        next = this._snapshots[this._snapshots.length - 1];
-      }
+      const [prev, next] = this._findFrame(this._snapshots, renderTime);
       const span = next.t - prev.t;
-      const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.5) : 1;
+      const t    = span > 0 ? Math.min((renderTime - prev.t) / span, 1.2) : 1;
       this.zombies = next.zombies.map((zNext, i) => {
         const zPrev = prev.zombies[i];
         if (!zPrev) return zNext;
-        return { ...zNext, x: zPrev.x + (zNext.x - zPrev.x) * t, y: zPrev.y + (zNext.y - zPrev.y) * t };
+        return { ...zNext,
+          x: this._lerpVal(zPrev.x, zNext.x, t),
+          y: this._lerpVal(zPrev.y, zNext.y, t)
+        };
       });
     }
 
