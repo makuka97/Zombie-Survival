@@ -14,9 +14,8 @@ const io = socketIo(server, {
 });
 
 // ── Landing page as root — must come BEFORE express.static ──────────────
-// If static middleware runs first it finds index.html and serves it instead
 app.get('/', (req, res) => {
-  res.sendFile(path.join(__dirname, 'landing.html'));
+  res.sendFile(path.resolve(__dirname, 'landing.html'));
 });
 
 app.use(express.static(path.join(__dirname)));
