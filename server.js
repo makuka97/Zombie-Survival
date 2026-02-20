@@ -1,30 +1,43 @@
-const express = require('express');
-const http = require('http');
+const express  = require('express');
+const http     = require('http');
 const socketIo = require('socket.io');
-const crypto = require('crypto');
-const path = require('path');
+const crypto   = require('crypto');
+const path     = require('path');
 
-const app = express();
+const app    = express();
 const server = http.createServer(app);
-const io = socketIo(server);
+
+// ── Phase 1: force WebSocket transport for stable Render.com connections ──
+const io = socketIo(server, {
+  transports: ['websocket'],
+  cors: { origin: '*' }
+});
 
 app.use(express.static(path.join(__dirname)));
 
-const MAX_PLAYERS = 4;
-const PLAYER_COLORS = ['#00ffff', '#ff44ff', '#4488ff', '#ffff00'];
+// ── Phase 1: /join/:roomCode deep link ────────────────────────────────────
+// Allows shareable URLs like https://yourapp.onrender.com/join/AB12
+// Redirects phones straight to controller with the room code pre-filled
+app.get('/join/:roomCode', (req, res) => {
+  const code = req.params.roomCode.toUpperCase();
+  res.redirect(`/controller.html?room=${code}`);
+});
+
+const MAX_PLAYERS          = 4;
+const PLAYER_COLORS        = ['#00ffff', '#ff44ff', '#4488ff', '#ffff00'];
 const HEARTBEAT_INTERVAL_MS = 2000;
-const GRACE_PERIOD_MS = 10000;
-const gameRooms = new Map();
+const GRACE_PERIOD_MS      = 10000;
+const gameRooms            = new Map();
 
 class GameRoom {
   constructor(roomCode) {
-    this.roomCode = roomCode;
-    this.hostSocket = null;
-    this.players = new Map();
+    this.roomCode           = roomCode;
+    this.hostSocket         = null;
+    this.players            = new Map();
     this.disconnectedPlayers = new Map();
-    this.restartVotes = new Set();
-    this.readyPlayers = new Set();
-    this.gameStarted = false;
+    this.restartVotes       = new Set();
+    this.readyPlayers       = new Set();
+    this.gameStarted        = false;
     console.log(`[ROOM ${roomCode}] Created`);
   }
 
@@ -144,7 +157,6 @@ class GameRoom {
     if (player) player.lastPong = Date.now();
   }
 
-  // Relay player input (fire + melee flag both pass through automatically)
   relayPlayerInput(socketId, inputData) {
     const player = this.players.get(socketId);
     if (!player || !this.hostSocket) return;
@@ -165,7 +177,7 @@ class GameRoom {
     this.broadcastLobbyState();
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
-      console.log(`[ROOM ${this.roomCode}] All players ready - starting countdown!`);
+      console.log(`[ROOM ${this.roomCode}] All players ready - starting!`);
       if (this.hostSocket) this.hostSocket.emit('all-ready');
       for (let [sid] of this.players) {
         const sock = io.sockets.sockets.get(sid);
@@ -197,7 +209,7 @@ class GameRoom {
       if (sock) sock.emit('restart-vote-update', { votes: this.restartVotes.size, needed: this.players.size });
     }
     if (this.restartVotes.size >= this.players.size) {
-      console.log(`[ROOM ${this.roomCode}] All players voted YES - restarting!`);
+      console.log(`[ROOM ${this.roomCode}] All voted YES - restarting!`);
       this.restartVotes.clear();
       this.readyPlayers.clear();
       this.gameStarted = false;
@@ -209,6 +221,15 @@ class GameRoom {
     }
   }
 
+  // ── Phase 1: relay explosion events from host to all controllers ──────
+  // Host sends { x, y, color } — server fans it out, clients render their own particles
+  broadcastExplosion(data) {
+    for (let [sid] of this.players) {
+      const sock = io.sockets.sockets.get(sid);
+      if (sock) sock.emit('explosion', data);
+    }
+  }
+
   broadcastGameState(gameState) {
     for (let [socketId, player] of this.players) {
       const socket = io.sockets.sockets.get(socketId);
@@ -217,7 +238,7 @@ class GameRoom {
         if (playerState) {
           socket.emit('game-state-update', {
             health: playerState.health,
-            ammo: playerState.ammo,
+            ammo:   playerState.ammo === Infinity ? -1 : playerState.ammo,
             isAlive: playerState.isAlive,
             points: playerState.points,
             weapon: playerState.weapon,
@@ -251,7 +272,7 @@ io.on('connection', (socket) => {
 
   socket.on('create-room', () => {
     const roomCode = GameRoom.generateRoomCode();
-    const room = new GameRoom(roomCode);
+    const room     = new GameRoom(roomCode);
     gameRooms.set(roomCode, room);
     room.setHost(socket);
     socket.join(roomCode);
@@ -273,30 +294,16 @@ io.on('connection', (socket) => {
     room.startHeartbeat(socket);
   });
 
-  socket.on('player-ready', (data) => {
-    const room = gameRooms.get(data.roomCode);
-    if (room) room.handleReady(socket.id);
-  });
+  socket.on('player-ready',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleReady(socket.id); });
+  socket.on('player-input',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.relayPlayerInput(socket.id, data.input); });
+  socket.on('mystery-box-purchase', (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleMysteryBoxPurchase(data); });
+  socket.on('restart-vote',         (data) => { const r = gameRooms.get(data.roomCode); if (r) r.handleRestartVote(socket.id); });
+  socket.on('game-state-broadcast', (data) => { const r = gameRooms.get(data.roomCode); if (r) r.broadcastGameState(data.gameState); });
 
-  // melee flag is embedded in data.input and relayed transparently to the host
-  socket.on('player-input', (data) => {
-    const room = gameRooms.get(data.roomCode);
-    if (room) room.relayPlayerInput(socket.id, data.input);
-  });
-
-  socket.on('mystery-box-purchase', (data) => {
-    const room = gameRooms.get(data.roomCode);
-    if (room) room.handleMysteryBoxPurchase(data);
-  });
-
-  socket.on('restart-vote', (data) => {
-    const room = gameRooms.get(data.roomCode);
-    if (room) room.handleRestartVote(socket.id);
-  });
-
-  socket.on('game-state-broadcast', (data) => {
-    const room = gameRooms.get(data.roomCode);
-    if (room) room.broadcastGameState(data.gameState);
+  // ── Phase 1: explosion relay ──────────────────────────────────────────
+  socket.on('explosion', (data) => {
+    const r = gameRooms.get(data.roomCode);
+    if (r) r.broadcastExplosion({ x: data.x, y: data.y, color: data.color });
   });
 
   socket.on('pong', () => {
@@ -308,10 +315,7 @@ io.on('connection', (socket) => {
   socket.on('disconnect', () => {
     console.log(`[SERVER] Disconnected: ${socket.id}`);
     for (let [roomCode, room] of gameRooms.entries()) {
-      if (room.players.has(socket.id)) {
-        room.handleDisconnect(socket.id);
-        break;
-      }
+      if (room.players.has(socket.id)) { room.handleDisconnect(socket.id); break; }
       if (room.hostSocket && room.hostSocket.id === socket.id) {
         room.destroy();
         gameRooms.delete(roomCode);
@@ -323,8 +327,10 @@ io.on('connection', (socket) => {
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, '0.0.0.0', () => {
   console.log('============================================');
-  console.log('  Zombie Survival Server Running');
+  console.log('  Zombie Survival Server — Phase 1');
   console.log('============================================');
-  console.log(`  Port: ${PORT}`);
+  console.log(`  Port     : ${PORT}`);
+  console.log(`  Transports: websocket only`);
+  console.log(`  Deep link : /join/:roomCode`);
   console.log('============================================');
 });
