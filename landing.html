@@ -20,6 +20,7 @@
       gap: 60px;
     }
 
+    /* Subtle scanline effect */
     body::after {
       content: '';
       position: fixed;
@@ -50,7 +51,6 @@
         0 0 60px rgba(0,255,0,0.4),
         0 0 120px rgba(0,255,0,0.2);
       line-height: 1;
-      animation: flicker 6s infinite;
     }
 
     #subtitle {
@@ -125,6 +125,7 @@
       100% { opacity: 1; transform: translateY(0); }
     }
 
+    /* Flicker on title every few seconds */
     @keyframes flicker {
       0%, 95%, 100% { opacity: 1; }
       96%            { opacity: 0.6; }
@@ -132,6 +133,7 @@
       98%            { opacity: 0.4; }
       99%            { opacity: 1; }
     }
+    #title { animation: flicker 6s infinite; }
   </style>
 </head>
 <body>
@@ -142,13 +144,16 @@
   </div>
 
   <div id="menu">
+    <!-- Local Party Mode — goes straight to host page -->
     <a id="local-btn" class="menu-btn" href="/index.html">
       LOCAL PARTY MODE
       <span class="btn-sub">ONE SCREEN / PHONES AS CONTROLLERS</span>
     </a>
+
+    <!-- Remote Multiplayer — Beta -->
     <a id="remote-btn" class="menu-btn" href="/remote.html">
-      REMOTE MULTIPLAYER
-      <span class="btn-sub">EVERY DEVICE RENDERS / UP TO 4 PLAYERS</span>
+      REMOTE MULTIPLAYER <span style="font-size:11px;background:#ff6600;color:#000;padding:2px 7px;border-radius:4px;letter-spacing:1px;vertical-align:middle;margin-left:6px;">BETA</span>
+      <span class="btn-sub">STILL UNDER CONSTRUCTION · UP TO 4 PLAYERS</span>
     </a>
   </div>
 
