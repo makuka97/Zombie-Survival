@@ -1770,7 +1770,7 @@
       const el = document.getElementById('countdown');
       el.style.display = 'none';
     });
-    socket.on('all-ready',            ()  => game.startCountdown());
+    socket.on('all-ready',            ()  => game.beginGame());
     socket.on('restart-game',         ()  => game.restart());
     socket.on('restart-vote-update',  (d) => {
       document.getElementById('vote-display').textContent =
