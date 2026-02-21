@@ -737,6 +737,57 @@ class GameRoom {
     this.broadcastLobbyState();
     console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} READY (${this.readyPlayers.size}/${this.players.size})`);
     if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
+      // Start a 10s grace period — latecomers can still join and reset it
+      this._startReadyCountdown();
+    }
+  }
+
+  _startReadyCountdown() {
+    // Cancel any existing countdown
+    if (this._readyCountdownInterval) {
+      clearInterval(this._readyCountdownInterval);
+      this._readyCountdownInterval = null;
+    }
+    let timeLeft = 10;
+    this.broadcast('ready-countdown', { seconds: timeLeft });
+    if (this.hostSocket) this.hostSocket.emit('ready-countdown', { seconds: timeLeft });
+
+    this._readyCountdownInterval = setInterval(() => {
+      // If someone new joined and not everyone is ready, cancel
+      if (this.readyPlayers.size < this.players.size) {
+        clearInterval(this._readyCountdownInterval);
+        this._readyCountdownInterval = null;
+        this.broadcast('ready-countdown-cancelled');
+        if (this.hostSocket) this.hostSocket.emit('ready-countdown-cancelled');
+        return;
+      }
+      timeLeft--;
+      this.broadcast('ready-countdown', { seconds: timeLeft });
+      if (this.hostSocket) this.hostSocket.emit('ready-countdown', { seconds: timeLeft });
+
+      if (timeLeft <= 0) {
+        clearInterval(this._readyCountdownInterval);
+        this._readyCountdownInterval = null;
+        this.gameStarted = true;
+        if (this.mode === 'remote') {
+          if (!this.serverGame) this.serverGame = new ServerGame(this);
+          for (let [, p] of this.players) {
+            this.serverGame.players[p.slotNumber - 1].connected = true;
+          }
+          this.serverGame.gameStarted = true;
+          this.serverGame.start();
+          this.broadcast('game-starting-remote', { mode: 'remote' });
+        } else {
+          if (this.hostSocket) this.hostSocket.emit('all-ready');
+          for (let [sid] of this.players) {
+            const sock = io.sockets.sockets.get(sid);
+            if (sock) sock.emit('game-starting');
+          }
+        }
+      }
+    }, 1000);
+  }
+    if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
       this.gameStarted = true;
       if (this.mode === 'remote') {
         // Reuse existing serverGame (created in create-remote-room), mark all players connected
