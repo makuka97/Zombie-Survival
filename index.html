@@ -420,6 +420,30 @@
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
 
+        // ── GUN TEST MODE — wave 1 only, cycles through all weapons every 5s ──
+        if (this.wave === 1) {
+          const TEST_GUNS = ['pistol', 'smg', 'shotgun', 'ar', 'lmg', 'raygun', 'thundergun'];
+          let testIdx = 0;
+          this._gunTestInterval = setInterval(() => {
+            testIdx = (testIdx + 1) % TEST_GUNS.length;
+            const gun = TEST_GUNS[testIdx];
+            for (let p of this.players) {
+              if (!p.connected) continue;
+              p.currentWeapon = gun;
+              p.ammo = Infinity;
+            }
+            this.showBanner('🔫 ' + gun.toUpperCase());
+          }, 5000);
+          // Give everyone infinite ammo and start on pistol
+          for (let p of this.players) {
+            if (!p.connected) continue;
+            p.currentWeapon = 'pistol';
+            p.ammo = Infinity;
+          }
+          this.showBanner('🔫 PISTOL');
+        }
+        // ── END GUN TEST MODE ──
+
         if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
@@ -604,15 +628,105 @@
 
       fireBullet(p) {
         const weapon = WEAPONS[p.currentWeapon];
-        this.bullets.push({
-          x: p.x + Math.cos(p.angle) * this.PLAYER_SIZE,
-          y: p.y + Math.sin(p.angle) * this.PLAYER_SIZE,
-          vx: Math.cos(p.angle) * this.BULLET_SPEED,
-          vy: Math.sin(p.angle) * this.BULLET_SPEED,
-          damage: weapon.damage,
-          color: p.color
-        });
+        const bx = p.x + Math.cos(p.angle) * this.PLAYER_SIZE;
+        const by = p.y + Math.sin(p.angle) * this.PLAYER_SIZE;
+        const w  = p.currentWeapon;
+
+        if (w === 'shotgun') {
+          // Shotgun: 6 pellets spread across a cone
+          for (let i = 0; i < 6; i++) {
+            const spread = (Math.random() - 0.5) * 0.55;
+            const a = p.angle + spread;
+            this.bullets.push({
+              x: bx, y: by,
+              vx: Math.cos(a) * this.BULLET_SPEED * (0.8 + Math.random() * 0.4),
+              vy: Math.sin(a) * this.BULLET_SPEED * (0.8 + Math.random() * 0.4),
+              damage: weapon.damage, color: p.color, weapon: w,
+              life: 18 + Math.floor(Math.random() * 8)
+            });
+          }
+        } else {
+          this.bullets.push({
+            x: bx, y: by,
+            vx: Math.cos(p.angle) * this.BULLET_SPEED,
+            vy: Math.sin(p.angle) * this.BULLET_SPEED,
+            damage: weapon.damage, color: p.color, weapon: w
+          });
+        }
+
+        // Muzzle flash particles per weapon
+        this.spawnMuzzleEffect(bx, by, p.angle, w, p.color);
         if (p.ammo !== Infinity) p.ammo--;
+      }
+
+      spawnMuzzleEffect(x, y, angle, weapon, playerColor) {
+        switch(weapon) {
+          case 'smg': {
+            // Small rapid yellow sparks
+            for (let i = 0; i < 3; i++) {
+              const a = angle + (Math.random()-0.5)*0.4;
+              const s = 3 + Math.random()*3;
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: '#ffee44', life: 6, maxLife: 6, size: 2 });
+            }
+            break;
+          }
+          case 'shotgun': {
+            // Wide burst of white/orange pellet sparks
+            for (let i = 0; i < 10; i++) {
+              const a = angle + (Math.random()-0.5)*0.8;
+              const s = 2 + Math.random()*5;
+              const colors = ['#ffffff','#ffaa00','#ffdd00'];
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: colors[Math.floor(Math.random()*colors.length)],
+                life: 10, maxLife: 10, size: 2+Math.random()*2 });
+            }
+            break;
+          }
+          case 'lmg': {
+            // Fast orange/yellow machine gun flash
+            for (let i = 0; i < 5; i++) {
+              const a = angle + (Math.random()-0.5)*0.25;
+              const s = 4 + Math.random()*4;
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: i%2===0 ? '#ff8800' : '#ffff00', life: 7, maxLife: 7, size: 2+Math.random()*2 });
+            }
+            break;
+          }
+          case 'ar': {
+            // Medium white/yellow flash
+            for (let i = 0; i < 4; i++) {
+              const a = angle + (Math.random()-0.5)*0.3;
+              const s = 3 + Math.random()*4;
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: i===0 ? '#ffffff' : '#ffcc00', life: 8, maxLife: 8, size: 2 });
+            }
+            break;
+          }
+          case 'raygun': {
+            // Blue electric arc crackle
+            for (let i = 0; i < 8; i++) {
+              const a = angle + (Math.random()-0.5)*0.6;
+              const s = 2 + Math.random()*6;
+              const colors = ['#00aaff','#00ffff','#aaddff','#ffffff'];
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: colors[Math.floor(Math.random()*colors.length)],
+                life: 12, maxLife: 12, size: 1+Math.random()*3, electric: true });
+            }
+            break;
+          }
+          case 'thundergun': {
+            // Big red shockwave ring
+            for (let i = 0; i < 16; i++) {
+              const a = (i / 16) * Math.PI * 2;
+              const s = 3 + Math.random()*4;
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: i%3===0 ? '#ffffff' : '#ff2200',
+                life: 18, maxLife: 18, size: 3+Math.random()*3, thunder: true });
+            }
+            break;
+          }
+        }
       }
 
       performMelee(p) {
@@ -800,6 +914,7 @@
         for (let i = this.bullets.length-1; i >= 0; i--) {
           const b = this.bullets[i];
           b.x += b.vx; b.y += b.vy;
+          if (b.life !== undefined) { b.life--; if (b.life <= 0) { this.bullets.splice(i, 1); continue; } }
           if (b.x < 0 || b.x > W || b.y < 0 || b.y > H) { this.bullets.splice(i, 1); continue; }
           let hit = false;
           for (let j = this.zombies.length-1; j >= 0; j--) {
@@ -824,6 +939,8 @@
                 this.zombies.splice(j, 1);
                 this.waveKilled++;
                 if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
+                  // Clear gun test interval when wave 1 ends
+                  if (this._gunTestInterval) { clearInterval(this._gunTestInterval); this._gunTestInterval = null; }
                   this.wave++;
                   setTimeout(() => this.startWave(), 3000);
                 }
@@ -987,11 +1104,55 @@
           ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-zhs, zy-8, z.size*(z.hp/z.maxHp), 4);
         }
 
-        // Bullets
+        // Bullets — weapon-specific visuals
         for (let b of this.bullets) {
-          ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
-          ctx.beginPath(); ctx.arc(b.x, b.y, this.BULLET_SIZE/2, 0, Math.PI*2); ctx.fill();
-          ctx.shadowBlur = 0;
+          ctx.save();
+          switch(b.weapon) {
+            case 'shotgun': {
+              // Small fast pellets
+              ctx.fillStyle = '#ffcc66'; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 4;
+              ctx.beginPath(); ctx.arc(b.x, b.y, 2, 0, Math.PI*2); ctx.fill();
+              break;
+            }
+            case 'smg': {
+              // Tiny rapid sparks — elongated in direction of travel
+              const smgA = Math.atan2(b.vy, b.vx);
+              ctx.fillStyle = '#ffee44'; ctx.shadowColor = '#ffee44'; ctx.shadowBlur = 6;
+              ctx.translate(b.x, b.y); ctx.rotate(smgA);
+              ctx.fillRect(-5, -1.5, 10, 3);
+              break;
+            }
+            case 'lmg': {
+              // Elongated orange tracer
+              const lmgA = Math.atan2(b.vy, b.vx);
+              ctx.fillStyle = '#ff8800'; ctx.shadowColor = '#ffaa00'; ctx.shadowBlur = 8;
+              ctx.translate(b.x, b.y); ctx.rotate(lmgA);
+              ctx.fillRect(-7, -2, 14, 4);
+              break;
+            }
+            case 'raygun': {
+              // Blue glowing orb with crackle halo
+              ctx.fillStyle = '#00ccff'; ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 20;
+              ctx.beginPath(); ctx.arc(b.x, b.y, 4, 0, Math.PI*2); ctx.fill();
+              ctx.strokeStyle = '#aaeeff'; ctx.lineWidth = 1; ctx.globalAlpha = 0.5;
+              ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, Math.PI*2); ctx.stroke();
+              break;
+            }
+            case 'thundergun': {
+              // Large red pulsing blast
+              ctx.fillStyle = '#ff2200'; ctx.shadowColor = '#ff4400'; ctx.shadowBlur = 30;
+              ctx.beginPath(); ctx.arc(b.x, b.y, 7, 0, Math.PI*2); ctx.fill();
+              ctx.fillStyle = '#ffffff'; ctx.shadowBlur = 10;
+              ctx.beginPath(); ctx.arc(b.x, b.y, 3, 0, Math.PI*2); ctx.fill();
+              break;
+            }
+            default: {
+              // Pistol / AR — standard bullet
+              ctx.fillStyle = b.color; ctx.shadowColor = b.color; ctx.shadowBlur = 8;
+              ctx.beginPath(); ctx.arc(b.x, b.y, this.BULLET_SIZE/2, 0, Math.PI*2); ctx.fill();
+            }
+          }
+          ctx.restore();
         }
 
         // Phase 1: render particles
