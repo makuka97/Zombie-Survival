@@ -597,14 +597,14 @@ class GameRoom {
   broadcastGameState(game) {
     const state = game.getState();
     if (this.mode === 'remote') {
-      // Send full state to every player for rendering
+      // volatile.emit = drop packet if socket busy instead of queuing stale states
       for (let [sid, player] of this.players) {
         const sock = io.sockets.sockets.get(sid);
-        if (sock) sock.emit('remote-game-state', state);
+        if (sock) sock.volatile.emit('remote-game-state', state);
       }
     } else {
       // Local mode: send full state to host for rendering
-      if (this.hostSocket) this.hostSocket.emit('remote-game-state', state);
+      if (this.hostSocket) this.hostSocket.volatile.emit('remote-game-state', state);
       // Send per-player HUD state to each controller
       for (let [sid, player] of this.players) {
         const sock = io.sockets.sockets.get(sid);
