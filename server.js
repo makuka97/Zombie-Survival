@@ -683,6 +683,13 @@ class GameRoom {
     this.players.delete(socketId);
     this.restartVotes.delete(player.slotNumber);
     this.readyPlayers.delete(player.slotNumber);
+    // Cancel ready countdown if a player drops out before game starts
+    if (!this.gameStarted && this._readyCountdownInterval) {
+      clearInterval(this._readyCountdownInterval);
+      this._readyCountdownInterval = null;
+      this.broadcast('ready-countdown-cancelled');
+      if (this.hostSocket) this.hostSocket.emit('ready-countdown-cancelled');
+    }
     if (this.hostSocket) this.hostSocket.emit('player-disconnected', { slotNumber: player.slotNumber });
     if (this.serverGame) this.serverGame.players[player.slotNumber-1].connected = false;
     player.gracePeriodTimeout = setTimeout(() => {
@@ -786,26 +793,6 @@ class GameRoom {
         }
       }
     }, 1000);
-  }
-    if (this.readyPlayers.size >= this.players.size && this.players.size >= 1) {
-      this.gameStarted = true;
-      if (this.mode === 'remote') {
-        // Reuse existing serverGame (created in create-remote-room), mark all players connected
-        if (!this.serverGame) this.serverGame = new ServerGame(this);
-        for (let [, p] of this.players) {
-          this.serverGame.players[p.slotNumber - 1].connected = true;
-        }
-        this.serverGame.gameStarted = true;
-        this.serverGame.start();
-        this.broadcast('game-starting-remote', { mode: 'remote' });
-      } else {
-        if (this.hostSocket) this.hostSocket.emit('all-ready');
-        for (let [sid] of this.players) {
-          const sock = io.sockets.sockets.get(sid);
-          if (sock) sock.emit('game-starting');
-        }
-      }
-    }
   }
 
   broadcastLobbyState() {
