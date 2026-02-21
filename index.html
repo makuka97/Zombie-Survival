@@ -420,36 +420,6 @@
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
 
-        // ── GUN TEST MODE — cycles all weapons every 5s, keeps spawning zombies ──
-        if (this.wave === 1) {
-          const TEST_GUNS = ['pistol', 'smg', 'shotgun', 'ar', 'lmg', 'raygun', 'thundergun'];
-          let testIdx = 0;
-
-          // Give everyone infinite ammo and start on pistol
-          for (let p of this.players) {
-            if (!p.connected) continue;
-            p.currentWeapon = 'pistol';
-            p.ammo = Infinity;
-          }
-          this.showBanner('PISTOL — 5s each');
-
-          // Cycle guns every 5s
-          this._gunTestInterval = setInterval(() => {
-            testIdx = (testIdx + 1) % TEST_GUNS.length;
-            const gun = TEST_GUNS[testIdx];
-            for (let p of this.players) {
-              if (!p.connected) continue;
-              p.currentWeapon = gun;
-              p.ammo = Infinity;
-            }
-            this.showBanner(gun.toUpperCase());
-          }, 5000);
-
-          // No zombies in test mode — just shoot into the void
-          this.waveTotal = 99999;
-        }
-        // ── END GUN TEST MODE ──
-
         if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
@@ -476,11 +446,8 @@
           const baseCount = 3 + (this.wave - 1) * 2;
           this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
           this.showBanner('WAVE ' + this.wave);
-          // Skip spawning zombies during gun test mode (wave 1)
-          if (this.wave !== 1) {
-            for (let i = 0; i < this.waveTotal; i++) {
-              setTimeout(() => this.spawnZombie(), i * 500);
-            }
+          for (let i = 0; i < this.waveTotal; i++) {
+            setTimeout(() => this.spawnZombie(), i * 500);
           }
         }
       }
@@ -981,8 +948,6 @@
                 this.zombies.splice(j, 1);
                 this.waveKilled++;
                 if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
-                  // Clear gun test interval when wave 1 ends
-                  if (this._gunTestInterval) { clearInterval(this._gunTestInterval); this._gunTestInterval = null; } if (this._gunTestSpawn) { clearInterval(this._gunTestSpawn); this._gunTestSpawn = null; }
                   this.wave++;
                   setTimeout(() => this.startWave(), 3000);
                 }
