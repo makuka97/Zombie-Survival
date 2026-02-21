@@ -445,12 +445,7 @@
             this.showBanner('🔫 ' + gun.toUpperCase());
           }, 5000);
 
-          // Keep spawning zombies every 2s so wave never ends during testing
-          this._gunTestSpawn = setInterval(() => {
-            if (this.zombies.length < 8) this.spawnZombie();
-          }, 2000);
-
-          // Prevent wave from ever completing in test mode
+          // No zombies in test mode — just shoot into the void
           this.waveTotal = 99999;
         }
         // ── END GUN TEST MODE ──
@@ -481,8 +476,11 @@
           const baseCount = 3 + (this.wave - 1) * 2;
           this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
           this.showBanner('WAVE ' + this.wave);
-          for (let i = 0; i < this.waveTotal; i++) {
-            setTimeout(() => this.spawnZombie(), i * 500);
+          // Skip spawning zombies during gun test mode (wave 1)
+          if (this.wave !== 1) {
+            for (let i = 0; i < this.waveTotal; i++) {
+              setTimeout(() => this.spawnZombie(), i * 500);
+            }
           }
         }
       }
