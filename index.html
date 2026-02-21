@@ -431,7 +431,7 @@
             p.currentWeapon = 'pistol';
             p.ammo = Infinity;
           }
-          this.showBanner('🔫 PISTOL — 5s each');
+          this.showBanner('PISTOL — 5s each');
 
           // Cycle guns every 5s
           this._gunTestInterval = setInterval(() => {
@@ -442,7 +442,7 @@
               p.currentWeapon = gun;
               p.ammo = Infinity;
             }
-            this.showBanner('🔫 ' + gun.toUpperCase());
+            this.showBanner(gun.toUpperCase());
           }, 5000);
 
           // No zombies in test mode — just shoot into the void
@@ -670,68 +670,101 @@
 
       spawnMuzzleEffect(x, y, angle, weapon, playerColor) {
         switch(weapon) {
-          case 'smg': {
-            // Small rapid yellow sparks
+          case 'pistol': {
+            // Small sharp flash + 2 sparks
+            this.particles.push({ x, y, vx: Math.cos(angle)*6, vy: Math.sin(angle)*6,
+              color: '#ffffff', life: 4, maxLife: 4, size: 4 });
             for (let i = 0; i < 3; i++) {
-              const a = angle + (Math.random()-0.5)*0.4;
-              const s = 3 + Math.random()*3;
+              const a = angle + (Math.random()-0.5)*0.5;
+              this.particles.push({ x, y, vx: Math.cos(a)*(3+Math.random()*3), vy: Math.sin(a)*(3+Math.random()*3),
+                color: '#ffee88', life: 5, maxLife: 5, size: 2 });
+            }
+            break;
+          }
+          case 'smg': {
+            // Rapid small flash + brass casings feel
+            this.particles.push({ x, y, vx: Math.cos(angle)*7, vy: Math.sin(angle)*7,
+              color: '#ffffff', life: 3, maxLife: 3, size: 3 });
+            for (let i = 0; i < 4; i++) {
+              const a = angle + (Math.random()-0.5)*0.45;
+              const s = 4 + Math.random()*4;
               this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-                color: '#ffee44', life: 6, maxLife: 6, size: 2 });
+                color: i===0 ? '#ffffff' : '#ffee44', life: 5, maxLife: 5, size: 2 });
             }
             break;
           }
           case 'shotgun': {
-            // Wide burst of white/orange pellet sparks
-            for (let i = 0; i < 10; i++) {
-              const a = angle + (Math.random()-0.5)*0.8;
-              const s = 2 + Math.random()*5;
-              const colors = ['#ffffff','#ffaa00','#ffdd00'];
+            // Big explosive flash — wide burst
+            this.particles.push({ x, y, vx: Math.cos(angle)*5, vy: Math.sin(angle)*5,
+              color: '#ffffff', life: 6, maxLife: 6, size: 10 });
+            this.particles.push({ x, y, vx: Math.cos(angle)*3, vy: Math.sin(angle)*3,
+              color: '#ffaa00', life: 8, maxLife: 8, size: 7 });
+            for (let i = 0; i < 14; i++) {
+              const a = angle + (Math.random()-0.5)*1.0;
+              const s = 2 + Math.random()*6;
+              const colors = ['#ffffff','#ffcc00','#ffaa00','#ff6600'];
               this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
                 color: colors[Math.floor(Math.random()*colors.length)],
-                life: 10, maxLife: 10, size: 2+Math.random()*2 });
-            }
-            break;
-          }
-          case 'lmg': {
-            // Fast orange/yellow machine gun flash
-            for (let i = 0; i < 5; i++) {
-              const a = angle + (Math.random()-0.5)*0.25;
-              const s = 4 + Math.random()*4;
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-                color: i%2===0 ? '#ff8800' : '#ffff00', life: 7, maxLife: 7, size: 2+Math.random()*2 });
+                life: 10+Math.random()*5|0, maxLife: 14, size: 2+Math.random()*3 });
             }
             break;
           }
           case 'ar': {
-            // Medium white/yellow flash
-            for (let i = 0; i < 4; i++) {
-              const a = angle + (Math.random()-0.5)*0.3;
-              const s = 3 + Math.random()*4;
+            // Sharp white flash + orange sparks
+            this.particles.push({ x, y, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8,
+              color: '#ffffff', life: 5, maxLife: 5, size: 6 });
+            for (let i = 0; i < 6; i++) {
+              const a = angle + (Math.random()-0.5)*0.4;
+              const s = 4 + Math.random()*5;
               this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
-                color: i===0 ? '#ffffff' : '#ffcc00', life: 8, maxLife: 8, size: 2 });
+                color: i < 2 ? '#ffffff' : '#ffcc00', life: 8, maxLife: 8, size: 2+Math.random()*2 });
+            }
+            break;
+          }
+          case 'lmg': {
+            // Heavy sustained flash + lots of tracers
+            this.particles.push({ x, y, vx: Math.cos(angle)*7, vy: Math.sin(angle)*7,
+              color: '#ffffff', life: 5, maxLife: 5, size: 8 });
+            this.particles.push({ x, y, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4,
+              color: '#ff8800', life: 7, maxLife: 7, size: 6 });
+            for (let i = 0; i < 8; i++) {
+              const a = angle + (Math.random()-0.5)*0.35;
+              const s = 5 + Math.random()*5;
+              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
+                color: i%3===0 ? '#ffffff' : i%3===1 ? '#ffaa00' : '#ffee00',
+                life: 7, maxLife: 7, size: 2+Math.random()*3 });
             }
             break;
           }
           case 'raygun': {
-            // Blue electric arc crackle
-            for (let i = 0; i < 8; i++) {
-              const a = angle + (Math.random()-0.5)*0.6;
-              const s = 2 + Math.random()*6;
-              const colors = ['#00aaff','#00ffff','#aaddff','#ffffff'];
+            // Electric arc — zigzag bolt feel, lots of bright blue crackling
+            for (let i = 0; i < 16; i++) {
+              const a = angle + (Math.random()-0.5)*(i < 8 ? 0.3 : 1.2);
+              const s = 3 + Math.random()*9;
+              const colors = ['#00eeff','#00aaff','#aaf0ff','#ffffff','#0066ff'];
               this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
                 color: colors[Math.floor(Math.random()*colors.length)],
-                life: 12, maxLife: 12, size: 1+Math.random()*3, electric: true });
+                life: 8+Math.random()*8|0, maxLife: 14, size: 1+Math.random()*3 });
             }
+            // Central bright white core flash
+            this.particles.push({ x, y, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10,
+              color: '#ffffff', life: 4, maxLife: 4, size: 5 });
+            this.particles.push({ x, y, vx: 0, vy: 0,
+              color: '#00eeff', life: 6, maxLife: 6, size: 8 });
             break;
           }
           case 'thundergun': {
-            // Big red shockwave ring
-            for (let i = 0; i < 16; i++) {
-              const a = (i / 16) * Math.PI * 2;
-              const s = 3 + Math.random()*4;
+            // Massive red shockwave ring + heavy flash
+            this.particles.push({ x, y, vx: 0, vy: 0,
+              color: '#ffffff', life: 8, maxLife: 8, size: 18 });
+            this.particles.push({ x, y, vx: 0, vy: 0,
+              color: '#ff2200', life: 10, maxLife: 10, size: 14 });
+            for (let i = 0; i < 20; i++) {
+              const a = (i / 20) * Math.PI * 2;
+              const s = 4 + Math.random()*5;
               this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s,
                 color: i%3===0 ? '#ffffff' : '#ff2200',
-                life: 18, maxLife: 18, size: 3+Math.random()*3, thunder: true });
+                life: 20, maxLife: 20, size: 3+Math.random()*4 });
             }
             break;
           }
