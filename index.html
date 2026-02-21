@@ -1760,6 +1760,16 @@
     socket.on('player-input',         (d) => game.handleInput(d.slotNumber, d.input));
     socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
     socket.on('lobby-update',         (d) => game.updateLobby(d.players));
+    socket.on('ready-countdown', (d) => {
+      const el = document.getElementById('countdown');
+      el.style.display = 'block';
+      el.textContent = d.seconds;
+      el.style.animation = 'none'; el.offsetHeight; el.style.animation = 'pop 0.3s ease';
+    });
+    socket.on('ready-countdown-cancelled', () => {
+      const el = document.getElementById('countdown');
+      el.style.display = 'none';
+    });
     socket.on('all-ready',            ()  => game.startCountdown());
     socket.on('restart-game',         ()  => game.restart());
     socket.on('restart-vote-update',  (d) => {
