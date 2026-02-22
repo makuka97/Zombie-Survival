@@ -856,7 +856,7 @@
           regular: 70,
           runner:  20,
           tank:    10,
-          bomber:  this.wave >= 1 ? 15 : 0
+          bomber:  this.wave > 5 ? 15 : 0
         };
         const total = Object.values(weights).reduce((s, w) => s + w, 0);
         let roll = Math.random() * total;
