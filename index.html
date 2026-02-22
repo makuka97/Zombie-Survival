@@ -423,9 +423,7 @@
         if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
-          const bossNames = { triangle:'TRIANGLE BOSS', octagon:'OCTAGON', pentagon:'PENTAGON', diamond:'DIAMOND', spiral:'SPIRAL', fractal:'FRACTAL' };
-          const bossType = this.getBossType();
-          this.showBanner('BOSS WAVE: ' + (bossNames[bossType]||'BOSS'));
+          this.showBanner('BOSS FIGHT');
           // Unlimited ammo for boss wave — save each player's ammo to restore after
           for (let p of this.players) {
             if (!p.connected) continue;
@@ -1259,11 +1257,20 @@
           if (!nearest) continue;
           const dx = nearest.x-z.x, dy = nearest.y-z.y;
           const dist = Math.sqrt(dx*dx+dy*dy);
-          if (dist > 0) { z.x += (dx/dist)*z.speed; z.y += (dy/dist)*z.speed; }
-          // Phase 1: circle collision for zombie-player contact
           const zr = z.size / 2, pr = this.PLAYER_SIZE / 2;
+          const minDist = zr + pr;
+          // Only move toward player if not already touching
+          if (dist > minDist && dist > 0) {
+            z.x += (dx/dist)*z.speed;
+            z.y += (dy/dist)*z.speed;
+          } else if (dist < minDist && dist > 0) {
+            // Push zombie back to contact edge so they can't overlap
+            z.x = nearest.x - (dx/dist)*minDist;
+            z.y = nearest.y - (dy/dist)*minDist;
+          }
+          // Damage on contact
           const zpDx = nearest.x - z.x, zpDy = nearest.y - z.y;
-          if (Math.sqrt(zpDx*zpDx + zpDy*zpDy) < zr + pr) {
+          if (Math.sqrt(zpDx*zpDx + zpDy*zpDy) < minDist) {
             nearest.hp -= 0.5;
             if (nearest.hp <= 0 && nearest.alive) {
               nearest.alive = false; nearest.hp = 0;
