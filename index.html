@@ -240,7 +240,8 @@
     const ZOMBIE_TYPES = {
       regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.9, hp: 2,  points: 60,  weight: 70 },
       runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.8, hp: 1,  points: 80,  weight: 20 },
-      tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 8,  points: 150, weight: 10 }
+      tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 8,  points: 150, weight: 10 },
+      bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 1.1, hp: 2,  points: 100, weight: 0  }
     };
 
     const MYSTERY_BOX_COST = 950;
@@ -850,9 +851,16 @@
       }
 
       rollZombieType() {
-        const total = Object.values(ZOMBIE_TYPES).reduce((s, t) => s + t.weight, 0);
+        // Bomber unlocks after wave 5 (after first boss)
+        const weights = {
+          regular: 70,
+          runner:  20,
+          tank:    10,
+          bomber:  this.wave >= 1 ? 15 : 0
+        };
+        const total = Object.values(weights).reduce((s, w) => s + w, 0);
         let roll = Math.random() * total;
-        for (let type in ZOMBIE_TYPES) { roll -= ZOMBIE_TYPES[type].weight; if (roll <= 0) return type; }
+        for (let type in weights) { roll -= weights[type]; if (roll <= 0) return type; }
         return 'regular';
       }
 
@@ -1013,7 +1021,8 @@
             p.points += z.points;
             this.ammoPacks.push({ x: z.x, y: z.y });
             if (Math.random() < 0.08) this.healthPacks.push({ x: z.x, y: z.y });
-            this.triggerExplosion(z.x, z.y, z.borderColor); // Phase 1: explosion particles
+            this.triggerExplosion(z.x, z.y, z.borderColor);
+            if (z.type === 'bomber') this.triggerBomberExplosion(z.x, z.y);
             this.zombies.splice(j, 1);
             this.waveKilled++;
             if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
@@ -1077,6 +1086,47 @@
         this.spawnParticles(x, y, color); // local immediately
         if (this.socket && this.roomCode) {
           this.socket.emit('explosion', { roomCode: this.roomCode, x, y, color });
+        }
+      }
+
+      triggerBomberExplosion(bx, by) {
+        const BLAST_RADIUS = 80;
+        const PLAYER_DAMAGE = 20;
+        // Big blue blast particles
+        for (let i = 0; i < 20; i++) {
+          const a = (i / 20) * Math.PI * 2;
+          const speed = 2 + Math.random() * 4;
+          this.particles.push({
+            x: bx, y: by,
+            vx: Math.cos(a) * speed, vy: Math.sin(a) * speed,
+            color: i % 2 === 0 ? '#4499ff' : '#ffffff',
+            size: 5 + Math.random() * 5,
+            life: 30 + Math.random() * 20,
+            maxLife: 50
+          });
+        }
+        // Damage nearby players
+        for (let p of this.players) {
+          if (!p.alive || !p.connected) continue;
+          const dx = p.x - bx, dy = p.y - by;
+          if (Math.sqrt(dx*dx+dy*dy) < BLAST_RADIUS + this.PLAYER_SIZE/2) {
+            p.hp -= PLAYER_DAMAGE;
+            if (p.hp <= 0 && p.alive) { p.alive = false; p.hp = 0; this.checkGameOver(); }
+          }
+        }
+        // Kill nearby zombies (chain reaction!)
+        for (let i = this.zombies.length - 1; i >= 0; i--) {
+          const z = this.zombies[i];
+          const dx = z.x - bx, dy = z.y - by;
+          if (Math.sqrt(dx*dx+dy*dy) < BLAST_RADIUS + z.size/2) {
+            this.triggerExplosion(z.x, z.y, z.borderColor);
+            if (z.type === 'bomber') this.triggerBomberExplosion(z.x, z.y); // chain!
+            this.zombies.splice(i, 1);
+            this.waveKilled++;
+            if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
+              this.wave++; setTimeout(() => this.startWave(), 3000);
+            }
+          }
         }
       }
 
@@ -1206,7 +1256,8 @@
                 if (nearest) nearest.points += z.points;
                 if (Math.random() < this.AMMO_DROP_CHANCE) this.ammoPacks.push({ x: z.x, y: z.y });
                 if (Math.random() < 0.08) this.healthPacks.push({ x: z.x, y: z.y });
-                this.triggerExplosion(z.x, z.y, z.borderColor); // Phase 1: explosion particles
+                this.triggerExplosion(z.x, z.y, z.borderColor);
+                if (z.type === 'bomber') this.triggerBomberExplosion(z.x, z.y);
                 this.zombies.splice(j, 1);
                 this.waveKilled++;
                 if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
@@ -1385,8 +1436,25 @@
         // Zombies
         for (let z of this.zombies) {
           const zhs = z.size / 2, zx = z.x-zhs, zy = z.y-zhs;
-          ctx.fillStyle = z.color; ctx.fillRect(zx, zy, z.size, z.size);
-          ctx.strokeStyle = z.borderColor; ctx.lineWidth = 2; ctx.strokeRect(zx, zy, z.size, z.size);
+          if (z.type === 'bomber') {
+            // Glowing pulsing blue circle
+            const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 200);
+            ctx.save();
+            ctx.shadowColor = '#4499ff'; ctx.shadowBlur = 15 * pulse;
+            ctx.fillStyle = `rgba(0,80,255,${0.8 * pulse})`;
+            ctx.beginPath(); ctx.arc(z.x, z.y, zhs, 0, Math.PI*2); ctx.fill();
+            ctx.strokeStyle = '#aaddff'; ctx.lineWidth = 2;
+            ctx.beginPath(); ctx.arc(z.x, z.y, zhs, 0, Math.PI*2); ctx.stroke();
+            ctx.shadowBlur = 0;
+            // Warning cross in center
+            ctx.strokeStyle = '#ffffff'; ctx.lineWidth = 1.5; ctx.globalAlpha = pulse;
+            ctx.beginPath(); ctx.moveTo(z.x-5, z.y); ctx.lineTo(z.x+5, z.y); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(z.x, z.y-5); ctx.lineTo(z.x, z.y+5); ctx.stroke();
+            ctx.globalAlpha = 1; ctx.restore();
+          } else {
+            ctx.fillStyle = z.color; ctx.fillRect(zx, zy, z.size, z.size);
+            ctx.strokeStyle = z.borderColor; ctx.lineWidth = 2; ctx.strokeRect(zx, zy, z.size, z.size);
+          }
           ctx.fillStyle = '#ff0000'; ctx.fillRect(z.x-zhs, zy-8, z.size, 4);
           ctx.fillStyle = '#00ff00'; ctx.fillRect(z.x-zhs, zy-8, z.size*(z.hp/z.maxHp), 4);
         }
