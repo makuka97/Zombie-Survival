@@ -1089,7 +1089,8 @@
         }
       }
 
-      triggerBomberExplosion(bx, by) {
+      triggerBomberExplosion(bx, by, depth=0) {
+        if (depth > 3) return; // prevent infinite chain reactions
         const BLAST_RADIUS = 80;
         const PLAYER_DAMAGE = 20;
         // Big blue blast particles
@@ -1114,19 +1115,31 @@
             if (p.hp <= 0 && p.alive) { p.alive = false; p.hp = 0; this.checkGameOver(); }
           }
         }
-        // Kill nearby zombies (chain reaction!)
+        // Collect zombies to kill first, then process — avoids mutating array mid-loop
+        const toKill = [];
         for (let i = this.zombies.length - 1; i >= 0; i--) {
           const z = this.zombies[i];
           const dx = z.x - bx, dy = z.y - by;
           if (Math.sqrt(dx*dx+dy*dy) < BLAST_RADIUS + z.size/2) {
-            this.triggerExplosion(z.x, z.y, z.borderColor);
-            if (z.type === 'bomber') this.triggerBomberExplosion(z.x, z.y); // chain!
-            this.zombies.splice(i, 1);
-            this.waveKilled++;
-            if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
-              this.wave++; setTimeout(() => this.startWave(), 3000);
-            }
+            toKill.push({ idx: i, z });
           }
+        }
+        // Store bomber positions for chaining before splicing
+        const chainPositions = toKill
+          .filter(({ z }) => z.type === 'bomber')
+          .map(({ z }) => ({ x: z.x, y: z.y }));
+        // Remove killed zombies (reverse order to preserve indices)
+        for (const { idx, z } of toKill) {
+          this.triggerExplosion(z.x, z.y, z.borderColor);
+          this.zombies.splice(idx, 1);
+          this.waveKilled++;
+          if (this.waveKilled >= this.waveTotal && this.zombies.length === 0) {
+            this.wave++; setTimeout(() => this.startWave(), 3000);
+          }
+        }
+        // Chain bomber explosions after array is clean
+        for (const pos of chainPositions) {
+          this.triggerBomberExplosion(pos.x, pos.y, depth + 1);
         }
       }
 
