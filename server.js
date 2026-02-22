@@ -130,6 +130,9 @@ class ServerGame {
 
   restart() {
     this.stop();
+    // Clear any pending wave spawn timers to prevent stacking
+    if (this._waveTimers) { this._waveTimers.forEach(t => clearTimeout(t)); }
+    this._waveTimers = [];
     this.zombies = []; this.bullets = []; this.ammoPacks = []; this.healthPacks = [];
     this.wave = 1; this.waveTotal = 0; this.waveKilled = 0;
     this.gameOver = false; this.isBossWave = false; this.boss = null;
@@ -149,6 +152,13 @@ class ServerGame {
     }
     this.spawnMysteryBox();
     this.start();
+  }
+
+  _scheduleWave(fn, delay) {
+    if (!this._waveTimers) this._waveTimers = [];
+    const t = setTimeout(fn, delay);
+    this._waveTimers.push(t);
+    return t;
   }
 
   handleInput(slot, input) {
@@ -209,7 +219,7 @@ class ServerGame {
         p.ammo = Infinity;
       }
       this.room.broadcast('wave-event', { type: 'boss', wave: this.wave });
-      setTimeout(() => this.spawnBoss(), 2000);
+      this._scheduleWave(() => this.spawnBoss(), 2000);
     } else {
       this.isBossWave = false;
       for (let p of this.players) {
@@ -224,22 +234,122 @@ class ServerGame {
       this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
       this.room.broadcast('wave-event', { type: 'normal', wave: this.wave });
       for (let i = 0; i < this.waveTotal; i++) {
-        setTimeout(() => this.spawnZombie(), i * 500);
+        this._scheduleWave(() => this.spawnZombie(), i * 500);
       }
     }
   }
 
+  getBossType() {
+    const types = ['triangle','octagon','pentagon','diamond','spiral','fractal'];
+    return types[Math.floor((this.wave / 5 - 1)) % types.length];
+  }
+
   spawnBoss() {
-    const bossHues = ['#8844cc','#cc4488','#4488cc','#44cc88','#cc8844','#cc4444','#44cccc'];
-    this.boss = {
-      x: CANVAS_W / 2, y: -120,
-      dropping: true, dropTarget: CANVAS_H / 2,
-      vx: 0, vy: 0, rotation: 0, spinSpeed: 0.03,
-      radius: BOSS_RADIUS,
-      color: bossHues[Math.floor(Math.random() * bossHues.length)],
-      tips: [{ hp: 5, maxHp: 5 }, { hp: 5, maxHp: 5 }, { hp: 5, maxHp: 5 }],
-      flashTimer: 0, dead: false
+    const type = this.getBossType();
+    const base = {
+      type, x: CANVAS_W/2, y: -120,
+      dropping: true, dropTarget: CANVAS_H/2,
+      vx: 3.5, vy: 2.5, rotation: 0, spinSpeed: 0.03,
+      flashTimer: 0, dead: false, bossBullets: [], shootTimer: 0
     };
+    if (type === 'triangle') {
+      this.boss = { ...base, radius: 90, color: '#8844cc', pad: 125,
+        tips: [{hp:5,maxHp:5},{hp:5,maxHp:5},{hp:5,maxHp:5}] };
+    } else if (type === 'octagon') {
+      this.boss = { ...base, radius: 80, color: '#ff6600', pad: 90,
+        corners: Array.from({length:8}, () => ({hp:3,maxHp:3})), shootInterval: 60 };
+    } else if (type === 'pentagon') {
+      this.boss = { ...base, radius: 85, color: '#00aaff', pad: 110,
+        panels: Array.from({length:5}, () => ({hp:4,maxHp:4})) };
+    } else if (type === 'diamond') {
+      this.boss = { ...base, radius: 75, color: '#ff44aa', pad: 85,
+        coreHp: 20, coreMaxHp: 20, split: false, shards: [] };
+    } else if (type === 'spiral') {
+      this.boss = { ...base, radius: 70, color: '#44ffaa', pad: 140,
+        arms: Array.from({length:5}, () => ({hp:4,maxHp:4})), breathe: 0 };
+    } else {
+      this.boss = { ...base, radius: 95, color: '#ffdd00', pad: 130,
+        pieces: [{x:CANVAS_W/2,y:-120,rotation:0,vx:3.5,vy:2.5,hp:8,maxHp:8,radius:95,alive:true}] };
+    }
+  }
+
+  getBossHitPoints() {
+    if (!this.boss) return [];
+    const b = this.boss;
+    if (b.type === 'triangle') {
+      return [0,1,2].map(i => {
+        const a = b.rotation - Math.PI/2 + i*(2*Math.PI/3);
+        return { x: b.x+Math.cos(a)*b.radius, y: b.y+Math.sin(a)*b.radius, idx: i };
+      });
+    }
+    if (b.type === 'octagon') {
+      return b.corners.map((c,i) => {
+        const a = b.rotation+(i/8)*Math.PI*2;
+        return { x: b.x+Math.cos(a)*b.radius, y: b.y+Math.sin(a)*b.radius, idx: i };
+      });
+    }
+    if (b.type === 'pentagon') {
+      return b.panels.map((p,i) => {
+        const a = b.rotation+(i/5)*Math.PI*2+Math.PI/5;
+        return { x: b.x+Math.cos(a)*b.radius*0.6, y: b.y+Math.sin(a)*b.radius*0.6, idx: i };
+      });
+    }
+    if (b.type === 'diamond') {
+      if (!b.split) return [{ x: b.x, y: b.y, idx: 0, core: true }];
+      return b.shards.filter(s=>s.alive).map((s,i) => ({x:s.x,y:s.y,idx:i,shard:true}));
+    }
+    if (b.type === 'spiral') {
+      return b.arms.map((arm,i) => {
+        const ext = b.radius+60+Math.sin(b.breathe+i)*30;
+        const a   = b.rotation+(i/5)*Math.PI*2;
+        return { x: b.x+Math.cos(a)*ext, y: b.y+Math.sin(a)*ext, idx: i };
+      });
+    }
+    if (b.type === 'fractal') {
+      return b.pieces.filter(p=>p.alive).map((p,i) => ({x:p.x,y:p.y,idx:i,piece:true,radius:p.radius}));
+    }
+    return [];
+  }
+
+  // Legacy alias
+  getBossTipPositions() { return this.getBossHitPoints(); }
+
+  _bounceBox(b) {
+    const pad = b.pad;
+    b.x += b.vx; b.y += b.vy;
+    if (b.x-pad<WALL)         { b.x=WALL+pad;         b.vx= Math.abs(b.vx); }
+    if (b.x+pad>CANVAS_W-WALL){ b.x=CANVAS_W-WALL-pad; b.vx=-Math.abs(b.vx); }
+    if (b.y-pad<WALL)         { b.y=WALL+pad;         b.vy= Math.abs(b.vy); }
+    if (b.y+pad>CANVAS_H-WALL){ b.y=CANVAS_H-WALL-pad; b.vy=-Math.abs(b.vy); }
+  }
+
+  _bossKill(b) {
+    b.dead = true;
+    for (let p of this.players) {
+      if (p.alive&&p.connected) { p.points+=1000; p.hp=p.maxHp; }
+    }
+    const dropCount = 4+Math.floor(Math.random()*4);
+    for (let i=0;i<dropCount;i++) {
+      const a=Math.random()*Math.PI*2, d=30+Math.random()*80;
+      this.ammoPacks.push({x:b.x+Math.cos(a)*d, y:b.y+Math.sin(a)*d});
+    }
+    this.explosions.push({ x:b.x, y:b.y, color:b.color, big:true });
+    this._scheduleWave(() => {
+      this.boss=null; this.waveKilled=this.waveTotal; this.wave++;
+      this._scheduleWave(() => this.startWave(), 3000);
+    }, 800);
+  }
+
+  _bossTouchDamage(b, extraRadius=0) {
+    const hs = PLAYER_SIZE/2;
+    for (let p of this.players) {
+      if (!p.alive||!p.connected) continue;
+      const dx=p.x-b.x, dy=p.y-b.y;
+      if (Math.sqrt(dx*dx+dy*dy)<b.radius+extraRadius+hs) {
+        p.hp-=1;
+        if (p.hp<=0&&p.alive){p.alive=false;p.hp=0;this.checkGameOver();}
+      }
+    }
   }
 
   updateBoss() {
@@ -248,63 +358,140 @@ class ServerGame {
 
     if (b.dropping) {
       b.y += 6; b.rotation += b.spinSpeed;
-      if (b.y >= b.dropTarget) {
-        b.y = b.dropTarget; b.dropping = false;
-        b.vx = 3.5; b.vy = 2.5;
-      }
+      if (b.y >= b.dropTarget) { b.y = b.dropTarget; b.dropping = false; }
       return;
     }
 
-    const tipsAlive = b.tips.filter(t => t.hp > 0).length;
-    b.spinSpeed = 0.03 + (3 - tipsAlive) * 0.025;
-    b.rotation += b.spinSpeed;
-
-    b.x += b.vx; b.y += b.vy;
-    if (b.x - BOSS_PAD < WALL)            { b.x = WALL + BOSS_PAD;            b.vx =  Math.abs(b.vx); }
-    if (b.x + BOSS_PAD > CANVAS_W - WALL) { b.x = CANVAS_W - WALL - BOSS_PAD; b.vx = -Math.abs(b.vx); }
-    if (b.y - BOSS_PAD < WALL)            { b.y = WALL + BOSS_PAD;            b.vy =  Math.abs(b.vy); }
-    if (b.y + BOSS_PAD > CANVAS_H - WALL) { b.y = CANVAS_H - WALL - BOSS_PAD; b.vy = -Math.abs(b.vy); }
-
     if (b.flashTimer > 0) b.flashTimer--;
 
-    if (b.tips.every(t => t.hp <= 0) && !b.dead) {
-      b.dead = true;
+    // Boss bullets hit players
+    for (let i = b.bossBullets.length-1; i >= 0; i--) {
+      const bb = b.bossBullets[i];
+      bb.x += bb.vx; bb.y += bb.vy; bb.life--;
+      if (bb.life<=0||bb.x<0||bb.x>CANVAS_W||bb.y<0||bb.y>CANVAS_H) { b.bossBullets.splice(i,1); continue; }
       for (let p of this.players) {
-        if (p.alive && p.connected) { p.points += 1000; p.hp = p.maxHp; }
-      }
-      const dropCount = 4 + Math.floor(Math.random() * 4);
-      for (let i = 0; i < dropCount; i++) {
-        const angle = Math.random() * Math.PI * 2;
-        const dist  = 30 + Math.random() * 80;
-        this.ammoPacks.push({ x: b.x + Math.cos(angle)*dist, y: b.y + Math.sin(angle)*dist });
-      }
-      this.explosions.push({ x: b.x, y: b.y, color: b.color, big: true });
-      setTimeout(() => {
-        this.boss = null;
-        this.waveKilled = this.waveTotal;
-        this.wave++;
-        setTimeout(() => this.startWave(), 3000);
-      }, 800);
-    }
-
-    const hs = PLAYER_SIZE / 2;
-    for (let p of this.players) {
-      if (!p.alive || !p.connected) continue;
-      const dx = p.x - b.x, dy = p.y - b.y;
-      if (Math.sqrt(dx*dx+dy*dy) < b.radius + hs) {
-        p.hp -= 1;
-        if (p.hp <= 0 && p.alive) { p.alive = false; p.hp = 0; this.checkGameOver(); }
+        if (!p.alive||!p.connected) continue;
+        const dx=p.x-bb.x,dy=p.y-bb.y;
+        if (Math.sqrt(dx*dx+dy*dy)<PLAYER_SIZE/2+5) {
+          p.hp-=bb.damage; b.bossBullets.splice(i,1);
+          if (p.hp<=0&&p.alive){p.alive=false;p.hp=0;this.checkGameOver();}
+          break;
+        }
       }
     }
-  }
 
-  getBossTipPositions() {
-    if (!this.boss) return [];
-    const b = this.boss;
-    return [0, 1, 2].map(i => {
-      const a = b.rotation - Math.PI/2 + i * (2*Math.PI/3);
-      return { x: b.x + Math.cos(a)*b.radius, y: b.y + Math.sin(a)*b.radius };
-    });
+    if (b.type === 'triangle') {
+      const tipsAlive = b.tips.filter(t=>t.hp>0).length;
+      b.spinSpeed = 0.03+(3-tipsAlive)*0.025; b.rotation+=b.spinSpeed;
+      this._bounceBox(b); this._bossTouchDamage(b);
+      if (b.tips.every(t=>t.hp<=0)&&!b.dead) this._bossKill(b);
+
+    } else if (b.type === 'octagon') {
+      const alive = b.corners.filter(c=>c.hp>0).length;
+      b.spinSpeed=0.02+(8-alive)*0.008; b.rotation+=b.spinSpeed;
+      this._bounceBox(b); this._bossTouchDamage(b);
+      b.shootTimer++;
+      if (b.shootTimer>=b.shootInterval) {
+        b.shootTimer=0;
+        b.corners.forEach((c,i) => {
+          if (c.hp<=0) return;
+          const a=b.rotation+(i/8)*Math.PI*2;
+          const cx=b.x+Math.cos(a)*b.radius, cy=b.y+Math.sin(a)*b.radius;
+          b.bossBullets.push({x:cx,y:cy,vx:Math.cos(a)*3,vy:Math.sin(a)*3,damage:8,life:120,color:'#ff6600'});
+        });
+      }
+      if (b.corners.every(c=>c.hp<=0)&&!b.dead) this._bossKill(b);
+
+    } else if (b.type === 'pentagon') {
+      const alive = b.panels.filter(p=>p.hp>0).length;
+      b.spinSpeed=0.04+(5-alive)*0.022; b.rotation+=b.spinSpeed;
+      this._bounceBox(b); this._bossTouchDamage(b);
+      if (b.panels.every(p=>p.hp<=0)&&!b.dead) this._bossKill(b);
+
+    } else if (b.type === 'diamond') {
+      b.rotation+=0.025;
+      if (!b.split) {
+        this._bounceBox(b); this._bossTouchDamage(b);
+        if (b.coreHp<=0&&!b.dead) {
+          b.split=true;
+          const dirs=[0,Math.PI/2,Math.PI,Math.PI*1.5];
+          b.shards=dirs.map(a=>({
+            x:b.x+Math.cos(a)*40, y:b.y+Math.sin(a)*40,
+            vx:Math.cos(a)*2.5, vy:Math.sin(a)*2.5,
+            rotation:0, hp:6, maxHp:6, alive:true, radius:38, pad:48
+          }));
+        }
+      } else {
+        for (let s of b.shards) {
+          if (!s.alive) continue;
+          s.rotation+=0.04; s.x+=s.vx; s.y+=s.vy;
+          if (s.x-s.pad<WALL)         {s.x=WALL+s.pad;         s.vx= Math.abs(s.vx);}
+          if (s.x+s.pad>CANVAS_W-WALL){s.x=CANVAS_W-WALL-s.pad; s.vx=-Math.abs(s.vx);}
+          if (s.y-s.pad<WALL)         {s.y=WALL+s.pad;         s.vy= Math.abs(s.vy);}
+          if (s.y+s.pad>CANVAS_H-WALL){s.y=CANVAS_H-WALL-s.pad; s.vy=-Math.abs(s.vy);}
+          for (let p of this.players) {
+            if (!p.alive||!p.connected) continue;
+            const dx=p.x-s.x,dy=p.y-s.y;
+            if (Math.sqrt(dx*dx+dy*dy)<s.radius+PLAYER_SIZE/2){
+              p.hp-=0.8; if (p.hp<=0&&p.alive){p.alive=false;p.hp=0;this.checkGameOver();}
+            }
+          }
+        }
+        b.x=b.shards.reduce((s,sh)=>s+sh.x,0)/4;
+        b.y=b.shards.reduce((s,sh)=>s+sh.y,0)/4;
+        if (b.shards.every(s=>!s.alive)&&!b.dead) this._bossKill(b);
+      }
+
+    } else if (b.type === 'spiral') {
+      b.breathe+=0.05; b.rotation+=0.02;
+      this._bounceBox(b); this._bossTouchDamage(b,10);
+      b.shootTimer++;
+      if (b.shootTimer>=40) {
+        b.shootTimer=0;
+        for (let i=0;i<5;i++) {
+          const a=b.rotation+(i/5)*Math.PI*2;
+          b.bossBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5,damage:10,life:100,color:'#44ffaa'});
+        }
+      }
+      if (b.arms.every(a=>a.hp<=0)&&!b.dead) this._bossKill(b);
+
+    } else if (b.type === 'fractal') {
+      for (let piece of b.pieces) {
+        if (!piece.alive) continue;
+        piece.rotation+=0.03; piece.x+=piece.vx; piece.y+=piece.vy;
+        const pad=piece.radius+10;
+        if (piece.x-pad<WALL)         {piece.x=WALL+pad;         piece.vx= Math.abs(piece.vx);}
+        if (piece.x+pad>CANVAS_W-WALL){piece.x=CANVAS_W-WALL-pad; piece.vx=-Math.abs(piece.vx);}
+        if (piece.y-pad<WALL)         {piece.y=WALL+pad;         piece.vy= Math.abs(piece.vy);}
+        if (piece.y+pad>CANVAS_H-WALL){piece.y=CANVAS_H-WALL-pad; piece.vy=-Math.abs(piece.vy);}
+        for (let p of this.players) {
+          if (!p.alive||!p.connected) continue;
+          const dx=p.x-piece.x,dy=p.y-piece.y;
+          if (Math.sqrt(dx*dx+dy*dy)<piece.radius+PLAYER_SIZE/2){
+            p.hp-=0.8; if (p.hp<=0&&p.alive){p.alive=false;p.hp=0;this.checkGameOver();}
+          }
+        }
+        if (piece.hp<=0&&piece.alive) {
+          piece.alive=false;
+          this.explosions.push({x:piece.x,y:piece.y,color:'#ffdd00'});
+          if (piece.radius>30) {
+            for (let i=0;i<3;i++) {
+              const a=(i/3)*Math.PI*2+Math.random()*0.5;
+              const nr=Math.round(piece.radius*0.55);
+              b.pieces.push({
+                x:piece.x+Math.cos(a)*nr, y:piece.y+Math.sin(a)*nr,
+                vx:Math.cos(a)*2+Math.random()-0.5, vy:Math.sin(a)*2+Math.random()-0.5,
+                rotation:0, hp:Math.ceil(piece.maxHp*0.6), maxHp:Math.ceil(piece.maxHp*0.6),
+                radius:nr, alive:true
+              });
+            }
+          }
+        }
+      }
+      const alive=b.pieces.filter(p=>p.alive);
+      if (alive.length>0){ b.x=alive.reduce((s,p)=>s+p.x,0)/alive.length; b.y=alive.reduce((s,p)=>s+p.y,0)/alive.length; }
+      if (b.pieces.every(p=>!p.alive)&&!b.dead) this._bossKill(b);
+    }
   }
 
   spawnZombie() {
@@ -352,23 +539,31 @@ class ServerGame {
         this.zombies.splice(j, 1);
         this.waveKilled++;
         if (this.waveKilled >= this.waveTotal && this.zombies.length === 0 && !this.boss) {
-          this.wave++; setTimeout(() => this.startWave(), 3000);
+          this.wave++; this._scheduleWave(() => this.startWave(), 3000);
         }
       }
     }
 
     if (this.boss && !this.boss.dead && !this.boss.dropping) {
-      const tips = this.getBossTipPositions();
-      for (let t = 0; t < tips.length; t++) {
-        if (this.boss.tips[t].hp <= 0) continue;
-        const dx = tips[t].x - p.x, dy = tips[t].y - p.y;
+      const pts = this.getBossHitPoints();
+      for (let t = 0; t < pts.length; t++) {
+        const pt = pts[t];
+        const dx = pt.x - p.x, dy = pt.y - p.y;
         if (Math.sqrt(dx*dx+dy*dy) > MELEE_RANGE + 20) continue;
         let ad = Math.atan2(dy, dx) - p.angle;
         while (ad >  Math.PI) ad -= Math.PI*2;
         while (ad < -Math.PI) ad += Math.PI*2;
         if (Math.abs(ad) > MELEE_ARC/2) continue;
-        this.boss.tips[t].hp -= MELEE_DAMAGE;
         this.boss.flashTimer = 6;
+        if (this.boss.type==='triangle')      { this.boss.tips[pt.idx].hp=Math.max(0,this.boss.tips[pt.idx].hp-MELEE_DAMAGE); }
+        else if (this.boss.type==='octagon')  { this.boss.corners[pt.idx].hp=Math.max(0,this.boss.corners[pt.idx].hp-MELEE_DAMAGE); }
+        else if (this.boss.type==='pentagon') { this.boss.panels[pt.idx].hp=Math.max(0,this.boss.panels[pt.idx].hp-MELEE_DAMAGE); }
+        else if (this.boss.type==='diamond')  {
+          if (!this.boss.split) { this.boss.coreHp=Math.max(0,this.boss.coreHp-MELEE_DAMAGE); }
+          else { const s=this.boss.shards[pt.idx]; if(s){s.hp=Math.max(0,s.hp-MELEE_DAMAGE);if(s.hp<=0)s.alive=false;} }
+        }
+        else if (this.boss.type==='spiral')   { this.boss.arms[pt.idx].hp=Math.max(0,this.boss.arms[pt.idx].hp-MELEE_DAMAGE); }
+        else if (this.boss.type==='fractal')  { const alive=this.boss.pieces.filter(p=>p.alive); if(alive[pt.idx])alive[pt.idx].hp=Math.max(0,alive[pt.idx].hp-MELEE_DAMAGE); }
       }
     }
   }
@@ -460,7 +655,7 @@ class ServerGame {
             this.zombies.splice(j, 1);
             this.waveKilled++;
             if (this.waveKilled >= this.waveTotal && this.zombies.length === 0 && !this.boss) {
-              this.wave++; setTimeout(() => this.startWave(), 3000);
+              this.wave++; this._scheduleWave(() => this.startWave(), 3000);
             }
           }
           break;
@@ -469,12 +664,23 @@ class ServerGame {
       if (hit) { this.bullets.splice(i, 1); continue; }
 
       if (this.boss && !this.boss.dead && !this.boss.dropping) {
-        const tips = this.getBossTipPositions();
-        for (let t = 0; t < tips.length; t++) {
-          const dx = b.x - tips[t].x, dy = b.y - tips[t].y;
-          if (Math.sqrt(dx*dx+dy*dy) < 22 && this.boss.tips[t].hp > 0) {
-            this.boss.tips[t].hp--; this.boss.flashTimer = 6;
-            this.bullets.splice(i, 1); hit = true; break;
+        const pts = this.getBossHitPoints();
+        for (let t = 0; t < pts.length; t++) {
+          const pt = pts[t];
+          const dx = b.x - pt.x, dy = b.y - pt.y;
+          const hitR = pt.piece ? Math.min(pt.radius*0.6, 30) : 22;
+          if (Math.sqrt(dx*dx+dy*dy) < hitR) {
+            this.boss.flashTimer = 6; hit = true;
+            if (this.boss.type==='triangle')      { this.boss.tips[pt.idx].hp=Math.max(0,this.boss.tips[pt.idx].hp-b.damage); }
+            else if (this.boss.type==='octagon')  { this.boss.corners[pt.idx].hp=Math.max(0,this.boss.corners[pt.idx].hp-b.damage); }
+            else if (this.boss.type==='pentagon') { this.boss.panels[pt.idx].hp=Math.max(0,this.boss.panels[pt.idx].hp-b.damage); }
+            else if (this.boss.type==='diamond')  {
+              if (!this.boss.split) { this.boss.coreHp=Math.max(0,this.boss.coreHp-b.damage); }
+              else { const s=this.boss.shards[pt.idx]; if(s){s.hp=Math.max(0,s.hp-b.damage);if(s.hp<=0)s.alive=false;} }
+            }
+            else if (this.boss.type==='spiral')   { this.boss.arms[pt.idx].hp=Math.max(0,this.boss.arms[pt.idx].hp-b.damage); }
+            else if (this.boss.type==='fractal')  { const alive=this.boss.pieces.filter(p=>p.alive); if(alive[pt.idx])alive[pt.idx].hp=Math.max(0,alive[pt.idx].hp-b.damage); }
+            this.bullets.splice(i, 1); break;
           }
         }
       }
@@ -549,10 +755,27 @@ class ServerGame {
       healthPacks: this.healthPacks.map(h => ({ x: h.x, y: h.y })),
       mysteryBox: this.mysteryBox ? { x: this.mysteryBox.x, y: this.mysteryBox.y } : null,
       boss: this.boss ? {
+        type: this.boss.type,
         x: this.boss.x, y: this.boss.y,
         rotation: this.boss.rotation, radius: this.boss.radius,
         color: this.boss.color, dropping: this.boss.dropping,
-        tips: this.boss.tips, flashTimer: this.boss.flashTimer, dead: this.boss.dead
+        flashTimer: this.boss.flashTimer, dead: this.boss.dead,
+        pad: this.boss.pad,
+        // triangle
+        tips: this.boss.tips,
+        // octagon
+        corners: this.boss.corners,
+        // pentagon
+        panels: this.boss.panels,
+        // diamond
+        coreHp: this.boss.coreHp, coreMaxHp: this.boss.coreMaxHp,
+        split: this.boss.split, shards: this.boss.shards,
+        // spiral
+        arms: this.boss.arms, breathe: this.boss.breathe,
+        // fractal
+        pieces: this.boss.pieces,
+        // boss bullets
+        bossBullets: this.boss.bossBullets,
       } : null,
       reviveMap: Array.from(this.reviveMap.entries()),
       wave: this.wave, gameOver: this.gameOver,
