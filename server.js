@@ -68,7 +68,7 @@ const MELEE_ARC        = Math.PI * 0.6;
 const WALL             = 6;
 const MAX_PLAYERS      = 4;
 const PLAYER_COLORS    = ['#00ffff', '#ff44ff', '#4488ff', '#ffff00'];
-const GRACE_PERIOD_MS  = 10000;
+const GRACE_PERIOD_MS  = 30000;
 const HEARTBEAT_MS     = 2000;
 const BOSS_RADIUS      = 90;
 const BOSS_PAD         = BOSS_RADIUS + 35;
@@ -647,13 +647,26 @@ class GameRoom {
     if (deviceFingerprint && this.disconnectedPlayers.has(deviceFingerprint)) {
       return this.reconnectPlayer(socket, deviceFingerprint);
     }
+    // Also check if fingerprint matches a currently connected player (tab refresh mid-game)
+    if (deviceFingerprint && this.gameStarted) {
+      for (let [sid, p] of this.players) {
+        if (p.deviceFingerprint === deviceFingerprint) {
+          // Same person, new socket — update their socket
+          this.players.delete(sid);
+          const updated = { ...p, socketId: socket.id, connected: true, lastPong: Date.now() };
+          this.players.set(socket.id, updated);
+          if (this.serverGame) this.serverGame.players[p.slotNumber-1].connected = true;
+          return updated;
+        }
+      }
+    }
     const slotNumber = this.findAvailableSlot();
     if (slotNumber === null) { socket.emit('join-failed', { reason: 'Room is full' }); return null; }
     const playerData = {
       socketId: socket.id, slotNumber,
       color: PLAYER_COLORS[slotNumber - 1],
       connected: true, lastPong: Date.now(),
-      deviceFingerprint: socket.id
+      deviceFingerprint: deviceFingerprint || socket.id  // use provided fp, fall back to socket.id
     };
     this.players.set(socket.id, playerData);
     if (this.hostSocket) this.hostSocket.emit('player-joined', { slotNumber, color: playerData.color });
