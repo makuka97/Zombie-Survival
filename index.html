@@ -509,7 +509,11 @@
         }
         if (b.type === 'diamond') {
           if (!b.split) return [{ x: b.x, y: b.y, idx: 0, core: true }];
-          return b.shards.filter(s=>s.alive).map((s,i) => ({x:s.x,y:s.y,idx:i,shard:true}));
+          // FIX: use real array index so dead shards don't shift the idx of remaining ones
+          return b.shards.reduce((acc, s, realIdx) => {
+            if (s.alive) acc.push({x:s.x, y:s.y, idx:realIdx, shard:true});
+            return acc;
+          }, []);
         }
         if (b.type === 'spiral') {
           return b.arms.map((arm,i) => {
@@ -519,7 +523,11 @@
           });
         }
         if (b.type === 'fractal') {
-          return b.pieces.filter(p=>p.alive).map((p,i) => ({x:p.x,y:p.y,idx:i,piece:true,radius:p.radius}));
+          // FIX: same real array index fix for fractal pieces
+          return b.pieces.reduce((acc, p, realIdx) => {
+            if (p.alive) acc.push({x:p.x, y:p.y, idx:realIdx, piece:true, radius:p.radius});
+            return acc;
+          }, []);
         }
         return [];
       }
