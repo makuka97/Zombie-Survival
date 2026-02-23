@@ -574,37 +574,102 @@
         }
       }
 
-      // ── Boss ──────────────────────────────────────────────────────
+      // ── Boss (all 6 types) ────────────────────────────────────────
       if (state.boss && !state.boss.dead) {
         const b = state.boss;
         const flash = b.flashTimer > 0 && b.flashTimer % 2 === 0;
-        ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rotation);
-        ctx.beginPath();
-        for (let i = 0; i < 3; i++) {
-          const a = -Math.PI/2 + i*(2*Math.PI/3);
-          i===0 ? ctx.moveTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius)
-                : ctx.lineTo(Math.cos(a)*b.radius, Math.sin(a)*b.radius);
+
+        // Boss bullets (shared across all types)
+        if (b.bossBullets) {
+          for (const bb of b.bossBullets) {
+            ctx.save(); ctx.fillStyle = bb.color; ctx.shadowColor = bb.color; ctx.shadowBlur = 10;
+            ctx.beginPath(); ctx.arc(bb.x, bb.y, 5, 0, Math.PI*2); ctx.fill(); ctx.restore();
+          }
         }
-        ctx.closePath();
-        ctx.fillStyle = flash ? '#ffffff' : b.color;
-        ctx.shadowColor = '#bb00ff'; ctx.shadowBlur = 30; ctx.fill();
-        ctx.strokeStyle = '#000'; ctx.lineWidth = 4; ctx.stroke();
-        ctx.shadowBlur = 0; ctx.restore();
-        const tipAngles = [0,1,2].map(i => b.rotation - Math.PI/2 + i*(2*Math.PI/3));
-        for (let t = 0; t < 3; t++) {
-          if (b.tips[t].hp <= 0) continue;
-          const tx = b.x + Math.cos(tipAngles[t])*b.radius;
-          const ty = b.y + Math.sin(tipAngles[t])*b.radius;
-          ctx.save(); ctx.translate(tx, ty); ctx.rotate(b.rotation+t*(2*Math.PI/3));
-          ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(12,14); ctx.lineTo(-12,14); ctx.closePath();
-          ctx.fillStyle = flash ? '#ffffff' : '#ff00ff';
-          ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 15; ctx.fill(); ctx.shadowBlur = 0; ctx.restore();
-          ctx.fillStyle = '#440044'; ctx.fillRect(tx-18, ty-30, 36, 5);
-          ctx.fillStyle = '#ff00ff'; ctx.fillRect(tx-18, ty-30, 36*(b.tips[t].hp/b.tips[t].maxHp), 5);
+
+        if (b.type === 'triangle') {
+          ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rotation);
+          ctx.beginPath();
+          for (let i = 0; i < 3; i++) { const a=-Math.PI/2+i*(2*Math.PI/3); i===0?ctx.moveTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius):ctx.lineTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius); }
+          ctx.closePath(); ctx.fillStyle=flash?'#ffffff':b.color; ctx.shadowColor='#bb00ff'; ctx.shadowBlur=30; ctx.fill();
+          ctx.strokeStyle='#000'; ctx.lineWidth=4; ctx.stroke(); ctx.shadowBlur=0; ctx.restore();
+          if (b.tips) { const tipAngles=[0,1,2].map(i=>b.rotation-Math.PI/2+i*(2*Math.PI/3));
+            for (let t=0;t<3;t++) { if(b.tips[t].hp<=0)continue; const tx=b.x+Math.cos(tipAngles[t])*b.radius,ty=b.y+Math.sin(tipAngles[t])*b.radius;
+              ctx.save(); ctx.translate(tx,ty); ctx.rotate(b.rotation+t*(2*Math.PI/3));
+              ctx.beginPath(); ctx.moveTo(0,-20); ctx.lineTo(12,14); ctx.lineTo(-12,14); ctx.closePath();
+              ctx.fillStyle=flash?'#ffffff':'#cc0000'; ctx.shadowColor='#ff0000'; ctx.shadowBlur=15; ctx.fill(); ctx.shadowBlur=0; ctx.restore();
+              ctx.fillStyle='#330000'; ctx.fillRect(tx-20,ty+22,40,5);
+              ctx.fillStyle='#ff0000'; ctx.fillRect(tx-20,ty+22,40*(b.tips[t].hp/b.tips[t].maxHp),5);
+            }
+          }
+
+        } else if (b.type === 'octagon') {
+          ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rotation);
+          ctx.beginPath(); for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;i===0?ctx.moveTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius):ctx.lineTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius);}
+          ctx.closePath(); ctx.fillStyle=flash?'#ffffff':'#cc4400'; ctx.shadowColor='#ff6600'; ctx.shadowBlur=25; ctx.fill();
+          ctx.strokeStyle='#ff9900'; ctx.lineWidth=3; ctx.stroke(); ctx.shadowBlur=0; ctx.restore();
+          if (b.corners) { for(let i=0;i<8;i++){if(b.corners[i].hp<=0)continue; const a=b.rotation+(i/8)*Math.PI*2,cx=b.x+Math.cos(a)*b.radius,cy=b.y+Math.sin(a)*b.radius,r=8+(b.corners[i].hp/b.corners[i].maxHp)*6;
+            ctx.save(); ctx.fillStyle=flash?'#fff':'#ff4400'; ctx.shadowColor='#ff6600'; ctx.shadowBlur=12;
+            ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fill(); ctx.restore();
+          }}
+
+        } else if (b.type === 'pentagon') {
+          ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rotation);
+          if (b.panels) { for(let i=0;i<5;i++){if(b.panels[i].hp<=0)continue; const aS=(i/5)*Math.PI*2-Math.PI/2,aE=((i+1)/5)*Math.PI*2-Math.PI/2,hr=b.panels[i].hp/b.panels[i].maxHp;
+            ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,b.radius,aS+0.2,aE-0.2); ctx.closePath();
+            ctx.fillStyle=flash?'#ffffff':`rgba(0,${Math.floor(100+100*hr)},255,0.8)`; ctx.shadowColor='#00aaff'; ctx.shadowBlur=20; ctx.fill();
+            ctx.strokeStyle='#0055ff'; ctx.lineWidth=2; ctx.stroke();
+          }}
+          ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2); ctx.fillStyle=flash?'#ffffff':'#003388'; ctx.shadowBlur=0; ctx.fill(); ctx.restore();
+
+        } else if (b.type === 'diamond') {
+          if (!b.split) {
+            const hr=b.coreHp/b.coreMaxHp;
+            ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rotation);
+            ctx.beginPath(); ctx.moveTo(0,-b.radius); ctx.lineTo(b.radius*0.6,0); ctx.lineTo(0,b.radius); ctx.lineTo(-b.radius*0.6,0); ctx.closePath();
+            ctx.fillStyle=flash?'#ffffff':`hsl(${320+40*hr},100%,50%)`; ctx.shadowColor='#ff44aa'; ctx.shadowBlur=30; ctx.fill();
+            ctx.strokeStyle='#ff88cc'; ctx.lineWidth=3; ctx.stroke(); ctx.shadowBlur=0;
+            ctx.fillStyle='rgba(0,0,0,0.5)'; ctx.fillRect(-30,-5,60,10);
+            ctx.fillStyle='#ff44aa'; ctx.fillRect(-30,-5,60*hr,10); ctx.restore();
+          } else if (b.shards) {
+            for (const s of b.shards) { if(!s.alive)continue;
+              ctx.save(); ctx.translate(s.x,s.y); ctx.rotate(s.rotation);
+              ctx.beginPath(); ctx.moveTo(0,-s.radius); ctx.lineTo(s.radius*0.6,0); ctx.lineTo(0,s.radius); ctx.lineTo(-s.radius*0.6,0); ctx.closePath();
+              ctx.fillStyle=flash?'#ffffff':'#cc2288'; ctx.shadowColor='#ff44aa'; ctx.shadowBlur=20; ctx.fill();
+              ctx.strokeStyle='#ff88cc'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0;
+              const bw=s.radius*1.2; ctx.fillStyle='#330011'; ctx.fillRect(-bw/2,s.radius+4,bw,4);
+              ctx.fillStyle='#ff44aa'; ctx.fillRect(-bw/2,s.radius+4,bw*(s.hp/s.maxHp),4); ctx.restore();
+            }
+          }
+
+        } else if (b.type === 'spiral') {
+          ctx.save(); ctx.translate(b.x,b.y);
+          if (b.arms) { for(let i=0;i<5;i++){if(b.arms[i].hp<=0)continue; const armA=b.rotation+(i/5)*Math.PI*2,ext=b.radius+60+Math.sin((b.breathe||0)+i)*30,hr=b.arms[i].hp/b.arms[i].maxHp;
+            ctx.save(); ctx.strokeStyle=flash?'#ffffff':`hsl(150,100%,${40+30*hr}%)`; ctx.lineWidth=6+(1-hr)*4; ctx.shadowColor='#44ffaa'; ctx.shadowBlur=15;
+            ctx.beginPath(); const midA=armA+0.4; ctx.moveTo(0,0); ctx.quadraticCurveTo(Math.cos(midA)*ext*0.6,Math.sin(midA)*ext*0.6,Math.cos(armA)*ext,Math.sin(armA)*ext); ctx.stroke(); ctx.restore();
+            const tipX=Math.cos(armA)*ext,tipY=Math.sin(armA)*ext;
+            ctx.save(); ctx.fillStyle=flash?'#fff':'#00ff88'; ctx.shadowColor='#44ffaa'; ctx.shadowBlur=20;
+            ctx.beginPath(); ctx.arc(tipX,tipY,8+hr*6,0,Math.PI*2); ctx.fill(); ctx.restore();
+            ctx.fillStyle='#003311'; ctx.fillRect(tipX-20,tipY+16,40,4);
+            ctx.fillStyle='#44ffaa'; ctx.fillRect(tipX-20,tipY+16,40*hr,4);
+          }}
+          ctx.beginPath(); ctx.arc(0,0,25,0,Math.PI*2); ctx.fillStyle=flash?'#ffffff':'#006633'; ctx.shadowColor='#44ffaa'; ctx.shadowBlur=20; ctx.fill(); ctx.restore();
+
+        } else if (b.type === 'fractal') {
+          if (b.pieces) { for(const piece of b.pieces){if(!piece.alive)continue; const hr=piece.hp/piece.maxHp;
+            ctx.save(); ctx.translate(piece.x,piece.y); ctx.rotate(piece.rotation);
+            ctx.beginPath(); for(let i=0;i<3;i++){const a=-Math.PI/2+i*(2*Math.PI/3);i===0?ctx.moveTo(Math.cos(a)*piece.radius,Math.sin(a)*piece.radius):ctx.lineTo(Math.cos(a)*piece.radius,Math.sin(a)*piece.radius);}
+            ctx.closePath(); ctx.fillStyle=flash?'#ffffff':`hsl(50,100%,${30+30*hr}%)`; ctx.shadowColor='#ffdd00'; ctx.shadowBlur=20; ctx.fill();
+            ctx.strokeStyle='#ffaa00'; ctx.lineWidth=2; ctx.stroke(); ctx.shadowBlur=0;
+            const bw=piece.radius*1.4; ctx.fillStyle='#332200'; ctx.fillRect(-bw/2,piece.radius+4,bw,4);
+            ctx.fillStyle='#ffdd00'; ctx.fillRect(-bw/2,piece.radius+4,bw*hr,4); ctx.restore();
+          }}
         }
+
+        // Boss label
         ctx.fillStyle = '#ff44ff'; ctx.font = 'bold 16px Courier New';
         ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
-        ctx.fillText('BOSS', b.x, b.y - b.radius - 20);
+        ctx.fillText(b.label || 'BOSS', b.x, b.y - (b.radius||80) - 20);
       }
 
       // ── Players ───────────────────────────────────────────────────
