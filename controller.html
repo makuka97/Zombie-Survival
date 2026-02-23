@@ -184,11 +184,49 @@
       background: #2a0044; color: #ff00ff; border-color: #bb00ff;
       box-shadow: 0 0 20px rgba(187,0,255,0.6); animation: pulse-box 1s infinite;
     }
+
+    /* Universal context action button — replaces mystery-box + vending */
+    #action-btn {
+      position: absolute; top: 50%; left: 50%;
+      transform: translate(-50%, -50%);
+      width: 120px; height: 120px;
+      font-size: 11px; font-weight: bold; line-height: 1.4;
+      font-family: 'Courier New', monospace; letter-spacing: 1px;
+      border-radius: 50%; border: 3px solid #222;
+      background: #0a0a0a; color: #333;
+      transition: all 0.2s; cursor: default;
+      z-index: 20; pointer-events: none;
+    }
+    #action-btn:active { transform: translate(-50%, -50%) scale(0.95); }
+    /* Mystery box mode */
+    #action-btn.mode-box {
+      background: #1a0030; color: #cc88ff; border-color: #8833cc;
+      pointer-events: auto; cursor: pointer;
+      box-shadow: 0 0 18px rgba(150,50,255,0.5);
+      animation: pulse-box 1s infinite;
+    }
+    /* Vending machine mode */
+    #action-btn.mode-vend {
+      background: #001a08; color: #00ff66; border-color: #00cc44;
+      pointer-events: auto; cursor: pointer;
+      box-shadow: 0 0 18px rgba(0,255,100,0.5);
+      animation: pulse-vend 1s infinite;
+    }
+    /* Can't afford — in range but broke */
+    #action-btn.mode-broke {
+      background: #1a0a0a; color: #663333; border-color: #331111;
+      pointer-events: none; cursor: default;
+      animation: none;
+    }
     /* FIX: removed extra ) that was breaking this animation */
     @keyframes pulse-box {
-      0%   { box-shadow: 0 0 20px rgba(187,0,255,0.6); }
+      0%   { box-shadow: 0 0 18px rgba(150,50,255,0.5); }
       50%  { box-shadow: 0 0 35px rgba(187,0,255,1); }
-      100% { box-shadow: 0 0 20px rgba(187,0,255,0.6); }
+      100% { box-shadow: 0 0 18px rgba(150,50,255,0.5); }
+    }
+    @keyframes pulse-vend {
+      0%,100% { box-shadow: 0 0 15px rgba(0,255,100,0.4); }
+      50%      { box-shadow: 0 0 30px rgba(0,255,100,0.9); }
     }
 
     #gameover-screen {
@@ -264,6 +302,7 @@
       <div id="fire-btn"><div class="btn-label">FIRE</div></div>
     </div>
     <button id="mystery-box-btn" disabled>MYSTERY<br>BOX<br>$950</button>
+    <button id="action-btn">—</button>
   </div>
 
   <div id="gameover-screen">
@@ -335,6 +374,7 @@
         this.points      = 0;
         this.weapon      = 'pistol';
         this.canUseMysteryBox = false;
+        this.canUseVending    = false;
 
         this.loadFingerprint();
         this.bindSocket();
@@ -342,7 +382,7 @@
         this.bindJoinUI();
         this.bindReadyBtn();
         this.bindRestartBtn();
-        this.bindMysteryBoxBtn();
+        this.bindActionBtn();
         this.checkDeepLink();
       }
 
@@ -374,7 +414,7 @@
           this.updateAmmo(d.ammo);
           this.updatePoints(d.points);
           this.updateWeapon(d.weapon);
-          this.updateMysteryBoxButton(d.canUseMysteryBox, d.points);
+          this.updateActionButton(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
           if (d.gameOver) this.showGameOver();
         });
         this.socket.on('lobby-update', d => {
@@ -454,12 +494,45 @@
         });
       }
 
-      bindMysteryBoxBtn() {
-        const btn = document.getElementById('mystery-box-btn');
+      bindActionBtn() {
+        const btn = document.getElementById('action-btn');
         btn.addEventListener('click', () => {
-          if (!this.canUseMysteryBox || this.points < 950) return;
-          this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
+          if (btn.classList.contains('mode-box')) {
+            this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
+          } else if (btn.classList.contains('mode-vend')) {
+            this.socket.emit('vending-purchase', { roomCode: this.roomCode });
+          }
         });
+      }
+
+      updateActionButton(canUseMysteryBox, canUseVending, points, vendingCost) {
+        this.canUseMysteryBox = canUseMysteryBox;
+        this.canUseVending    = canUseVending;
+        const btn = document.getElementById('action-btn');
+        btn.classList.remove('mode-box', 'mode-vend', 'mode-broke');
+
+        if (canUseMysteryBox) {
+          const canAfford = points >= 950;
+          if (canAfford) {
+            btn.classList.add('mode-box');
+            btn.innerHTML = `MYSTERY<br>BOX<br>$950`;
+          } else {
+            btn.classList.add('mode-broke');
+            btn.innerHTML = `MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-points}</span>`;
+          }
+        } else if (canUseVending) {
+          const cost = vendingCost || 500;
+          const canAfford = points >= cost;
+          if (canAfford) {
+            btn.classList.add('mode-vend');
+            btn.innerHTML = `HEALTH<br>+25 HP<br>$${cost}`;
+          } else {
+            btn.classList.add('mode-broke');
+            btn.innerHTML = `HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${cost-points}</span>`;
+          }
+        } else {
+          btn.innerHTML = `—`;
+        }
       }
 
       bindFireBtn() {
@@ -565,16 +638,6 @@
         const popup = document.getElementById('weapon-popup');
         popup.style.display = 'block';
         setTimeout(() => { popup.style.display = 'none'; }, 2000);
-      }
-
-      updateMysteryBoxButton(canUse, points) {
-        this.canUseMysteryBox = canUse;
-        const btn = document.getElementById('mystery-box-btn');
-        if (canUse && points >= 950) {
-          btn.disabled = false; btn.classList.add('pulse');
-        } else {
-          btn.disabled = true; btn.classList.remove('pulse');
-        }
       }
 
       bindRestartBtn() {
