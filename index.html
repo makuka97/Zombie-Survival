@@ -232,6 +232,7 @@
     const {
       WEAPONS, ZOMBIE_TYPES,
       MYSTERY_BOX_COST, BOX_USE_RANGE,
+      VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
       MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
       PLAYER_SPAWNS, BOSS_TYPES, BOSS_CONFIGS,
       BOMBER_BLAST_RADIUS, BOMBER_PLAYER_DAMAGE, BOMBER_CHAIN_DEPTH
@@ -264,7 +265,9 @@
         this.gameOver   = false;
         this.gameStarted = false;
         this.reviveMap  = new Map();
-        this.mysteryBox = null;
+        this.mysteryBox  = null;
+        this.vendingMachine = null;
+        this.vendingCost    = VENDING_BASE_COST; // persists all game, resets on restart
 
         this.meleeFlashes = [];
         this.particles   = [];
@@ -342,6 +345,7 @@
         codeDisplay.style.opacity = '0';
         setTimeout(() => { codeDisplay.style.display = 'none'; }, 1500);
         this.spawnMysteryBox();
+        this.spawnVendingMachine();
         setTimeout(() => this.startWave(), 500);
       }
 
@@ -394,6 +398,35 @@
         };
       }
 
+      spawnVendingMachine() {
+        if (this.isBossWave) { this.vendingMachine = null; return; }
+        const margin = 160;
+        let x, y, attempts = 0;
+        do {
+          x = margin + Math.random() * (this.canvas.width  - margin * 2);
+          y = margin + Math.random() * (this.canvas.height - margin * 2);
+          attempts++;
+          if (this.mysteryBox) {
+            const dx = x - this.mysteryBox.x, dy = y - this.mysteryBox.y;
+            if (Math.sqrt(dx*dx+dy*dy) < 200 && attempts < 20) continue;
+          }
+          break;
+        } while (true);
+        this.vendingMachine = { x, y };
+      }
+
+      handleVendingPurchase(slot) {
+        const p = this.players[slot - 1];
+        if (!p || !p.alive || !this.vendingMachine) return;
+        const dx = p.x - this.vendingMachine.x, dy = p.y - this.vendingMachine.y;
+        if (Math.sqrt(dx*dx+dy*dy) > VENDING_USE_RANGE) return;
+        if (p.points < this.vendingCost) return;
+        if (p.hp >= p.maxHp) return;
+        p.points       -= this.vendingCost;
+        p.hp            = Math.min(p.maxHp, p.hp + VENDING_HEAL_AMOUNT);
+        this.vendingCost += VENDING_COST_STEP;
+      }
+
       startWave() {
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
@@ -401,6 +434,7 @@
         if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
+          this.vendingMachine = null; // no vending during boss fight
           this.showBanner('BOSS FIGHT');
           for (let p of this.players) {
             if (!p.connected) continue;
@@ -418,6 +452,7 @@
               p.savedAmmo = undefined;
             }
           }
+          this.spawnVendingMachine(); // new random location each wave
           const baseCount = 3 + (this.wave - 1) * 2;
           this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
           this.showBanner('WAVE ' + this.wave);
@@ -1034,6 +1069,7 @@
         this.wave=1; this.waveTotal=0; this.waveKilled=0;
         this.gameOver=false; this.gameStarted=false;
         this.reviveMap.clear(); this.mysteryBox=null;
+        this.vendingMachine=null; this.vendingCost=VENDING_BASE_COST;
         this.meleeFlashes=[]; this.particles=[]; this.boss=null; this.isBossWave=false;
         for (let p of this.players) { p.savedAmmo=undefined; }
 
@@ -1191,6 +1227,32 @@
           ctx.strokeRect(this.mysteryBox.x-bhs,this.mysteryBox.y-bhs,this.BOX_SIZE,this.BOX_SIZE);
           ctx.fillStyle='#fff'; ctx.font='bold 32px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
           ctx.fillText('?',this.mysteryBox.x,this.mysteryBox.y);
+        }
+
+        // ── Vending machine ────────────────────────────────────────
+        if (this.vendingMachine) {
+          const v = this.vendingMachine;
+          const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 400);
+          ctx.save();
+          ctx.fillStyle = '#0a1a0a';
+          ctx.strokeStyle = `rgba(0,255,100,${0.4 + pulse * 0.3})`;
+          ctx.lineWidth = 3;
+          ctx.shadowColor = '#00ff66';
+          ctx.shadowBlur = 12 * pulse;
+          ctx.beginPath(); ctx.roundRect(v.x-28, v.y-36, 56, 72, 6); ctx.fill(); ctx.stroke();
+          ctx.shadowBlur = 0;
+          // health cross
+          ctx.fillStyle = '#00ff66';
+          ctx.fillRect(v.x-4, v.y-20, 8, 22);
+          ctx.fillRect(v.x-12, v.y-11, 24, 8);
+          // price
+          ctx.font = 'bold 13px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
+          ctx.fillStyle = '#00ff66';
+          ctx.fillText('$'+this.vendingCost, v.x, v.y+22);
+          ctx.font = '10px Courier New';
+          ctx.fillStyle = '#336633';
+          ctx.fillText('+'+VENDING_HEAL_AMOUNT+' HP', v.x, v.y+34);
+          ctx.restore();
         }
 
         for (let a of this.ammoPacks) {
@@ -1415,6 +1477,12 @@
         return Math.sqrt(dx*dx+dy*dy)<=BOX_USE_RANGE;
       }
 
+      canUseVending(player) {
+        if (!this.vendingMachine||!player.alive) return false;
+        const dx=player.x-this.vendingMachine.x,dy=player.y-this.vendingMachine.y;
+        return Math.sqrt(dx*dx+dy*dy)<=VENDING_USE_RANGE;
+      }
+
       start() {
         let lastTime = 0;
         const frameDelay = 1000 / 60;
@@ -1436,7 +1504,9 @@
                     isAlive: p.alive,
                     points: p.points,
                     weapon: p.currentWeapon,
-                    canUseMysteryBox: this.canUseMysteryBox(p)
+                    canUseMysteryBox: this.canUseMysteryBox(p),
+                    canUseVending: this.canUseVending(p),
+                    vendingCost: this.vendingCost
                   }))
                 }
               });
@@ -1472,6 +1542,7 @@
     socket.on('player-removed',       (d) => game.removePlayer(d.slotNumber));
     socket.on('player-input',         (d) => game.handleInput(d.slotNumber, d.input));
     socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
+    socket.on('vending-purchase',     (d) => game.handleVendingPurchase(d.slotNumber));
     socket.on('lobby-update',         (d) => game.updateLobby(d.players));
     socket.on('ready-countdown', (d) => {
       const el = document.getElementById('countdown');
