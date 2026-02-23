@@ -1,0 +1,1151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Z-TEAM · TEST LAB</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      font-family: 'Courier New', monospace;
+      color: #00ff00;
+      display: flex;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    /* ── PANEL ─────────────────────────────── */
+    #panel {
+      width: 280px;
+      flex-shrink: 0;
+      background: #0d0d0d;
+      border-right: 1px solid #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      overflow-y: auto;
+      overflow-x: hidden;
+    }
+
+    #panel-header {
+      padding: 14px 16px;
+      border-bottom: 1px solid #1a1a1a;
+      background: #000;
+    }
+    #panel-header h1 {
+      font-size: 13px;
+      letter-spacing: 4px;
+      color: #00ff00;
+    }
+    #panel-header p {
+      font-size: 9px;
+      color: #333;
+      letter-spacing: 2px;
+      margin-top: 3px;
+    }
+
+    .section {
+      border-bottom: 1px solid #111;
+      padding: 12px 14px;
+    }
+    .section-title {
+      font-size: 9px;
+      letter-spacing: 3px;
+      color: #444;
+      margin-bottom: 10px;
+      text-transform: uppercase;
+    }
+
+    /* Buttons */
+    .btn {
+      width: 100%;
+      padding: 7px 10px;
+      font-size: 11px;
+      font-family: 'Courier New', monospace;
+      letter-spacing: 1px;
+      border-radius: 5px;
+      cursor: pointer;
+      border: 1px solid #222;
+      background: #111;
+      color: #888;
+      margin-bottom: 5px;
+      text-align: left;
+      transition: all 0.1s;
+    }
+    .btn:hover  { border-color: #00ff00; color: #00ff00; background: #0a1a0a; }
+    .btn:active { transform: scale(0.97); }
+    .btn.active { background: #001a00; border-color: #00ff00; color: #00ff00; }
+    .btn.danger { border-color: #330000; color: #660000; }
+    .btn.danger:hover { border-color: #ff0000; color: #ff4444; background: #1a0000; }
+    .btn.warn   { border-color: #332200; color: #664400; }
+    .btn.warn:hover   { border-color: #ff6600; color: #ff8800; background: #1a0800; }
+    .btn.pass   { border-color: #003300; color: #006600; }
+    .btn.pass:hover   { border-color: #00ff00; color: #00ff00; background: #001500; }
+
+    .btn-row { display: flex; gap: 5px; margin-bottom: 5px; }
+    .btn-row .btn { margin-bottom: 0; }
+
+    /* Toggles */
+    .toggle-row {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .toggle-label { font-size: 11px; color: #666; letter-spacing: 1px; }
+    .toggle {
+      width: 36px; height: 18px;
+      background: #1a1a1a; border: 1px solid #333;
+      border-radius: 9px; cursor: pointer;
+      position: relative; transition: all 0.2s;
+    }
+    .toggle::after {
+      content: '';
+      position: absolute;
+      width: 12px; height: 12px;
+      background: #333;
+      border-radius: 50%;
+      top: 2px; left: 2px;
+      transition: all 0.2s;
+    }
+    .toggle.on { background: #002200; border-color: #00ff00; }
+    .toggle.on::after { background: #00ff00; left: 20px; }
+
+    /* Sliders */
+    .slider-row { margin-bottom: 10px; }
+    .slider-row label { font-size: 10px; color: #555; letter-spacing: 1px; display: flex; justify-content: space-between; margin-bottom: 4px; }
+    .slider-row label span { color: #00ff00; }
+    input[type=range] {
+      width: 100%; accent-color: #00ff00;
+      height: 4px; cursor: pointer;
+    }
+
+    /* Status log */
+    #log {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px 14px;
+      font-size: 10px;
+      color: #333;
+      min-height: 80px;
+      max-height: 120px;
+    }
+    .log-entry { margin-bottom: 3px; letter-spacing: 1px; }
+    .log-entry.ok   { color: #006600; }
+    .log-entry.warn { color: #664400; }
+    .log-entry.fail { color: #660000; }
+    .log-entry.info { color: #004488; }
+
+    /* Pass/fail result */
+    #result-bar {
+      padding: 10px 14px;
+      font-size: 11px;
+      letter-spacing: 2px;
+      text-align: center;
+      border-top: 1px solid #111;
+      background: #000;
+      color: #333;
+    }
+    #result-bar.pass { color: #00ff00; background: #001500; border-color: #003300; }
+    #result-bar.fail { color: #ff4444; background: #150000; border-color: #330000; }
+
+    /* ── CANVAS AREA ──────────────────────────── */
+    #canvas-wrap {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #080808;
+      position: relative;
+      overflow: hidden;
+    }
+
+    #canvas { display: block; }
+
+    /* Overlay badges */
+    #mode-badge {
+      position: absolute;
+      top: 12px;
+      left: 12px;
+      font-size: 10px;
+      letter-spacing: 3px;
+      padding: 4px 10px;
+      border-radius: 4px;
+      background: #000;
+      border: 1px solid #222;
+      color: #333;
+    }
+    #mode-badge.god    { border-color: #ff6600; color: #ff6600; }
+    #mode-badge.slow   { border-color: #0066ff; color: #0066ff; }
+
+    #stats-overlay {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 10px;
+      letter-spacing: 1px;
+      color: #333;
+      text-align: right;
+      line-height: 1.8;
+    }
+    #stats-overlay span { color: #555; }
+
+    #wave-banner-test {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      font-size: 52px;
+      font-weight: bold;
+      color: #ff0000;
+      text-shadow: 0 0 20px #ff0000;
+      display: none;
+      pointer-events: none;
+      letter-spacing: 4px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ── CONTROL PANEL ──────────────────────────────────────── -->
+  <div id="panel">
+    <div id="panel-header">
+      <h1>⚗ TEST LAB</h1>
+      <p>Z-TEAM · LOCAL SANDBOX · NO SERVER</p>
+    </div>
+
+    <!-- GAME STATE -->
+    <div class="section">
+      <div class="section-title">Game State</div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.startGame()">▶ START</button>
+        <button class="btn danger" onclick="T.resetGame()">↺ RESET</button>
+      </div>
+      <div class="slider-row">
+        <label>Wave <span id="wave-val">1</span></label>
+        <input type="range" id="wave-slider" min="1" max="30" value="1" oninput="T.setWave(+this.value)">
+      </div>
+    </div>
+
+    <!-- BOSSES -->
+    <div class="section">
+      <div class="section-title">Bosses</div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnBoss('triangle')">▲ TRIANGLE</button>
+        <button class="btn" onclick="T.spawnBoss('octagon')">⬡ OCTAGON</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnBoss('pentagon')">⬠ PENTAGON</button>
+        <button class="btn" onclick="T.spawnBoss('diamond')">◆ DIAMOND</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnBoss('spiral')">🌀 SPIRAL</button>
+        <button class="btn" onclick="T.spawnBoss('fractal')">✳ FRACTAL</button>
+      </div>
+      <button class="btn danger" onclick="T.killBoss()">✕ KILL BOSS</button>
+    </div>
+
+    <!-- ZOMBIES -->
+    <div class="section">
+      <div class="section-title">Zombies</div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnZombie('regular')">REGULAR</button>
+        <button class="btn" onclick="T.spawnZombie('runner')">RUNNER</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn warn" onclick="T.spawnZombie('tank')">TANK</button>
+        <button class="btn warn" onclick="T.spawnZombie('bomber')">BOMBER</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnWave(5)">+5</button>
+        <button class="btn" onclick="T.spawnWave(10)">+10</button>
+        <button class="btn" onclick="T.spawnWave(20)">+20</button>
+      </div>
+      <button class="btn danger" onclick="T.clearZombies()">✕ CLEAR ALL</button>
+    </div>
+
+    <!-- WEAPONS -->
+    <div class="section">
+      <div class="section-title">Weapon</div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.setWeapon('pistol')">PISTOL</button>
+        <button class="btn" onclick="T.setWeapon('smg')">SMG</button>
+        <button class="btn" onclick="T.setWeapon('shotgun')">SHOTGUN</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.setWeapon('ar')">AR</button>
+        <button class="btn" onclick="T.setWeapon('lmg')">LMG</button>
+      </div>
+      <div class="btn-row">
+        <button class="btn warn" onclick="T.setWeapon('raygun')">RAY GUN</button>
+        <button class="btn warn" onclick="T.setWeapon('thundergun')">THUNDER</button>
+      </div>
+      <button class="btn" onclick="T.refillAmmo()">⟳ REFILL AMMO</button>
+    </div>
+
+    <!-- VENDING MACHINE -->
+    <div class="section">
+      <div class="section-title">Vending Machine</div>
+      <div class="btn-row">
+        <button class="btn" onclick="T.spawnVending()">+ SPAWN</button>
+        <button class="btn danger" onclick="T.removeVending()">✕ REMOVE</button>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">BOSS WAVE (disables vending)</span>
+        <div class="toggle" id="boss-wave-toggle" onclick="T.toggleBossWave()"></div>
+      </div>
+      <button class="btn" onclick="T.resetVendingPrice()">↺ RESET PRICE TO $500</button>
+      <div style="font-size:10px;color:#444;letter-spacing:1px;margin-top:6px;">
+        Current price: <span id="vending-price" style="color:#00ff66">$500</span>
+      </div>
+    </div>
+
+    <!-- MODIFIERS -->
+    <div class="section">
+      <div class="section-title">Modifiers</div>
+      <div class="toggle-row">
+        <span class="toggle-label">GOD MODE</span>
+        <div class="toggle" id="god-toggle" onclick="T.toggleGod()"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">SLOW MOTION (25%)</span>
+        <div class="toggle" id="slow-toggle" onclick="T.toggleSlow()"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">FREEZE ZOMBIES</span>
+        <div class="toggle" id="freeze-toggle" onclick="T.toggleFreeze()"></div>
+      </div>
+      <div class="toggle-row">
+        <span class="toggle-label">INFINITE AMMO</span>
+        <div class="toggle" id="ammo-toggle" onclick="T.toggleInfiniteAmmo()"></div>
+      </div>
+      <div class="slider-row">
+        <label>Player Speed <span id="speed-val">2.5</span></label>
+        <input type="range" id="speed-slider" min="0.5" max="8" step="0.5" value="2.5" oninput="T.setSpeed(+this.value)">
+      </div>
+      <button class="btn" onclick="T.fullHeal()">+ FULL HEAL</button>
+      <button class="btn" onclick="T.addPoints(5000)">+ 5000 PTS</button>
+    </div>
+
+    <!-- TEST RESULT -->
+    <div class="section">
+      <div class="section-title">Feature Test</div>
+      <button class="btn pass" onclick="T.markPass()">✔ PASS — READY TO INTEGRATE</button>
+      <button class="btn danger" onclick="T.markFail()">✘ FAIL — NEEDS WORK</button>
+    </div>
+
+    <!-- LOG -->
+    <div id="log"><div class="log-entry info">— test lab ready —</div></div>
+    <div id="result-bar">NO RESULT YET</div>
+  </div>
+
+  <!-- ── GAME CANVAS ──────────────────────────────────────────── -->
+  <div id="canvas-wrap">
+    <canvas id="canvas"></canvas>
+    <div id="mode-badge">SANDBOX</div>
+    <div id="stats-overlay">
+      HP: <span id="s-hp">100</span> &nbsp;
+      AMMO: <span id="s-ammo">30</span> &nbsp;
+      PTS: <span id="s-pts">0</span><br>
+      WAVE: <span id="s-wave">1</span> &nbsp;
+      ZOMBIES: <span id="s-zom">0</span> &nbsp;
+      BOSS: <span id="s-boss">none</span>
+    </div>
+    <div id="wave-banner-test"></div>
+  </div>
+
+  <script src="/shared/game-constants.js"></script>
+  <script>
+  'use strict';
+
+  const {
+    CANVAS_W, CANVAS_H, WALL,
+    PLAYER_SIZE, PLAYER_COLORS, PLAYER_SPAWNS,
+    BULLET_SIZE,
+    AMMO_DROP_CHANCE, HEALTH_DROP_CHANCE,
+    MYSTERY_BOX_COST, BOX_USE_RANGE,
+    VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
+    MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
+    REVIVE_RADIUS, REVIVE_TIME,
+    BOSS_TYPES, BOSS_CONFIGS,
+    WEAPONS, ZOMBIE_TYPES,
+    BOMBER_BLAST_RADIUS, BOMBER_PLAYER_DAMAGE, BOMBER_CHAIN_DEPTH
+  } = GAME_CONSTANTS;
+
+  // ── CONFIG ──────────────────────────────────────────────────────
+  let PLAYER_SPEED = 2.5;
+  const BULLET_SPEED = 8;
+
+  // ── STATE ───────────────────────────────────────────────────────
+  const state = {
+    running: false,
+    godMode: false,
+    slowMo: false,
+    freeze: false,
+    infiniteAmmo: false,
+    wave: 1,
+    player: null,
+    zombies: [],
+    bullets: [],
+    ammoPacks: [],
+    healthPacks: [],
+    particles: [],
+    meleeFlashes: [],
+    boss: null,
+    mysteryBox: null,
+    keys: {},
+    mouse: { x: 0, y: 0, down: false },
+    vendingMachine: null,
+    vendingCost: VENDING_BASE_COST,  // persists all game, increases per use
+    isBossWave: false,
+  };
+
+  // ── CANVAS SETUP ────────────────────────────────────────────────
+  const canvas = document.getElementById('canvas');
+  const ctx    = canvas.getContext('2d');
+
+  function resizeCanvas() {
+    const wrap   = document.getElementById('canvas-wrap');
+    const W      = wrap.clientWidth;
+    const H      = wrap.clientHeight;
+    const scale  = Math.min(W / CANVAS_W, H / CANVAS_H) * 0.96;
+    canvas.width  = CANVAS_W;
+    canvas.height = CANVAS_H;
+    canvas.style.width  = Math.floor(CANVAS_W * scale) + 'px';
+    canvas.style.height = Math.floor(CANVAS_H * scale) + 'px';
+  }
+  window.addEventListener('resize', resizeCanvas);
+  resizeCanvas();
+
+  // ── PLAYER ──────────────────────────────────────────────────────
+  function makePlayer() {
+    return {
+      x: CANVAS_W / 2, y: CANVAS_H / 2,
+      angle: 0, hp: 100, maxHp: 100,
+      ammo: 30, points: 0,
+      currentWeapon: 'pistol',
+      alive: true,
+      fireCooldown: 0, meleeCooldown: 0,
+      color: PLAYER_COLORS[0]
+    };
+  }
+
+  // ── INPUT ───────────────────────────────────────────────────────
+  document.addEventListener('keydown', e => { state.keys[e.key.toLowerCase()] = true; });
+  document.addEventListener('keyup',   e => { state.keys[e.key.toLowerCase()] = false; });
+
+  canvas.addEventListener('mousemove', e => {
+    const rect  = canvas.getBoundingClientRect();
+    const scaleX = CANVAS_W / rect.width;
+    const scaleY = CANVAS_H / rect.height;
+    state.mouse.x = (e.clientX - rect.left) * scaleX;
+    state.mouse.y = (e.clientY - rect.top)  * scaleY;
+    if (state.player) {
+      state.player.angle = Math.atan2(state.mouse.y - state.player.y, state.mouse.x - state.player.x);
+    }
+  });
+  canvas.addEventListener('mousedown', e => { state.mouse.down = true; });
+  canvas.addEventListener('mouseup',   e => { state.mouse.down = false; });
+
+  // ── ZOMBIE ──────────────────────────────────────────────────────
+  function makeZombie(type, x, y) {
+    const td = ZOMBIE_TYPES[type];
+    if (!x) {
+      const side = Math.floor(Math.random() * 4);
+      if      (side === 0) { x = Math.random()*CANVAS_W; y = -50; }
+      else if (side === 1) { x = CANVAS_W+50; y = Math.random()*CANVAS_H; }
+      else if (side === 2) { x = Math.random()*CANVAS_W; y = CANVAS_H+50; }
+      else                 { x = -50; y = Math.random()*CANVAS_H; }
+    }
+    return { x, y, type, hp: td.hp, maxHp: td.hp, speed: td.speed,
+             size: td.size, color: td.color, borderColor: td.borderColor, points: td.points };
+  }
+
+  // ── BOSS FACTORY ────────────────────────────────────────────────
+  function makeBoss(type) {
+    const cfg  = BOSS_CONFIGS[type];
+    const base = {
+      type, x: CANVAS_W/2, y: -120,
+      dropping: true, dropTarget: CANVAS_H/2,
+      vx: 3.5, vy: 2.5,
+      rotation: 0, spinSpeed: 0.03,
+      flashTimer: 0, dead: false,
+      bossBullets: [], shootTimer: 0,
+      radius: cfg.radius, color: cfg.color, pad: cfg.pad, label: cfg.label
+    };
+    if      (type==='triangle') return {...base, tips: Array.from({length:cfg.tips.count},()=>({hp:cfg.tips.hp,maxHp:cfg.tips.hp}))};
+    else if (type==='octagon')  return {...base, corners: Array.from({length:cfg.corners.count},()=>({hp:cfg.corners.hp,maxHp:cfg.corners.hp})),shootInterval:cfg.shootInterval};
+    else if (type==='pentagon') return {...base, panels: Array.from({length:cfg.panels.count},()=>({hp:cfg.panels.hp,maxHp:cfg.panels.hp}))};
+    else if (type==='diamond')  return {...base, coreHp:cfg.coreHp,coreMaxHp:cfg.coreHp,split:false,shards:[]};
+    else if (type==='spiral')   return {...base, arms:Array.from({length:cfg.arms.count},()=>({hp:cfg.arms.hp,maxHp:cfg.arms.hp})),breathe:0};
+    else return {...base, pieces:[{x:CANVAS_W/2,y:-120,rotation:0,vx:3.5,vy:2.5,hp:cfg.pieceHp,maxHp:cfg.pieceHp,radius:cfg.radius,alive:true}]};
+  }
+
+  // ── BOSS HIT POINTS ─────────────────────────────────────────────
+  function getBossHitPoints() {
+    const b = state.boss; if (!b) return [];
+    if (b.type==='triangle')  return [0,1,2].map(i=>{const a=b.rotation-Math.PI/2+i*(2*Math.PI/3);return{x:b.x+Math.cos(a)*b.radius,y:b.y+Math.sin(a)*b.radius,idx:i};});
+    if (b.type==='octagon')   return b.corners.map((c,i)=>{const a=b.rotation+(i/8)*Math.PI*2;return{x:b.x+Math.cos(a)*b.radius,y:b.y+Math.sin(a)*b.radius,idx:i};});
+    if (b.type==='pentagon')  return b.panels.map((p,i)=>{const a=b.rotation+(i/5)*Math.PI*2+Math.PI/5;return{x:b.x+Math.cos(a)*b.radius*0.6,y:b.y+Math.sin(a)*b.radius*0.6,idx:i};});
+    if (b.type==='diamond')   {
+      if (!b.split) return [{x:b.x,y:b.y,idx:0,core:true}];
+      return b.shards.reduce((acc,s,ri)=>{if(s.alive)acc.push({x:s.x,y:s.y,idx:ri,shard:true});return acc;},[]);
+    }
+    if (b.type==='spiral')    return b.arms.map((arm,i)=>{const ext=b.radius+60+Math.sin(b.breathe+i)*30,a=b.rotation+(i/5)*Math.PI*2;return{x:b.x+Math.cos(a)*ext,y:b.y+Math.sin(a)*ext,idx:i};});
+    if (b.type==='fractal')   return b.pieces.reduce((acc,p,ri)=>{if(p.alive)acc.push({x:p.x,y:p.y,idx:ri,piece:true,radius:p.radius});return acc;},[]);
+    return [];
+  }
+
+  function damageBossHitPoint(pt, amount) {
+    const b = state.boss; if (!b) return; b.flashTimer = 6;
+    if      (b.type==='triangle')  b.tips[pt.idx].hp    = Math.max(0, b.tips[pt.idx].hp    - amount);
+    else if (b.type==='octagon')   b.corners[pt.idx].hp  = Math.max(0, b.corners[pt.idx].hp  - amount);
+    else if (b.type==='pentagon')  b.panels[pt.idx].hp   = Math.max(0, b.panels[pt.idx].hp   - amount);
+    else if (b.type==='diamond')   { if(!b.split){b.coreHp=Math.max(0,b.coreHp-amount);}else{const s=b.shards[pt.idx];if(s){s.hp=Math.max(0,s.hp-amount);if(s.hp<=0)s.alive=false;}} }
+    else if (b.type==='spiral')    b.arms[pt.idx].hp     = Math.max(0, b.arms[pt.idx].hp     - amount);
+    else if (b.type==='fractal')   { const p=b.pieces[pt.idx]; if(p)p.hp=Math.max(0,p.hp-amount); }
+  }
+
+  // ── UPDATE BOSS ─────────────────────────────────────────────────
+  function updateBoss() {
+    const b = state.boss; if (!b || b.dead) return;
+    if (state.freeze) return;
+
+    if (b.dropping) {
+      b.y += 6; b.rotation += b.spinSpeed;
+      if (b.y >= b.dropTarget) { b.y = b.dropTarget; b.dropping = false; }
+      return;
+    }
+
+    if (b.flashTimer > 0) b.flashTimer--;
+
+    // Boss bullets
+    for (let i = b.bossBullets.length-1; i >= 0; i--) {
+      const bb = b.bossBullets[i]; bb.x+=bb.vx; bb.y+=bb.vy; bb.life--;
+      if (bb.life<=0||bb.x<0||bb.x>CANVAS_W||bb.y<0||bb.y>CANVAS_H) { b.bossBullets.splice(i,1); continue; }
+      const p = state.player;
+      if (p && p.alive && !state.godMode) {
+        const dx=p.x-bb.x,dy=p.y-bb.y;
+        if (Math.sqrt(dx*dx+dy*dy) < PLAYER_SIZE/2+5) { p.hp-=bb.damage; b.bossBullets.splice(i,1); if(p.hp<=0){p.alive=false;p.hp=0;} break; }
+      }
+    }
+
+    function bounceBox(b) {
+      b.x+=b.vx; b.y+=b.vy;
+      if(b.x-b.pad<WALL){b.x=WALL+b.pad;b.vx=Math.abs(b.vx);}
+      if(b.x+b.pad>CANVAS_W-WALL){b.x=CANVAS_W-WALL-b.pad;b.vx=-Math.abs(b.vx);}
+      if(b.y-b.pad<WALL){b.y=WALL+b.pad;b.vy=Math.abs(b.vy);}
+      if(b.y+b.pad>CANVAS_H-WALL){b.y=CANVAS_H-WALL-b.pad;b.vy=-Math.abs(b.vy);}
+    }
+    function touchPlayer(b, extra=0) {
+      const p = state.player; if(!p||!p.alive||state.godMode)return;
+      const dx=p.x-b.x,dy=p.y-b.y;
+      if(Math.sqrt(dx*dx+dy*dy)<b.radius+extra+PLAYER_SIZE/2){p.hp-=1;if(p.hp<=0){p.alive=false;p.hp=0;}}
+    }
+    function bossKill() {
+      b.dead=true; T.log('Boss defeated!','ok');
+      state.player && (state.player.points+=1000);
+      setTimeout(()=>{state.boss=null;},800);
+    }
+
+    if (b.type==='triangle') {
+      const ta=b.tips.filter(t=>t.hp>0).length; b.spinSpeed=0.03+(3-ta)*0.025; b.rotation+=b.spinSpeed;
+      bounceBox(b); touchPlayer(b);
+      if(b.tips.every(t=>t.hp<=0)&&!b.dead)bossKill();
+
+    } else if (b.type==='octagon') {
+      const al=b.corners.filter(c=>c.hp>0).length; b.spinSpeed=0.02+(8-al)*0.008; b.rotation+=b.spinSpeed;
+      bounceBox(b); touchPlayer(b);
+      if(++b.shootTimer>=b.shootInterval){b.shootTimer=0;b.corners.forEach((c,i)=>{if(c.hp<=0)return;const a=b.rotation+(i/8)*Math.PI*2,cx=b.x+Math.cos(a)*b.radius,cy=b.y+Math.sin(a)*b.radius;b.bossBullets.push({x:cx,y:cy,vx:Math.cos(a)*3,vy:Math.sin(a)*3,damage:8,life:120,color:'#ff6600'});});}
+      if(b.corners.every(c=>c.hp<=0)&&!b.dead)bossKill();
+
+    } else if (b.type==='pentagon') {
+      const al=b.panels.filter(p=>p.hp>0).length; b.spinSpeed=0.04+(5-al)*0.022; b.rotation+=b.spinSpeed;
+      bounceBox(b); touchPlayer(b);
+      if(b.panels.every(p=>p.hp<=0)&&!b.dead)bossKill();
+
+    } else if (b.type==='diamond') {
+      b.rotation+=0.025;
+      if(!b.split){bounceBox(b);touchPlayer(b);if(b.coreHp<=0&&!b.dead){b.split=true;const cfg=BOSS_CONFIGS.diamond;b.shards=[0,Math.PI/2,Math.PI,Math.PI*1.5].map(a=>({x:b.x+Math.cos(a)*40,y:b.y+Math.sin(a)*40,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,rotation:0,hp:cfg.shardHp,maxHp:cfg.shardHp,alive:true,radius:cfg.shardRadius,pad:cfg.shardPad}));}}
+      else{
+        for(let s of b.shards){if(!s.alive)continue;s.rotation+=0.04;s.x+=s.vx;s.y+=s.vy;
+          if(s.x-s.pad<WALL){s.x=WALL+s.pad;s.vx=Math.abs(s.vx);}if(s.x+s.pad>CANVAS_W-WALL){s.x=CANVAS_W-WALL-s.pad;s.vx=-Math.abs(s.vx);}
+          if(s.y-s.pad<WALL){s.y=WALL+s.pad;s.vy=Math.abs(s.vy);}if(s.y+s.pad>CANVAS_H-WALL){s.y=CANVAS_H-WALL-s.pad;s.vy=-Math.abs(s.vy);}
+          if(!state.godMode){const p=state.player;if(p&&p.alive){const dx=p.x-s.x,dy=p.y-s.y;if(Math.sqrt(dx*dx+dy*dy)<s.radius+PLAYER_SIZE/2){p.hp-=0.8;if(p.hp<=0){p.alive=false;p.hp=0;}}}}
+        }
+        b.x=b.shards.reduce((s,sh)=>s+sh.x,0)/4; b.y=b.shards.reduce((s,sh)=>s+sh.y,0)/4;
+        if(b.shards.every(s=>!s.alive)&&!b.dead)bossKill();
+      }
+
+    } else if (b.type==='spiral') {
+      b.breathe+=0.05; b.rotation+=0.02; bounceBox(b); touchPlayer(b,10);
+      if(++b.shootTimer>=40){b.shootTimer=0;for(let i=0;i<5;i++){const a=b.rotation+(i/5)*Math.PI*2;b.bossBullets.push({x:b.x,y:b.y,vx:Math.cos(a)*3.5,vy:Math.sin(a)*3.5,damage:10,life:100,color:'#44ffaa'});}}
+      if(b.arms.every(a=>a.hp<=0)&&!b.dead)bossKill();
+
+    } else if (b.type==='fractal') {
+      const cfg=BOSS_CONFIGS.fractal;
+      for(let piece of b.pieces){
+        if(!piece.alive)continue; piece.rotation+=0.03; piece.x+=piece.vx; piece.y+=piece.vy;
+        const pad=piece.radius+10;
+        if(piece.x-pad<WALL){piece.x=WALL+pad;piece.vx=Math.abs(piece.vx);}if(piece.x+pad>CANVAS_W-WALL){piece.x=CANVAS_W-WALL-pad;piece.vx=-Math.abs(piece.vx);}
+        if(piece.y-pad<WALL){piece.y=WALL+pad;piece.vy=Math.abs(piece.vy);}if(piece.y+pad>CANVAS_H-WALL){piece.y=CANVAS_H-WALL-pad;piece.vy=-Math.abs(piece.vy);}
+        if(!state.godMode){const p=state.player;if(p&&p.alive){const dx=p.x-piece.x,dy=p.y-piece.y;if(Math.sqrt(dx*dx+dy*dy)<piece.radius+PLAYER_SIZE/2){p.hp-=0.8;if(p.hp<=0){p.alive=false;p.hp=0;}}}}
+        if(piece.hp<=0&&piece.alive){piece.alive=false;spawnParticles(piece.x,piece.y,'#ffdd00',12);
+          if(piece.radius>cfg.splitThreshold){for(let i=0;i<cfg.splitCount;i++){const a=(i/cfg.splitCount)*Math.PI*2+Math.random()*0.5,nr=Math.round(piece.radius*cfg.splitScale),nh=Math.ceil(piece.maxHp*0.6);b.pieces.push({x:piece.x+Math.cos(a)*nr,y:piece.y+Math.sin(a)*nr,vx:Math.cos(a)*2+Math.random()-0.5,vy:Math.sin(a)*2+Math.random()-0.5,rotation:0,hp:nh,maxHp:nh,radius:nr,alive:true});}}
+        }
+      }
+      const alive=b.pieces.filter(p=>p.alive);
+      if(alive.length>0){b.x=alive.reduce((s,p)=>s+p.x,0)/alive.length;b.y=alive.reduce((s,p)=>s+p.y,0)/alive.length;}
+      if(b.pieces.every(p=>!p.alive)&&!b.dead)bossKill();
+    }
+  }
+
+  // ── PARTICLES ───────────────────────────────────────────────────
+  function spawnParticles(x, y, color, count=10) {
+    for (let i=0;i<count;i++){const a=Math.random()*Math.PI*2,s=1.5+Math.random()*4,l=18+Math.random()*20|0;state.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,color,life:l,maxLife:l,size:2+Math.random()*4});}
+  }
+
+  // ── FIRE BULLET ─────────────────────────────────────────────────
+  function fireBullet() {
+    const p = state.player; if (!p || !p.alive) return;
+    if (p.ammo <= 0 && !state.infiniteAmmo) return;
+    const weapon = WEAPONS[p.currentWeapon];
+    const bx = p.x + Math.cos(p.angle) * PLAYER_SIZE;
+    const by = p.y + Math.sin(p.angle) * PLAYER_SIZE;
+    if (p.currentWeapon === 'shotgun') {
+      for (let i=0;i<6;i++){const spread=(Math.random()-0.5)*0.55,a=p.angle+spread;state.bullets.push({x:bx,y:by,vx:Math.cos(a)*BULLET_SPEED*(0.8+Math.random()*0.4),vy:Math.sin(a)*BULLET_SPEED*(0.8+Math.random()*0.4),damage:weapon.damage,color:p.color,life:18+Math.floor(Math.random()*8)});}
+    } else {
+      state.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color});
+    }
+    spawnMuzzleParticles(bx, by, p.angle, p.currentWeapon, p.color);
+    if (!state.infiniteAmmo) p.ammo--;
+  }
+
+  function spawnMuzzleParticles(x, y, angle, weapon, color) {
+    const count = weapon==='thundergun'?20:weapon==='shotgun'?12:weapon==='raygun'?14:6;
+    const col   = weapon==='raygun'?'#00eeff':weapon==='thundergun'?'#ff2200':weapon==='shotgun'?'#ffaa00':color;
+    for(let i=0;i<count;i++){const a=angle+(Math.random()-0.5)*0.6,s=3+Math.random()*6;state.particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,color:col,life:8,maxLife:8,size:1+Math.random()*3});}
+  }
+
+  // ── MELEE ───────────────────────────────────────────────────────
+  function doMelee() {
+    const p = state.player; if(!p||!p.alive) return;
+    state.meleeFlashes.push({x:p.x,y:p.y,angle:p.angle,timer:8,color:p.color});
+    for(let j=state.zombies.length-1;j>=0;j--){
+      const z=state.zombies[j];const dx=z.x-p.x,dy=z.y-p.y;
+      if(Math.sqrt(dx*dx+dy*dy)>MELEE_RANGE+z.size/2)continue;
+      let ad=Math.atan2(dy,dx)-p.angle;while(ad>Math.PI)ad-=Math.PI*2;while(ad<-Math.PI)ad+=Math.PI*2;
+      if(Math.abs(ad)>MELEE_ARC/2)continue;
+      z.hp-=MELEE_DAMAGE;
+      if(z.hp<=0){p.points+=z.points;spawnParticles(z.x,z.y,z.borderColor);state.zombies.splice(j,1);}
+    }
+    if(state.boss&&!state.boss.dead&&!state.boss.dropping){
+      for(const pt of getBossHitPoints()){
+        const dx=pt.x-p.x,dy=pt.y-p.y;if(Math.sqrt(dx*dx+dy*dy)>MELEE_RANGE+20)continue;
+        let ad=Math.atan2(dy,dx)-p.angle;while(ad>Math.PI)ad-=Math.PI*2;while(ad<-Math.PI)ad+=Math.PI*2;
+        if(Math.abs(ad)>MELEE_ARC/2)continue;damageBossHitPoint(pt,MELEE_DAMAGE);
+      }
+    }
+  }
+
+  // ── MAIN UPDATE ─────────────────────────────────────────────────
+  let lastTime=0, fireHeld=false, meleeHeld=false;
+
+  function update(now) {
+    if (!state.running) return;
+    const dt = state.slowMo ? 0.25 : 1;
+
+    const p = state.player;
+    if (p && p.alive) {
+      const hs = PLAYER_SIZE/2, clamp = hs+WALL;
+      let vx=0, vy=0;
+      if (state.keys['w']||state.keys['arrowup'])    vy=-PLAYER_SPEED;
+      if (state.keys['s']||state.keys['arrowdown'])  vy= PLAYER_SPEED;
+      if (state.keys['a']||state.keys['arrowleft'])  vx=-PLAYER_SPEED;
+      if (state.keys['d']||state.keys['arrowright']) vx= PLAYER_SPEED;
+      if (vx&&vy){vx*=0.707;vy*=0.707;}
+      p.x = Math.max(clamp, Math.min(CANVAS_W-clamp, p.x + vx*dt));
+      p.y = Math.max(clamp, Math.min(CANVAS_H-clamp, p.y + vy*dt));
+
+      // Fire on mouse hold
+      p.fireCooldown--;
+      if (state.mouse.down && p.ammo !== 0 && p.fireCooldown <= 0) {
+        fireBullet(); p.fireCooldown = WEAPONS[p.currentWeapon].fireRate;
+      }
+      // Melee on E
+      p.meleeCooldown--;
+      if (state.keys['e'] && p.meleeCooldown <= 0) { doMelee(); p.meleeCooldown = 12; }
+    }
+
+    // Bullets
+    for(let i=state.bullets.length-1;i>=0;i--){
+      const b=state.bullets[i]; b.x+=b.vx*dt; b.y+=b.vy*dt;
+      if(b.life!==undefined){b.life-=dt;if(b.life<=0){state.bullets.splice(i,1);continue;}}
+      if(b.x<0||b.x>CANVAS_W||b.y<0||b.y>CANVAS_H){state.bullets.splice(i,1);continue;}
+      let hit=false;
+      for(let j=state.zombies.length-1;j>=0;j--){
+        const z=state.zombies[j];const dx=b.x-z.x,dy=b.y-z.y;
+        if(Math.sqrt(dx*dx+dy*dy)<z.size/2+BULLET_SIZE/2){
+          z.hp-=b.damage;hit=true;
+          if(z.hp<=0){state.player&&(state.player.points+=z.points);spawnParticles(z.x,z.y,z.borderColor);state.zombies.splice(j,1);}
+          break;
+        }
+      }
+      if(hit){state.bullets.splice(i,1);continue;}
+      if(state.boss&&!state.boss.dead&&!state.boss.dropping){
+        for(const pt of getBossHitPoints()){
+          const dx=b.x-pt.x,dy=b.y-pt.y,hitR=pt.piece?Math.min(pt.radius*0.6,30):22;
+          if(Math.sqrt(dx*dx+dy*dy)<hitR){hit=true;damageBossHitPoint(pt,b.damage);state.bullets.splice(i,1);break;}
+        }
+      }
+      if(hit)state.bullets.splice(i,1);
+    }
+
+    // Zombies
+    if(!state.freeze){
+      for(let z of state.zombies){
+        if(!p||!p.alive)continue;
+        const dx=p.x-z.x,dy=p.y-z.y,dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>0){z.x+=(dx/dist)*z.speed*dt;z.y+=(dy/dist)*z.speed*dt;}
+        if(!state.godMode&&Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2)<z.size/2+PLAYER_SIZE/2){p.hp-=0.5;if(p.hp<=0&&p.alive){p.alive=false;p.hp=0;}}
+      }
+    }
+
+    // Ammo packs
+    if(p&&p.alive){
+      for(let i=state.ammoPacks.length-1;i>=0;i--){
+        const a=state.ammoPacks[i];
+        if(Math.sqrt((p.x-a.x)**2+(p.y-a.y)**2)<PLAYER_SIZE/2+10){
+          p.ammo+=Math.floor(WEAPONS[p.currentWeapon].ammoCapacity*0.5);
+          state.ammoPacks.splice(i,1);
+        }
+      }
+      for(let i=state.healthPacks.length-1;i>=0;i--){
+        const h=state.healthPacks[i];
+        if(Math.sqrt((p.x-h.x)**2+(p.y-h.y)**2)<PLAYER_SIZE/2+10){
+          p.hp=Math.min(p.maxHp,p.hp+30);state.healthPacks.splice(i,1);
+        }
+      }
+      // Mystery box
+      if(state.mysteryBox&&state.keys['f']){
+        const dx=p.x-state.mysteryBox.x,dy=p.y-state.mysteryBox.y;
+        if(Math.sqrt(dx*dx+dy*dy)<=BOX_USE_RANGE&&p.points>=MYSTERY_BOX_COST){
+          p.points-=MYSTERY_BOX_COST;
+          const weapons=Object.keys(WEAPONS).filter(k=>k!=='pistol');
+          T.setWeapon(weapons[Math.floor(Math.random()*weapons.length)]);
+          T.log('Mystery box used!','ok');
+          setTimeout(()=>spawnMysteryBox(),1000);
+        }
+      }
+      // Vending machine (G key)
+      if(state.vendingMachine&&state.keys['g']){
+        state.keys['g']=false; // consume so one press = one use
+        if(!useVendingMachine(p)) {
+          const dx=p.x-state.vendingMachine.x,dy=p.y-state.vendingMachine.y;
+          if(Math.sqrt(dx*dx+dy*dy)<=VENDING_USE_RANGE){
+            if(p.hp>=p.maxHp) T.log('Already at full health!','warn');
+            else T.log(`Need $${state.vendingCost} to use vending machine (have $${p.points})`,'warn');
+          }
+        }
+      }
+    }
+
+    // Particles
+    for(let i=state.particles.length-1;i>=0;i--){const pt=state.particles[i];pt.x+=pt.vx;pt.y+=pt.vy;pt.vx*=0.92;pt.vy*=0.92;pt.life-=dt;if(pt.life<=0)state.particles.splice(i,1);}
+    for(let i=state.meleeFlashes.length-1;i>=0;i--){state.meleeFlashes[i].timer-=dt;if(state.meleeFlashes[i].timer<=0)state.meleeFlashes.splice(i,1);}
+
+    if(dt===1)updateBoss();
+    else for(let s=0;s<dt*60|0;s++){}  // slow mo: boss still updates but 1/4 speed
+    if(state.slowMo&&state.boss&&!state.boss.dead)updateBoss();
+  }
+
+  // ── RENDER ──────────────────────────────────────────────────────
+  function render() {
+    const W=CANVAS_W, H=CANVAS_H;
+    ctx.fillStyle='#111'; ctx.fillRect(0,0,W,H);
+    ctx.strokeStyle='rgba(0,255,0,0.04)'; ctx.lineWidth=1;
+    for(let x=0;x<W;x+=60){ctx.beginPath();ctx.moveTo(x,0);ctx.lineTo(x,H);ctx.stroke();}
+    for(let y=0;y<H;y+=60){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(W,y);ctx.stroke();}
+
+    // Mystery box
+    if(state.mysteryBox){const b=state.mysteryBox;ctx.fillStyle='#1a001a';ctx.fillRect(b.x-25,b.y-25,50,50);ctx.strokeStyle='#bb00ff';ctx.lineWidth=3;ctx.strokeRect(b.x-25,b.y-25,50,50);ctx.fillStyle='#bb00ff';ctx.font='bold 28px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('?',b.x,b.y);ctx.fillStyle='#555';ctx.font='9px Courier New';ctx.fillText('F = USE',b.x,b.y+32);}
+
+    // Vending machine
+    if (state.vendingMachine) {
+      const v = state.vendingMachine;
+      const p = state.player;
+      const inRange = p && p.alive && (() => { const dx=p.x-v.x,dy=p.y-v.y; return Math.sqrt(dx*dx+dy*dy)<=VENDING_USE_RANGE; })();
+      const canAfford = p && p.points >= state.vendingCost;
+      const pulse = 0.7 + 0.3 * Math.sin(Date.now() / 400);
+
+      // Machine body
+      ctx.save();
+      ctx.fillStyle = '#0a1a0a';
+      ctx.strokeStyle = inRange ? `rgba(0,255,100,${pulse})` : '#1a3a1a';
+      ctx.lineWidth = inRange ? 3 : 2;
+      ctx.shadowColor = '#00ff66';
+      ctx.shadowBlur = inRange ? 20 * pulse : 6;
+      ctx.beginPath();
+      ctx.roundRect(v.x - 28, v.y - 36, 56, 72, 6);
+      ctx.fill();
+      ctx.stroke();
+      ctx.shadowBlur = 0;
+
+      // Cross / health symbol
+      ctx.fillStyle = inRange && canAfford ? `rgba(0,255,100,${pulse})` : '#1a6633';
+      ctx.fillRect(v.x - 4, v.y - 22, 8, 24);
+      ctx.fillRect(v.x - 14, v.y - 12, 28, 8);
+
+      // Price tag
+      ctx.font = 'bold 11px Courier New';
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillStyle = canAfford ? '#00ff66' : '#666';
+      ctx.fillText(`$${state.vendingCost}`, v.x, v.y + 22);
+
+      // Heal amount
+      ctx.font = '9px Courier New';
+      ctx.fillStyle = '#336633';
+      ctx.fillText(`+${VENDING_HEAL_AMOUNT} HP`, v.x, v.y + 34);
+
+      // Prompt when in range
+      if (inRange) {
+        ctx.font = 'bold 10px Courier New';
+        ctx.fillStyle = canAfford ? '#00ff66' : '#ff4444';
+        ctx.fillText(canAfford ? 'G = HEAL' : 'NOT ENOUGH $', v.x, v.y - 46);
+      }
+      ctx.restore();
+    }
+
+    // Ammo packs
+    for(const a of state.ammoPacks){ctx.fillStyle='#ffff00';ctx.fillRect(a.x-10,a.y-10,20,20);ctx.strokeStyle='#ffaa00';ctx.lineWidth=2;ctx.strokeRect(a.x-10,a.y-10,20,20);ctx.fillStyle='#000';ctx.font='bold 11px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('A',a.x,a.y);}
+    for(const h of state.healthPacks){ctx.fillStyle='#222';ctx.fillRect(h.x-10,h.y-10,20,20);ctx.strokeStyle='#ff4444';ctx.lineWidth=2;ctx.strokeRect(h.x-10,h.y-10,20,20);ctx.fillStyle='#ff3333';ctx.fillRect(h.x-7,h.y-2,14,4);ctx.fillRect(h.x-2,h.y-7,4,14);}
+
+    // Particles
+    for(const pt of state.particles){const a=pt.life/pt.maxLife;ctx.save();ctx.globalAlpha=a;ctx.fillStyle=pt.color;ctx.shadowColor=pt.color;ctx.shadowBlur=6;ctx.beginPath();ctx.arc(pt.x,pt.y,pt.size*a,0,Math.PI*2);ctx.fill();ctx.restore();}
+
+    // Melee flashes
+    for(const f of state.meleeFlashes){ctx.save();ctx.globalAlpha=f.timer/8*0.55;ctx.fillStyle=f.color;ctx.shadowColor=f.color;ctx.shadowBlur=20;ctx.beginPath();ctx.moveTo(f.x,f.y);ctx.arc(f.x,f.y,MELEE_RANGE,f.angle-MELEE_ARC/2,f.angle+MELEE_ARC/2);ctx.closePath();ctx.fill();ctx.restore();}
+
+    // Zombies
+    for(const z of state.zombies){const hs=z.size/2;
+      if(z.type==='bomber'){const pulse=0.7+0.3*Math.sin(Date.now()/200);ctx.save();ctx.shadowColor='#4499ff';ctx.shadowBlur=15*pulse;ctx.fillStyle=`rgba(0,80,255,${0.8*pulse})`;ctx.beginPath();ctx.arc(z.x,z.y,hs,0,Math.PI*2);ctx.fill();ctx.strokeStyle='#aaddff';ctx.lineWidth=2;ctx.beginPath();ctx.arc(z.x,z.y,hs,0,Math.PI*2);ctx.stroke();ctx.shadowBlur=0;ctx.restore();}
+      else{ctx.fillStyle=z.color;ctx.fillRect(z.x-hs,z.y-hs,z.size,z.size);ctx.strokeStyle=z.borderColor;ctx.lineWidth=2;ctx.strokeRect(z.x-hs,z.y-hs,z.size,z.size);}
+      ctx.fillStyle='#ff0000';ctx.fillRect(z.x-hs,z.y-hs-8,z.size,4);ctx.fillStyle='#00ff00';ctx.fillRect(z.x-hs,z.y-hs-8,z.size*(z.hp/z.maxHp),4);
+    }
+
+    // Bullets
+    for(const b of state.bullets){ctx.save();ctx.fillStyle=b.color;ctx.shadowColor=b.color;ctx.shadowBlur=8;ctx.beginPath();ctx.arc(b.x,b.y,BULLET_SIZE/2,0,Math.PI*2);ctx.fill();ctx.restore();}
+
+    // Boss
+    if(state.boss&&!state.boss.dead){
+      const b=state.boss, flash=b.flashTimer>0&&b.flashTimer%2===0;
+      if(b.bossBullets){for(const bb of b.bossBullets){ctx.save();ctx.fillStyle=bb.color;ctx.shadowColor=bb.color;ctx.shadowBlur=10;ctx.beginPath();ctx.arc(bb.x,bb.y,5,0,Math.PI*2);ctx.fill();ctx.restore();}}
+
+      if(b.type==='triangle'){
+        ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rotation);ctx.beginPath();for(let i=0;i<3;i++){const a=-Math.PI/2+i*(2*Math.PI/3);i===0?ctx.moveTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius):ctx.lineTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius);}ctx.closePath();ctx.fillStyle=flash?'#ffffff':b.color;ctx.shadowColor='#bb00ff';ctx.shadowBlur=30;ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=4;ctx.stroke();ctx.shadowBlur=0;ctx.restore();
+        if(b.tips){const ta=[0,1,2].map(i=>b.rotation-Math.PI/2+i*(2*Math.PI/3));for(let t=0;t<3;t++){if(b.tips[t].hp<=0)continue;const tx=b.x+Math.cos(ta[t])*b.radius,ty=b.y+Math.sin(ta[t])*b.radius;const ts=18+(b.tips[t].hp/b.tips[t].maxHp)*10;ctx.save();ctx.translate(tx,ty);ctx.rotate(ta[t]);ctx.beginPath();ctx.moveTo(0,-ts);ctx.lineTo(-ts*0.8,ts*0.6);ctx.lineTo(ts*0.8,ts*0.6);ctx.closePath();ctx.fillStyle=flash?'#ffaaaa':'#cc0000';ctx.shadowColor='#ff0000';ctx.shadowBlur=15;ctx.fill();ctx.strokeStyle='#000';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='#330000';ctx.fillRect(-20,ts+4,40,5);ctx.fillStyle='#ff0000';ctx.fillRect(-20,ts+4,40*(b.tips[t].hp/b.tips[t].maxHp),5);ctx.restore();}}
+
+      }else if(b.type==='octagon'){
+        ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rotation);ctx.beginPath();for(let i=0;i<8;i++){const a=(i/8)*Math.PI*2;i===0?ctx.moveTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius):ctx.lineTo(Math.cos(a)*b.radius,Math.sin(a)*b.radius);}ctx.closePath();ctx.fillStyle=flash?'#ffffff':'#cc4400';ctx.shadowColor='#ff6600';ctx.shadowBlur=25;ctx.fill();ctx.strokeStyle='#ff9900';ctx.lineWidth=3;ctx.stroke();ctx.shadowBlur=0;ctx.restore();
+        if(b.corners){for(let i=0;i<8;i++){if(b.corners[i].hp<=0)continue;const a=b.rotation+(i/8)*Math.PI*2,cx=b.x+Math.cos(a)*b.radius,cy=b.y+Math.sin(a)*b.radius,r=8+(b.corners[i].hp/b.corners[i].maxHp)*6;ctx.save();ctx.fillStyle=flash?'#fff':'#ff4400';ctx.shadowColor='#ff6600';ctx.shadowBlur=12;ctx.beginPath();ctx.arc(cx,cy,r,0,Math.PI*2);ctx.fill();ctx.restore();}}
+
+      }else if(b.type==='pentagon'){
+        ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rotation);
+        if(b.panels){for(let i=0;i<5;i++){if(b.panels[i].hp<=0)continue;const aS=(i/5)*Math.PI*2-Math.PI/2,aE=((i+1)/5)*Math.PI*2-Math.PI/2,hr=b.panels[i].hp/b.panels[i].maxHp;ctx.beginPath();ctx.moveTo(0,0);ctx.arc(0,0,b.radius,aS+0.2,aE-0.2);ctx.closePath();ctx.fillStyle=flash?'#ffffff':`rgba(0,${Math.floor(100+100*hr)},255,0.8)`;ctx.shadowColor='#00aaff';ctx.shadowBlur=20;ctx.fill();ctx.strokeStyle='#0055ff';ctx.lineWidth=2;ctx.stroke();}}
+        ctx.beginPath();ctx.arc(0,0,30,0,Math.PI*2);ctx.fillStyle=flash?'#ffffff':'#003388';ctx.shadowBlur=0;ctx.fill();ctx.restore();
+
+      }else if(b.type==='diamond'){
+        if(!b.split){const hr=b.coreHp/b.coreMaxHp;ctx.save();ctx.translate(b.x,b.y);ctx.rotate(b.rotation);ctx.beginPath();ctx.moveTo(0,-b.radius);ctx.lineTo(b.radius*0.6,0);ctx.lineTo(0,b.radius);ctx.lineTo(-b.radius*0.6,0);ctx.closePath();ctx.fillStyle=flash?'#ffffff':`hsl(${320+40*hr},100%,50%)`;ctx.shadowColor='#ff44aa';ctx.shadowBlur=30;ctx.fill();ctx.strokeStyle='#ff88cc';ctx.lineWidth=3;ctx.stroke();ctx.shadowBlur=0;ctx.fillStyle='rgba(0,0,0,0.5)';ctx.fillRect(-30,-5,60,10);ctx.fillStyle='#ff44aa';ctx.fillRect(-30,-5,60*hr,10);ctx.restore();}
+        else if(b.shards){for(const s of b.shards){if(!s.alive)continue;ctx.save();ctx.translate(s.x,s.y);ctx.rotate(s.rotation);ctx.beginPath();ctx.moveTo(0,-s.radius);ctx.lineTo(s.radius*0.6,0);ctx.lineTo(0,s.radius);ctx.lineTo(-s.radius*0.6,0);ctx.closePath();ctx.fillStyle=flash?'#ffffff':'#cc2288';ctx.shadowColor='#ff44aa';ctx.shadowBlur=20;ctx.fill();ctx.strokeStyle='#ff88cc';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;const bw=s.radius*1.2;ctx.fillStyle='#330011';ctx.fillRect(-bw/2,s.radius+4,bw,4);ctx.fillStyle='#ff44aa';ctx.fillRect(-bw/2,s.radius+4,bw*(s.hp/s.maxHp),4);ctx.restore();}}
+
+      }else if(b.type==='spiral'){
+        ctx.save();ctx.translate(b.x,b.y);
+        if(b.arms){for(let i=0;i<5;i++){if(b.arms[i].hp<=0)continue;const armA=b.rotation+(i/5)*Math.PI*2,ext=b.radius+60+Math.sin(b.breathe+i)*30,hr=b.arms[i].hp/b.arms[i].maxHp;ctx.save();ctx.strokeStyle=flash?'#ffffff':`hsl(150,100%,${40+30*hr}%)`;ctx.lineWidth=6+(1-hr)*4;ctx.shadowColor='#44ffaa';ctx.shadowBlur=15;ctx.beginPath();const midA=armA+0.4;ctx.moveTo(0,0);ctx.quadraticCurveTo(Math.cos(midA)*ext*0.6,Math.sin(midA)*ext*0.6,Math.cos(armA)*ext,Math.sin(armA)*ext);ctx.stroke();ctx.restore();const tipX=Math.cos(armA)*ext,tipY=Math.sin(armA)*ext;ctx.save();ctx.fillStyle=flash?'#fff':'#00ff88';ctx.shadowColor='#44ffaa';ctx.shadowBlur=20;ctx.beginPath();ctx.arc(tipX,tipY,8+hr*6,0,Math.PI*2);ctx.fill();ctx.restore();ctx.fillStyle='#003311';ctx.fillRect(tipX-20,tipY+16,40,4);ctx.fillStyle='#44ffaa';ctx.fillRect(tipX-20,tipY+16,40*hr,4);}}
+        ctx.beginPath();ctx.arc(0,0,25,0,Math.PI*2);ctx.fillStyle=flash?'#ffffff':'#006633';ctx.shadowColor='#44ffaa';ctx.shadowBlur=20;ctx.fill();ctx.restore();
+
+      }else if(b.type==='fractal'){
+        if(b.pieces){for(const piece of b.pieces){if(!piece.alive)continue;const hr=piece.hp/piece.maxHp;ctx.save();ctx.translate(piece.x,piece.y);ctx.rotate(piece.rotation);ctx.beginPath();for(let i=0;i<3;i++){const a=-Math.PI/2+i*(2*Math.PI/3);i===0?ctx.moveTo(Math.cos(a)*piece.radius,Math.sin(a)*piece.radius):ctx.lineTo(Math.cos(a)*piece.radius,Math.sin(a)*piece.radius);}ctx.closePath();ctx.fillStyle=flash?'#ffffff':`hsl(50,100%,${30+30*hr}%)`;ctx.shadowColor='#ffdd00';ctx.shadowBlur=20;ctx.fill();ctx.strokeStyle='#ffaa00';ctx.lineWidth=2;ctx.stroke();ctx.shadowBlur=0;const bw=piece.radius*1.4;ctx.fillStyle='#332200';ctx.fillRect(-bw/2,piece.radius+4,bw,4);ctx.fillStyle='#ffdd00';ctx.fillRect(-bw/2,piece.radius+4,bw*hr,4);ctx.restore();}}
+      }
+      ctx.fillStyle='#ff44ff';ctx.font='bold 16px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText(b.label||'BOSS',b.x,b.y-(b.radius||80)-20);
+    }
+
+    // Player
+    const p = state.player;
+    if (p) {
+      if (p.alive) {
+        ctx.save();
+        ctx.shadowColor=p.color;ctx.shadowBlur=state.godMode?25:15;ctx.fillStyle=p.color;
+        ctx.fillRect(p.x-PLAYER_SIZE/2,p.y-PLAYER_SIZE/2,PLAYER_SIZE,PLAYER_SIZE);
+        ctx.shadowBlur=0;
+        ctx.strokeStyle='#fff';ctx.lineWidth=2;ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(p.x+Math.cos(p.angle)*(PLAYER_SIZE/2+12),p.y+Math.sin(p.angle)*(PLAYER_SIZE/2+12));ctx.stroke();
+        ctx.fillStyle='#ff0000';ctx.fillRect(p.x-PLAYER_SIZE/2,p.y-PLAYER_SIZE/2-10,PLAYER_SIZE,5);
+        ctx.fillStyle='#00ff00';ctx.fillRect(p.x-PLAYER_SIZE/2,p.y-PLAYER_SIZE/2-10,PLAYER_SIZE*(p.hp/p.maxHp),5);
+        if(state.godMode){ctx.strokeStyle='rgba(255,100,0,0.4)';ctx.lineWidth=2;ctx.strokeRect(p.x-PLAYER_SIZE/2-4,p.y-PLAYER_SIZE/2-4,PLAYER_SIZE+8,PLAYER_SIZE+8);}
+        ctx.restore();
+        // Aim line to mouse
+        ctx.save();ctx.strokeStyle='rgba(255,255,255,0.06)';ctx.lineWidth=1;ctx.setLineDash([6,12]);ctx.beginPath();ctx.moveTo(p.x,p.y);ctx.lineTo(state.mouse.x,state.mouse.y);ctx.stroke();ctx.setLineDash([]);ctx.restore();
+      } else {
+        ctx.fillStyle='#333';ctx.fillRect(p.x-PLAYER_SIZE/2,p.y-PLAYER_SIZE/2,PLAYER_SIZE,PLAYER_SIZE);
+        ctx.fillStyle='#ff4444';ctx.font='bold 18px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';ctx.fillText('DEAD',p.x,p.y);
+        ctx.fillStyle='#666';ctx.font='11px Courier New';ctx.fillText('press R to respawn',p.x,p.y+22);
+      }
+    }
+
+    // Border
+    ctx.strokeStyle='#00ff00';ctx.lineWidth=4;ctx.shadowColor='#00ff00';ctx.shadowBlur=14;ctx.strokeRect(2,2,W-4,H-4);ctx.shadowBlur=0;
+
+    // Stats overlay
+    if(p){
+      document.getElementById('s-hp').textContent   = p.alive ? Math.ceil(p.hp) : 'DEAD';
+      document.getElementById('s-ammo').textContent = state.infiniteAmmo ? '∞' : p.ammo;
+      document.getElementById('s-pts').textContent  = p.points;
+    }
+    document.getElementById('s-wave').textContent = state.wave;
+    document.getElementById('s-zom').textContent  = state.zombies.length;
+    document.getElementById('s-boss').textContent = state.boss ? (state.boss.dead?'DYING':state.boss.type) : 'none';
+
+    // Mode badge
+    const badge = document.getElementById('mode-badge');
+    if(state.godMode&&state.slowMo){badge.textContent='GOD + SLOW';badge.className='god';}
+    else if(state.godMode){badge.textContent='GOD MODE';badge.className='god';}
+    else if(state.slowMo){badge.textContent='SLOW MO';badge.className='slow';}
+    else{badge.textContent='SANDBOX';badge.className='';}
+  }
+
+  // Respawn on R
+  document.addEventListener('keydown', e => {
+    if (e.key.toLowerCase() === 'r' && state.player && !state.player.alive) {
+      state.player.x = CANVAS_W/2; state.player.y = CANVAS_H/2;
+      state.player.hp = 100; state.player.alive = true;
+      T.log('Respawned','ok');
+    }
+  });
+
+  // ── GAME LOOP ───────────────────────────────────────────────────
+  function spawnMysteryBox() {
+    const m=150; state.mysteryBox={x:m+Math.random()*(CANVAS_W-m*2),y:m+Math.random()*(CANVAS_H-m*2)};
+  }
+
+  // ── VENDING MACHINE ─────────────────────────────────────────────
+  // Spawns at a random location, not too close to corners or mystery box.
+  // Disabled on boss waves. Price carries over the whole game.
+  function spawnVendingMachine() {
+    if (state.isBossWave) { state.vendingMachine = null; return; }
+    const margin = 160;
+    let x, y, attempts = 0;
+    do {
+      x = margin + Math.random() * (CANVAS_W - margin * 2);
+      y = margin + Math.random() * (CANVAS_H - margin * 2);
+      attempts++;
+      // keep away from mystery box so they don't overlap
+      if (state.mysteryBox) {
+        const dx = x - state.mysteryBox.x, dy = y - state.mysteryBox.y;
+        if (Math.sqrt(dx*dx + dy*dy) < 200 && attempts < 20) continue;
+      }
+      break;
+    } while (true);
+    state.vendingMachine = { x, y };
+  }
+
+  function useVendingMachine(player) {
+    if (!state.vendingMachine || !player || !player.alive) return false;
+    const dx = player.x - state.vendingMachine.x;
+    const dy = player.y - state.vendingMachine.y;
+    if (Math.sqrt(dx*dx + dy*dy) > VENDING_USE_RANGE) return false;
+    if (player.points < state.vendingCost) return false;
+    if (player.hp >= player.maxHp) return false; // already full health
+
+    player.points  -= state.vendingCost;
+    player.hp       = Math.min(player.maxHp, player.hp + VENDING_HEAL_AMOUNT);
+    state.vendingCost += VENDING_COST_STEP;
+    const priceEl = document.getElementById('vending-price');
+    if (priceEl) priceEl.textContent = '$' + state.vendingCost;
+    T.log(`Vending machine used! +${VENDING_HEAL_AMOUNT} HP. Next cost: $${state.vendingCost}`, 'ok');
+    return true;
+  }
+
+  function loop(now) {
+    requestAnimationFrame(loop);
+    if (!state.running) { render(); return; }
+    update(now);
+    render();
+  }
+  requestAnimationFrame(loop);
+
+  // ── TEST CONTROLS API ───────────────────────────────────────────
+  const T = {
+    log(msg, type='info') {
+      const el = document.getElementById('log');
+      const ts = new Date().toLocaleTimeString('en',{hour12:false,hour:'2-digit',minute:'2-digit',second:'2-digit'});
+      el.innerHTML += `<div class="log-entry ${type}">[${ts}] ${msg}</div>`;
+      el.scrollTop = el.scrollHeight;
+    },
+
+    startGame() {
+      state.player  = makePlayer();
+      state.zombies = []; state.bullets = []; state.particles = [];
+      state.ammoPacks = []; state.healthPacks = [];
+      state.boss = null; state.running = true;
+      state.vendingCost = VENDING_BASE_COST;
+      state.isBossWave = false;
+      spawnMysteryBox();
+      spawnVendingMachine();
+      document.getElementById('vending-price').textContent = '$' + state.vendingCost;
+      T.log('Game started — WASD=move, mouse=aim, click=fire, E=melee, F=box, G=vending, R=respawn','info');
+    },
+
+    resetGame() {
+      state.running = false; state.player = null;
+      state.zombies=[]; state.bullets=[]; state.particles=[];
+      state.ammoPacks=[]; state.healthPacks=[]; state.boss=null;
+      state.vendingMachine=null; state.vendingCost=VENDING_BASE_COST; state.isBossWave=false;
+      document.getElementById('vending-price').textContent = '$' + VENDING_BASE_COST;
+      T.log('Reset','warn');
+    },
+
+    setWave(w) {
+      state.wave = w;
+      document.getElementById('wave-val').textContent = w;
+      T.log(`Wave set to ${w}`,'info');
+    },
+
+    spawnBoss(type) {
+      if (!state.running) { T.log('Start the game first','warn'); return; }
+      state.boss = makeBoss(type);
+      T.log(`Spawned ${type} boss`,'ok');
+    },
+
+    killBoss() {
+      if (state.boss) { state.boss.dead=true; setTimeout(()=>{state.boss=null;},500); T.log('Boss killed','warn'); }
+      else T.log('No boss active','warn');
+    },
+
+    spawnZombie(type) {
+      if (!state.running) { T.log('Start the game first','warn'); return; }
+      state.zombies.push(makeZombie(type));
+      T.log(`Spawned ${type} zombie`,'ok');
+    },
+
+    spawnWave(count) {
+      if (!state.running) { T.log('Start the game first','warn'); return; }
+      const types = ['regular','runner','tank','bomber'];
+      for(let i=0;i<count;i++) state.zombies.push(makeZombie(types[Math.floor(Math.random()*types.length)]));
+      T.log(`Spawned ${count} random zombies`,'ok');
+    },
+
+    clearZombies() {
+      state.zombies = [];
+      T.log('Zombies cleared','warn');
+    },
+
+    setWeapon(weapon) {
+      if (!state.player) { T.log('Start the game first','warn'); return; }
+      state.player.currentWeapon = weapon;
+      state.player.ammo = state.infiniteAmmo ? Infinity : WEAPONS[weapon].ammoCapacity;
+      T.log(`Weapon: ${weapon.toUpperCase()}`,'ok');
+      // Highlight the active weapon button
+      document.querySelectorAll('.btn').forEach(b => {
+        if(b.textContent.trim().toLowerCase().replace(' ','')===weapon) b.classList.add('active');
+        else b.classList.remove('active');
+      });
+    },
+
+    refillAmmo() {
+      if (!state.player) return;
+      state.player.ammo = WEAPONS[state.player.currentWeapon].ammoCapacity;
+      T.log('Ammo refilled','ok');
+    },
+
+    fullHeal() {
+      if (!state.player) return;
+      state.player.hp = state.player.maxHp; state.player.alive = true;
+      T.log('Full heal','ok');
+    },
+
+    addPoints(n) {
+      if (!state.player) return;
+      state.player.points += n;
+      T.log(`+${n} points`,'ok');
+    },
+
+    setSpeed(v) {
+      PLAYER_SPEED = v;
+      document.getElementById('speed-val').textContent = v;
+    },
+
+    toggleGod() {
+      state.godMode = !state.godMode;
+      document.getElementById('god-toggle').classList.toggle('on', state.godMode);
+      T.log(`God mode ${state.godMode?'ON':'OFF'}`, state.godMode?'warn':'info');
+    },
+
+    toggleSlow() {
+      state.slowMo = !state.slowMo;
+      document.getElementById('slow-toggle').classList.toggle('on', state.slowMo);
+      T.log(`Slow motion ${state.slowMo?'ON':'OFF'}`, state.slowMo?'warn':'info');
+    },
+
+    toggleFreeze() {
+      state.freeze = !state.freeze;
+      document.getElementById('freeze-toggle').classList.toggle('on', state.freeze);
+      T.log(`Freeze zombies ${state.freeze?'ON':'OFF'}`, state.freeze?'warn':'info');
+    },
+
+    toggleInfiniteAmmo() {
+      state.infiniteAmmo = !state.infiniteAmmo;
+      document.getElementById('ammo-toggle').classList.toggle('on', state.infiniteAmmo);
+      if (state.player) state.player.ammo = state.infiniteAmmo ? Infinity : WEAPONS[state.player.currentWeapon].ammoCapacity;
+      T.log(`Infinite ammo ${state.infiniteAmmo?'ON':'OFF'}`, state.infiniteAmmo?'warn':'info');
+    },
+
+    spawnVending() {
+      if (!state.running) { T.log('Start the game first','warn'); return; }
+      spawnVendingMachine();
+      T.log('Vending machine spawned','ok');
+    },
+
+    removeVending() {
+      state.vendingMachine = null;
+      T.log('Vending machine removed','warn');
+    },
+
+    resetVendingPrice() {
+      state.vendingCost = VENDING_BASE_COST;
+      document.getElementById('vending-price').textContent = '$' + VENDING_BASE_COST;
+      T.log('Vending price reset to $' + VENDING_BASE_COST,'ok');
+    },
+
+    toggleBossWave() {
+      state.isBossWave = !state.isBossWave;
+      document.getElementById('boss-wave-toggle').classList.toggle('on', state.isBossWave);
+      if (state.isBossWave) {
+        state.vendingMachine = null;
+        T.log('Boss wave ON — vending machine removed','warn');
+      } else {
+        spawnVendingMachine();
+        T.log('Boss wave OFF — vending machine spawned','ok');
+      }
+    },
+
+    markPass() {
+      const bar = document.getElementById('result-bar');
+      bar.textContent = '✔ PASS — READY TO INTEGRATE';
+      bar.className = 'pass';
+      T.log('Feature PASSED — ready to integrate into final code','ok');
+    },
+
+    markFail() {
+      const bar = document.getElementById('result-bar');
+      bar.textContent = '✘ FAIL — NEEDS MORE WORK';
+      bar.className = 'fail';
+      T.log('Feature FAILED — needs more work','fail');
+    }
+  };
+
+  // Auto-log controls reminder
+  T.log('Controls: WASD=move, Mouse=aim, Click=fire, E=melee, F=box, G=vending, R=respawn','info');
+  </script>
+</body>
+</html>
