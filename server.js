@@ -27,6 +27,7 @@ const {
   BULLET_SIZE,
   AMMO_DROP_CHANCE, HEALTH_DROP_CHANCE,
   MYSTERY_BOX_COST, BOX_USE_RANGE,
+  VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
   MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
   REVIVE_RADIUS, REVIVE_TIME,
   BOSS_TYPES, BOSS_CONFIGS,
@@ -60,6 +61,7 @@ class ServerGame {
     this.wave = 1; this.waveTotal = 0; this.waveKilled = 0;
     this.gameOver = false; this.gameStarted = false;
     this.isBossWave = false; this.boss = null; this.mysteryBox = null;
+    this.vendingMachine = null; this.vendingCost = VENDING_BASE_COST;
     this.reviveMap = new Map();
     this.tickInterval = null;
     this.explosions = [];
@@ -78,7 +80,7 @@ class ServerGame {
     }
   }
 
-  start() { this.spawnMysteryBox(); this.startWave(); this.tickInterval = setInterval(() => this.tick(), TICK_MS); }
+  start() { this.spawnMysteryBox(); this.spawnVendingMachine(); this.startWave(); this.tickInterval = setInterval(() => this.tick(), TICK_MS); }
   stop()  { if (this.tickInterval) { clearInterval(this.tickInterval); this.tickInterval = null; } }
 
   restart() {
@@ -87,6 +89,7 @@ class ServerGame {
     this.zombies=[]; this.bullets=[]; this.ammoPacks=[]; this.healthPacks=[];
     this.wave=1; this.waveTotal=0; this.waveKilled=0;
     this.gameOver=false; this.isBossWave=false; this.boss=null;
+    this.vendingMachine=null; this.vendingCost=VENDING_BASE_COST;
     this.reviveMap.clear(); this.explosions=[];
     this._waveAdvancing=false; this._broadcastTick=0;
     for (let p of this.players) {
@@ -139,6 +142,41 @@ class ServerGame {
     this.mysteryBox = { x: m+Math.random()*(CANVAS_W-m*2), y: m+Math.random()*(CANVAS_H-m*2) };
   }
 
+  spawnVendingMachine() {
+    if (this.isBossWave) { this.vendingMachine = null; return; }
+    const margin = 160;
+    let x, y, attempts = 0;
+    do {
+      x = margin + Math.random() * (CANVAS_W - margin * 2);
+      y = margin + Math.random() * (CANVAS_H - margin * 2);
+      attempts++;
+      if (this.mysteryBox) {
+        const dx = x - this.mysteryBox.x, dy = y - this.mysteryBox.y;
+        if (Math.sqrt(dx*dx+dy*dy) < 200 && attempts < 20) continue;
+      }
+      break;
+    } while (true);
+    this.vendingMachine = { x, y };
+  }
+
+  handleVendingMachine(slot) {
+    const p = this.players[slot-1];
+    if (!p||!p.alive||!this.vendingMachine) return;
+    const dx=p.x-this.vendingMachine.x, dy=p.y-this.vendingMachine.y;
+    if (Math.sqrt(dx*dx+dy*dy)>VENDING_USE_RANGE) return;
+    if (p.points<this.vendingCost) return;
+    if (p.hp>=p.maxHp) return;
+    p.points       -= this.vendingCost;
+    p.hp            = Math.min(p.maxHp, p.hp + VENDING_HEAL_AMOUNT);
+    this.vendingCost += VENDING_COST_STEP;
+  }
+
+  canUseVending(p) {
+    if (!this.vendingMachine||!p.alive) return false;
+    const dx=p.x-this.vendingMachine.x, dy=p.y-this.vendingMachine.y;
+    return Math.sqrt(dx*dx+dy*dy)<=VENDING_USE_RANGE;
+  }
+
   startWave() {
     // FIX BOSS SKIP: reset guard at the start of every new wave
     this._waveAdvancing = false;
@@ -148,6 +186,7 @@ class ServerGame {
     if (this.wave%5===0) {
       this.isBossWave=true; this.waveTotal=1;
       for (let p of this.players) { if (!p.connected) continue; p.savedAmmo=p.ammo; p.ammo=Infinity; }
+      this.vendingMachine = null; // no vending during boss fight
       this.room.broadcast('wave-event',{type:'boss',wave:this.wave});
       this._scheduleWave(()=>this.spawnBoss(),2000);
     } else {
@@ -156,6 +195,7 @@ class ServerGame {
         if (!p.connected) continue;
         if (p.savedAmmo!==undefined) { p.ammo=Math.max(p.savedAmmo,Math.floor(WEAPONS[p.currentWeapon].ammoCapacity*0.5)); p.savedAmmo=undefined; }
       }
+      this.spawnVendingMachine(); // new random location each wave
       const baseCount=3+(this.wave-1)*2;
       this.waveTotal=Math.ceil(baseCount*(pc/2));
       this.room.broadcast('wave-event',{type:'normal',wave:this.wave});
@@ -468,12 +508,14 @@ class ServerGame {
 
   getState() {
     return {
-      players: this.players.map(p=>({slot:p.slot,x:p.x,y:p.y,angle:p.angle,color:p.color,hp:p.hp,maxHp:p.maxHp,ammo:p.ammo===Infinity?-1:p.ammo,points:p.points,weapon:p.currentWeapon,alive:p.alive,connected:p.connected,canUseMysteryBox:this.canUseMysteryBox(p)})),
+      players: this.players.map(p=>({slot:p.slot,x:p.x,y:p.y,angle:p.angle,color:p.color,hp:p.hp,maxHp:p.maxHp,ammo:p.ammo===Infinity?-1:p.ammo,points:p.points,weapon:p.currentWeapon,alive:p.alive,connected:p.connected,canUseMysteryBox:this.canUseMysteryBox(p),canUseVending:this.canUseVending(p),vendingCost:this.vendingCost})),
       zombies: this.zombies.map(z=>({x:z.x,y:z.y,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor})),
       bullets: this.bullets.map(b=>({x:b.x,y:b.y,color:b.color})),
       ammoPacks: this.ammoPacks.map(a=>({x:a.x,y:a.y})),
       healthPacks: this.healthPacks.map(h=>({x:h.x,y:h.y})),
       mysteryBox: this.mysteryBox?{x:this.mysteryBox.x,y:this.mysteryBox.y}:null,
+      vendingMachine: this.vendingMachine?{x:this.vendingMachine.x,y:this.vendingMachine.y}:null,
+      vendingCost: this.vendingCost,
       boss: this.boss?{type:this.boss.type,x:this.boss.x,y:this.boss.y,rotation:this.boss.rotation,radius:this.boss.radius,color:this.boss.color,dropping:this.boss.dropping,flashTimer:this.boss.flashTimer,dead:this.boss.dead,pad:this.boss.pad,tips:this.boss.tips,corners:this.boss.corners,panels:this.boss.panels,coreHp:this.boss.coreHp,coreMaxHp:this.boss.coreMaxHp,split:this.boss.split,shards:this.boss.shards,arms:this.boss.arms,breathe:this.boss.breathe,pieces:this.boss.pieces,bossBullets:this.boss.bossBullets}:null,
       reviveMap: Array.from(this.reviveMap.entries()),
       wave:this.wave, gameOver:this.gameOver, isBossWave:this.isBossWave, explosions:this.explosions
@@ -509,7 +551,7 @@ class GameRoom {
     if(this.mode==='remote'){for(let[sid]of this.players){const s=io.sockets.sockets.get(sid);if(s)s.emit('remote-game-state',state);}}
     else{
       if(this.hostSocket)this.hostSocket.emit('remote-game-state',state);
-      for(let[sid,player]of this.players){const s=io.sockets.sockets.get(sid);if(!s)continue;const p=state.players[player.slotNumber-1];if(p)s.emit('game-state-update',{health:p.hp,ammo:p.ammo,points:p.points,weapon:p.weapon,isAlive:p.alive,canUseMysteryBox:p.canUseMysteryBox,wave:state.wave,gameOver:state.gameOver});}
+      for(let[sid,player]of this.players){const s=io.sockets.sockets.get(sid);if(!s)continue;const p=state.players[player.slotNumber-1];if(p)s.emit('game-state-update',{health:p.hp,ammo:p.ammo,points:p.points,weapon:p.weapon,isAlive:p.alive,canUseMysteryBox:p.canUseMysteryBox,canUseVending:p.canUseVending,vendingCost:p.vendingCost,wave:state.wave,gameOver:state.gameOver});}
     }
   }
 
@@ -560,6 +602,7 @@ class GameRoom {
 
   relayPlayerInput(socketId,input){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleInput(player.slotNumber,input);else if(this.hostSocket)this.hostSocket.emit('player-input',{slotNumber:player.slotNumber,input});}
   handleMysteryBox(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleMysteryBox(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('mystery-box-purchase',{slotNumber:player.slotNumber});}
+  handleVending(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleVendingMachine(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('vending-purchase',{slotNumber:player.slotNumber});}
 
   handleReady(socketId){
     const player=this.players.get(socketId);if(!player||this.gameStarted)return;
@@ -600,7 +643,7 @@ class GameRoom {
   broadcastExplosion(data){this.broadcast('explosion',data);if(this.hostSocket)this.hostSocket.emit('explosion',data);}
 
   broadcastLocalGameState(gameState){
-    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
+    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,canUseVending:ps.canUseVending,vendingCost:ps.vendingCost,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
   }
 
   destroy(){if(this.serverGame)this.serverGame.stop();for(let p of this.disconnectedPlayers.values())if(p.gracePeriodTimeout)clearTimeout(p.gracePeriodTimeout);for(let p of this.players.values())if(p.heartbeatInterval)clearInterval(p.heartbeatInterval);this.players.clear();this.disconnectedPlayers.clear();console.log(`[ROOM ${this.roomCode}] Destroyed`);}
@@ -632,6 +675,7 @@ io.on('connection',(socket)=>{
   socket.on('player-ready',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleReady(socket.id);});
   socket.on('player-input',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.relayPlayerInput(socket.id,d.input);});
   socket.on('mystery-box-purchase',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleMysteryBox(socket.id);});
+  socket.on('vending-purchase',    (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleVending(socket.id);});
   socket.on('restart-vote',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('restart-vote-remote', (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('game-state-broadcast',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.broadcastLocalGameState(d.gameState);});
