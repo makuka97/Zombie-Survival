@@ -37,7 +37,7 @@ const GAME_CONSTANTS = (() => {
 
   // ── Mystery Box ──────────────────────────────────────────────
   const MYSTERY_BOX_COST = 950;
-  const BOX_USE_RANGE    = 60;
+  const BOX_USE_RANGE    = 120;  // increased from 60 — phones scale canvas down, needs bigger range
 
   // ── Melee ────────────────────────────────────────────────────
   const MELEE_DAMAGE = 1;
