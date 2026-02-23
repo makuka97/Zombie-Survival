@@ -20,7 +20,6 @@
       gap: 60px;
     }
 
-    /* Subtle scanline effect */
     body::after {
       content: '';
       position: fixed;
@@ -36,10 +35,7 @@
       z-index: 10;
     }
 
-    #title-block {
-      text-align: center;
-      animation: fadein 1s ease forwards;
-    }
+    #title-block { text-align: center; animation: fadein 1s ease forwards; }
 
     #title {
       font-size: clamp(64px, 14vw, 120px);
@@ -51,6 +47,7 @@
         0 0 60px rgba(0,255,0,0.4),
         0 0 120px rgba(0,255,0,0.2);
       line-height: 1;
+      animation: flicker 6s infinite;
     }
 
     #subtitle {
@@ -102,14 +99,30 @@
     #local-btn:hover  { box-shadow: 0 0 50px rgba(0,255,0,0.8); transform: scale(1.03); }
     #local-btn:active { transform: scale(0.97); }
 
+    /* Disabled remote button */
     #remote-btn {
       background: transparent;
-      color: #00ff00;
-      border: 2px solid #00ff00;
-      box-shadow: 0 0 20px rgba(0,255,0,0.2);
+      color: #333;
+      border: 2px solid #222;
+      box-shadow: none;
+      cursor: not-allowed;
+      position: relative;
+      pointer-events: none;
+      opacity: 0.6;
     }
-    #remote-btn:hover  { box-shadow: 0 0 40px rgba(0,255,0,0.5); transform: scale(1.03); }
-    #remote-btn:active { transform: scale(0.97); }
+
+    /* Under construction badge */
+    .badge-construction {
+      font-size: 10px;
+      background: #ff6600;
+      color: #000;
+      padding: 2px 7px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+      vertical-align: middle;
+      margin-left: 6px;
+      font-weight: bold;
+    }
 
     #patch-notes {
       width: 240px;
@@ -153,6 +166,8 @@
       color: #00ff00;
       opacity: 0.7;
     }
+
+    #version {
       position: fixed;
       bottom: 12px;
       right: 16px;
@@ -166,7 +181,6 @@
       100% { opacity: 1; transform: translateY(0); }
     }
 
-    /* Flicker on title every few seconds */
     @keyframes flicker {
       0%, 95%, 100% { opacity: 1; }
       96%            { opacity: 0.6; }
@@ -174,7 +188,6 @@
       98%            { opacity: 0.4; }
       99%            { opacity: 1; }
     }
-    #title { animation: flicker 6s infinite; }
   </style>
 </head>
 <body>
@@ -185,20 +198,19 @@
   </div>
 
   <div id="menu">
-    <!-- Local Party Mode — goes straight to host page -->
     <a id="local-btn" class="menu-btn" href="/index.html">
       LOCAL PARTY MODE
       <span class="btn-sub">ONE SCREEN / PHONES AS CONTROLLERS</span>
     </a>
 
-    <!-- Remote Multiplayer — Beta -->
-    <a id="remote-btn" class="menu-btn" href="/remote.html">
-      REMOTE MULTIPLAYER <span style="font-size:11px;background:#ff6600;color:#000;padding:2px 7px;border-radius:4px;letter-spacing:1px;vertical-align:middle;margin-left:6px;">BETA</span>
-      <span class="btn-sub">STILL UNDER CONSTRUCTION · UP TO 4 PLAYERS</span>
-    </a>
+    <div id="remote-btn" class="menu-btn">
+      REMOTE MULTIPLAYER
+      <span class="badge-construction">🚧 UNDER CONSTRUCTION</span>
+      <span class="btn-sub">A new server is on its way!</span>
+    </div>
 
     <div id="patch-notes">
-      <h3>PATCH NOTES · v2.0</h3>
+      <h3>PATCH NOTES · v2.1</h3>
       <ul>
         <li>6 unique geometric bosses every 5 waves</li>
         <li>Weapon visual effects for all 7 guns</li>
@@ -211,7 +223,7 @@
     </div>
   </div>
 
-  <div id="version">PHASE 2a · BUILD 2.0</div>
+  <div id="version">PHASE 2a · BUILD 2.1</div>
 
 </body>
 </html>
