@@ -39,6 +39,12 @@ const GAME_CONSTANTS = (() => {
   const MYSTERY_BOX_COST = 950;
   const BOX_USE_RANGE    = 120;  // increased from 60 — phones scale canvas down, needs bigger range
 
+  // ── Health Vending Machine ────────────────────────────────────
+  const VENDING_BASE_COST   = 500; // starting price
+  const VENDING_COST_STEP   = 50;  // price increase per use (carries over all game)
+  const VENDING_HEAL_AMOUNT = 25;  // HP restored per use
+  const VENDING_USE_RANGE   = 120; // interact distance (matches BOX_USE_RANGE)
+
   // ── Melee ────────────────────────────────────────────────────
   const MELEE_DAMAGE = 1;
   const MELEE_RANGE  = 55;
@@ -145,6 +151,8 @@ const GAME_CONSTANTS = (() => {
     AMMO_DROP_CHANCE, HEALTH_DROP_CHANCE,
     // Mystery box
     MYSTERY_BOX_COST, BOX_USE_RANGE,
+    // Vending machine
+    VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
     // Melee
     MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
     // Revive
