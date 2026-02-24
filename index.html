@@ -532,8 +532,17 @@
           };
         } else if (type === 'pentagon') {
           this.boss = { ...base,
-            panels: Array.from({length: cfg.panels.count}, () => ({hp: cfg.panels.hp, maxHp: cfg.panels.hp, shielded: true})),
-            gapAngle: cfg.gapAngle
+            panels: Array.from({length: cfg.panels.count}, (_, i) => ({
+              hp: cfg.panels.hp, maxHp: cfg.panels.hp,
+              state: 'orbit',   // 'orbit' | 'flying' | 'returning' | 'dead'
+              orbitIdx: i,      // fixed orbit slot
+            })),
+            coreHp: 20, coreMaxHp: 20,   // exposed only in rage
+            rage: false,
+            throwTimer: 120,              // ticks before first throw
+            activePanel: -1,              // which panel is currently flying
+            boomerang: null,              // { x, y, angle, t, speed, arc } live projectile
+            rageShootTimer: 0,
           };
         } else if (type === 'diamond') {
           this.boss = { ...base,
@@ -580,10 +589,16 @@
           });
         }
         if (b.type === 'pentagon') {
-          return b.panels.map((p,i) => {
-            const a = b.rotation + (i/5)*Math.PI*2 + Math.PI/5;
-            return { x: b.x+Math.cos(a)*b.radius*0.6, y: b.y+Math.sin(a)*b.radius*0.6, idx: i, gap: true };
-          });
+          const pts = [];
+          // Flying boomerang panel is the only hittable target (until rage)
+          if (b.boomerang && b.activePanel >= 0) {
+            pts.push({ x: b.boomerang.x, y: b.boomerang.y, idx: b.activePanel, boomerang: true });
+          }
+          // In rage phase the core is exposed
+          if (b.rage) {
+            pts.push({ x: b.x, y: b.y, idx: -1, core: true });
+          }
+          return pts;
         }
         if (b.type === 'diamond') {
           if (!b.split) return [{ x: b.x, y: b.y, idx: 0, core: true }];
@@ -618,7 +633,18 @@
         b.flashTimer = 6;
         if      (b.type==='triangle')  b.tips[pt.idx].hp    = Math.max(0, b.tips[pt.idx].hp    - amount);
         else if (b.type==='octagon')   b.corners[pt.idx].hp  = Math.max(0, b.corners[pt.idx].hp  - amount);
-        else if (b.type==='pentagon')  b.panels[pt.idx].hp   = Math.max(0, b.panels[pt.idx].hp   - amount);
+        else if (b.type==='pentagon')  {
+          if (pt.boomerang && b.activePanel >= 0) {
+            // Destroy the flying panel
+            b.panels[b.activePanel].hp = 0;
+            b.panels[b.activePanel].state = 'dead';
+            b.boomerang = null;
+            b.activePanel = -1;
+            b.throwTimer = Math.max(30, 90 - b.panels.filter(p=>p.state==='dead').length * 15);
+          } else if (pt.core && b.rage) {
+            b.coreHp = Math.max(0, b.coreHp - amount);
+          }
+        }
         else if (b.type==='diamond')   {
           if (!b.split) b.coreHp = Math.max(0, b.coreHp - amount);
           else { const s=b.shards[pt.idx]; if(s){s.hp=Math.max(0,s.hp-amount);if(s.hp<=0)s.alive=false;} }
@@ -749,12 +775,84 @@
       }
 
       _updatePentagonBoss(b, W, H, WALL) {
-        const alive = b.panels.filter(p=>p.hp>0).length;
-        b.spinSpeed = 0.04 + (5-alive)*0.022;
-        b.rotation += b.spinSpeed;
-        this._bounceBox(b,W,H,WALL);
-        this._bossTouchDamage(b);
-        if (b.panels.every(p=>p.hp<=0)&&!b.dead) this._bossKill(b);
+        const deadCount  = b.panels.filter(p => p.state === 'dead').length;
+        const aliveCount = 5 - deadCount;
+
+        this._bounceBox(b, W, H, WALL);
+        b.rotation += 0.015 + deadCount * 0.01; // spins faster as panels die
+
+        // ── RAGE PHASE ──────────────────────────────────────────
+        if (b.rage) {
+          this._bossTouchDamage(b);
+          b.rageShootTimer++;
+          if (b.rageShootTimer >= 8) { // rapid fire in all directions
+            b.rageShootTimer = 0;
+            for (let i = 0; i < 8; i++) {
+              const a = b.rotation + (i / 8) * Math.PI * 2;
+              b.bossBullets.push({ x:b.x, y:b.y, vx:Math.cos(a)*4, vy:Math.sin(a)*4, damage:12, life:110, color:'#0099ff' });
+            }
+          }
+          if (b.coreHp <= 0 && !b.dead) this._bossKill(b);
+          return;
+        }
+
+        // ── CHECK RAGE TRANSITION ────────────────────────────────
+        if (aliveCount === 0 && !b.rage) {
+          b.rage = true;
+          b.boomerang = null;
+          b.activePanel = -1;
+          this.showBanner('PENTAGON RAGE!', '#0099ff');
+          return;
+        }
+
+        // ── BOOMERANG THROW ──────────────────────────────────────
+        if (b.boomerang) {
+          const bm = b.boomerang;
+          bm.t += bm.speed;
+
+          // Parametric boomerang arc: ellipse weighted toward and away from center
+          const angle = bm.launchAngle + bm.t * Math.PI * 2;
+          const dist  = bm.maxDist * Math.sin(bm.t * Math.PI); // rises then falls back
+          bm.x = b.x + Math.cos(angle) * dist;
+          bm.y = b.y + Math.sin(angle) * dist;
+
+          // Damage players on contact
+          for (let p of this.players) {
+            if (!p.alive || !p.connected) continue;
+            const dx = p.x - bm.x, dy = p.y - bm.y;
+            if (Math.sqrt(dx*dx+dy*dy) < 22 + this.PLAYER_SIZE/2) {
+              p.hp -= 1.2;
+              if (p.hp <= 0 && p.alive) { p.alive = false; p.hp = 0; this.checkGameOver(); }
+            }
+          }
+
+          // Boomerang completed its arc — returns and reattaches
+          if (bm.t >= 1) {
+            b.panels[b.activePanel].state = 'orbit';
+            b.boomerang = null;
+            b.activePanel = -1;
+            // Next throw timer scales down as panels die — gets faster
+            b.throwTimer = Math.max(25, 80 - deadCount * 12);
+          }
+
+        } else {
+          // Countdown to next throw
+          b.throwTimer--;
+          if (b.throwTimer <= 0) {
+            // Pick a random alive panel to throw
+            const alive = b.panels.map((p,i) => ({p,i})).filter(({p}) => p.state === 'orbit');
+            if (alive.length > 0) {
+              const pick = alive[Math.floor(Math.random() * alive.length)];
+              b.activePanel = pick.i;
+              b.panels[pick.i].state = 'flying';
+              // Arc tightens as panels die: speed up and vary arc angle
+              const speed     = 0.012 + deadCount * 0.004;
+              const launchA   = b.rotation + (pick.i / 5) * Math.PI * 2;
+              const maxDist   = 180 - deadCount * 15; // tighter arc with fewer panels
+              b.boomerang = { x: b.x, y: b.y, t: 0, speed, launchAngle: launchA, maxDist };
+            }
+          }
+        }
       }
 
       _updateDiamondBoss(b, W, H, WALL) {
@@ -1521,17 +1619,62 @@
             }
 
           } else if (b.type==='pentagon') {
-            ctx.save(); ctx.translate(b.x,b.y); ctx.rotate(b.rotation);
-            for(let i=0;i<5;i++){
-              const aStart=(i/5)*Math.PI*2-Math.PI/2,aEnd=((i+1)/5)*Math.PI*2-Math.PI/2,gap=0.2;
-              if(b.panels[i].hp<=0)continue;
-              const hp_ratio=b.panels[i].hp/b.panels[i].maxHp;
-              ctx.beginPath(); ctx.moveTo(0,0); ctx.arc(0,0,b.radius,aStart+gap,aEnd-gap); ctx.closePath();
-              ctx.fillStyle=flashing?'#ffffff':`rgba(0,${Math.floor(100+100*hp_ratio)},255,0.8)`;
-              ctx.shadowColor='#00aaff'; ctx.shadowBlur=20; ctx.fill(); ctx.strokeStyle='#0055ff'; ctx.lineWidth=2; ctx.stroke();
+            ctx.save(); ctx.translate(b.x, b.y); ctx.rotate(b.rotation);
+
+            // Orbiting panels (not dead, not flying)
+            for (let i = 0; i < 5; i++) {
+              const panel = b.panels[i];
+              if (panel.state === 'dead' || panel.state === 'flying') continue;
+              const aStart = (i/5)*Math.PI*2 - Math.PI/2;
+              const aEnd   = ((i+1)/5)*Math.PI*2 - Math.PI/2;
+              const gap    = 0.18;
+              const hp_r   = panel.hp / panel.maxHp;
+              ctx.beginPath(); ctx.moveTo(0,0);
+              ctx.arc(0, 0, b.radius, aStart+gap, aEnd-gap);
+              ctx.closePath();
+              ctx.fillStyle   = flashing ? '#ffffff' : `rgba(0,${Math.floor(80+140*hp_r)},255,0.85)`;
+              ctx.shadowColor = '#00aaff'; ctx.shadowBlur = 18;
+              ctx.fill();
+              ctx.strokeStyle = '#0055ff'; ctx.lineWidth = 2; ctx.stroke();
             }
-            ctx.beginPath(); ctx.arc(0,0,30,0,Math.PI*2);
-            ctx.fillStyle=flashing?'#ffffff':'#003388'; ctx.shadowBlur=0; ctx.fill(); ctx.restore();
+
+            // Core — blue in normal phase, exposed+pulsing in rage
+            ctx.beginPath(); ctx.arc(0, 0, 30, 0, Math.PI*2);
+            if (b.rage) {
+              const rp = 0.6 + 0.4*Math.sin(Date.now()/80);
+              ctx.fillStyle   = flashing ? '#ffffff' : `rgba(0,${Math.floor(100*rp)},255,1)`;
+              ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 30*rp;
+              // Core HP bar in rage
+              ctx.fill(); ctx.restore();
+              const bw = 60, hp_r = b.coreHp / b.coreMaxHp;
+              ctx.fillStyle = '#001133'; ctx.fillRect(b.x-bw/2, b.y+38, bw, 5);
+              ctx.fillStyle = '#00aaff'; ctx.fillRect(b.x-bw/2, b.y+38, bw*hp_r, 5);
+            } else {
+              ctx.fillStyle   = flashing ? '#ffffff' : '#003388';
+              ctx.shadowColor = '#00aaff'; ctx.shadowBlur = 0;
+              ctx.fill(); ctx.restore();
+            }
+
+            // Flying boomerang panel
+            if (b.boomerang && b.activePanel >= 0) {
+              const bm  = b.boomerang;
+              const rot = bm.t * Math.PI * 4; // spins as it flies
+              const hp_r = b.panels[b.activePanel].hp / b.panels[b.activePanel].maxHp;
+              ctx.save(); ctx.translate(bm.x, bm.y); ctx.rotate(rot);
+              // Panel as a wedge shape
+              ctx.beginPath();
+              ctx.arc(0, 0, 28, -Math.PI/4, Math.PI/4);
+              ctx.lineTo(0, 0); ctx.closePath();
+              ctx.fillStyle   = flashing ? '#ffffff' : `rgba(0,${Math.floor(80+140*hp_r)},255,0.9)`;
+              ctx.shadowColor = '#00ffff'; ctx.shadowBlur = 25;
+              ctx.fill();
+              ctx.strokeStyle = '#00ddff'; ctx.lineWidth = 2; ctx.stroke();
+              ctx.shadowBlur = 0;
+              // Trail dot
+              ctx.beginPath(); ctx.arc(0, 0, 6, 0, Math.PI*2);
+              ctx.fillStyle = '#ffffff'; ctx.fill();
+              ctx.restore();
+            }
 
           } else if (b.type==='diamond') {
             if (!b.split) {
