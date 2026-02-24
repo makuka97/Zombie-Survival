@@ -89,11 +89,11 @@ const GAME_CONSTANTS = (() => {
   // multiplier and ammo bonus on top of the base weapon stats.
   // Stacks with mystery box — box rolls the weapon, tier modifies it.
   const KILL_TIERS = [
-    { name: 'DEFAULT', kills: 0,   color: '#ffffff', damageMult: 1.0, ammoBonus: 0   },
-    { name: 'GREEN',   kills: 50,  color: '#00ff66', damageMult: 1.1, ammoBonus: 50  },
-    { name: 'BLUE',    kills: 100, color: '#4488ff', damageMult: 1.2, ammoBonus: 100 },
-    { name: 'PURPLE',  kills: 150, color: '#cc44ff', damageMult: 1.3, ammoBonus: 150 },
-    { name: 'GOLD',    kills: 250, color: '#ffcc00', damageMult: 1.4, ammoBonus: 200 },
+    { name: 'DEFAULT', kills: 0,  color: '#ffffff', damageMult: 1.0, ammoBonus: 0   },
+    { name: 'GREEN',   kills: 20, color: '#00ff66', damageMult: 1.1, ammoBonus: 50  },
+    { name: 'BLUE',    kills: 40, color: '#4488ff', damageMult: 1.2, ammoBonus: 100 },
+    { name: 'PURPLE',  kills: 60, color: '#cc44ff', damageMult: 1.3, ammoBonus: 150 },
+    { name: 'GOLD',    kills: 90, color: '#ffcc00', damageMult: 1.4, ammoBonus: 200 },
   ];
   // NOTE: speed values are CLIENT speeds (full 60fps).
   // Server divides by 2 automatically in spawnZombie() — see server.js comment.
