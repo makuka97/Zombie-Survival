@@ -287,7 +287,23 @@
         this.socket   = null;
         this.roomCode = null;
 
+        // ── Pre-bake background grid once — blit each frame instead of 50+ strokes ──
+        this._buildGridCache();
+
         this.initPlayers();
+      }
+
+      _buildGridCache() {
+        const W = this.canvas.width, H = this.canvas.height;
+        this._gridCanvas = document.createElement('canvas');
+        this._gridCanvas.width  = W;
+        this._gridCanvas.height = H;
+        const g = this._gridCanvas.getContext('2d');
+        g.fillStyle = '#111';
+        g.fillRect(0, 0, W, H);
+        g.strokeStyle = 'rgba(0,255,0,0.05)'; g.lineWidth = 1;
+        for (let x = 0; x < W; x += 60) { g.beginPath(); g.moveTo(x,0); g.lineTo(x,H); g.stroke(); }
+        for (let y = 0; y < H; y += 60) { g.beginPath(); g.moveTo(0,y); g.lineTo(W,y); g.stroke(); }
       }
 
       initPlayers() {
@@ -1513,12 +1529,7 @@
         const W = this.canvas.width, H = this.canvas.height;
         const hs = this.PLAYER_SIZE / 2;
 
-        ctx.fillStyle = '#111';
-        ctx.fillRect(0, 0, W, H);
-
-        ctx.strokeStyle = 'rgba(0,255,0,0.05)'; ctx.lineWidth = 1;
-        for (let x = 0; x < W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,H); ctx.stroke(); }
-        for (let y = 0; y < H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(W,y); ctx.stroke(); }
+        ctx.drawImage(this._gridCanvas, 0, 0);
 
         if (this.mysteryBox) {
           const bhs = this.BOX_SIZE / 2;
@@ -1605,13 +1616,31 @@
           ctx.restore();
         }
 
+        // ── Particles — batched by color, no shadowBlur, no save/restore per slot ──
+        // Sort active particles by color so we minimise fillStyle switches.
+        // Using fillRect (not arc) for the smallest particles avoids arc overhead.
+        ctx.save();
+        let lastColor = null;
         for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) {
           const pt = this.particles[i];
           if (pt.life <= 0) continue;
-          const alpha=pt.life/pt.maxLife;
-          ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=pt.color; ctx.shadowColor=pt.color; ctx.shadowBlur=6;
-          ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.size*alpha,0,Math.PI*2); ctx.fill(); ctx.restore();
+          const alpha = pt.life / pt.maxLife;
+          if (pt.color !== lastColor) {
+            ctx.fillStyle = pt.color;
+            lastColor = pt.color;
+          }
+          ctx.globalAlpha = alpha;
+          const r = pt.size * alpha;
+          // fillRect is faster than arc for sub-4px particles
+          if (r < 3) {
+            const d = r * 2;
+            ctx.fillRect(pt.x - r, pt.y - r, d, d);
+          } else {
+            ctx.beginPath(); ctx.arc(pt.x, pt.y, r, 0, Math.PI*2); ctx.fill();
+          }
         }
+        ctx.globalAlpha = 1;
+        ctx.restore();
 
         for (let f of this.meleeFlashes) {
           const alpha=f.timer/8;
