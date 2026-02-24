@@ -513,7 +513,8 @@
           type,
           x: W / 2, y: -120,
           dropping: true, dropTarget: H / 2,
-          vx: 3.5, vy: 2.5,
+          vx: type === 'pentagon' ? 5.5 : 3.5,
+          vy: type === 'pentagon' ? 4.0 : 2.5,
           rotation: 0, spinSpeed: 0.03,
           flashTimer: 0, dead: false,
           bossBullets: [],
@@ -534,12 +535,12 @@
           this.boss = { ...base,
             panels: Array.from({length: cfg.panels.count}, (_, i) => ({
               hp: cfg.panels.hp, maxHp: cfg.panels.hp,
-              state: 'orbit',   // 'orbit' | 'flying' | 'returning' | 'dead'
-              orbitIdx: i,      // fixed orbit slot
+              state: 'orbit',
+              orbitIdx: i,
             })),
-            coreHp: 20, coreMaxHp: 20,   // exposed only in rage
+            coreHp: 35, coreMaxHp: 35,
             rage: false,
-            throwTimer: 120,              // ticks before first throw
+            throwTimer: 60,
             activePanel: -1,              // which panel is currently flying
             boomerang: null,              // { x, y, angle, t, speed, arc } live projectile
             rageShootTimer: 0,
@@ -831,8 +832,7 @@
             b.panels[b.activePanel].state = 'orbit';
             b.boomerang = null;
             b.activePanel = -1;
-            // Next throw timer scales down as panels die — gets faster
-            b.throwTimer = Math.max(25, 80 - deadCount * 12);
+            b.throwTimer = Math.max(15, 55 - deadCount * 10);
           }
 
         } else {
@@ -846,9 +846,9 @@
               b.activePanel = pick.i;
               b.panels[pick.i].state = 'flying';
               // Arc tightens as panels die: speed up and vary arc angle
-              const speed     = 0.012 + deadCount * 0.004;
+              const speed     = 0.018 + deadCount * 0.006;
               const launchA   = b.rotation + (pick.i / 5) * Math.PI * 2;
-              const maxDist   = 180 - deadCount * 15; // tighter arc with fewer panels
+              const maxDist   = 200 - deadCount * 15; // tighter arc with fewer panels
               b.boomerang = { x: b.x, y: b.y, t: 0, speed, launchAngle: launchA, maxDist };
             }
           }
