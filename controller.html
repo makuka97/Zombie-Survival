@@ -644,11 +644,11 @@
 
       updateTier(tierIndex, killCount) {
         const tiers = [
-          { name: 'DEFAULT', color: '#ffffff', kills: 0   },
-          { name: 'GREEN',   color: '#00ff66', kills: 50  },
-          { name: 'BLUE',    color: '#4488ff', kills: 100 },
-          { name: 'PURPLE',  color: '#cc44ff', kills: 150 },
-          { name: 'GOLD',    color: '#ffcc00', kills: 250 },
+          { name: 'DEFAULT', color: '#ffffff', kills: 0  },
+          { name: 'GREEN',   color: '#00ff66', kills: 20 },
+          { name: 'BLUE',    color: '#4488ff', kills: 40 },
+          { name: 'PURPLE',  color: '#cc44ff', kills: 60 },
+          { name: 'GOLD',    color: '#ffcc00', kills: 90 },
         ];
         const tier = tiers[tierIndex] || tiers[0];
         const next = tiers[tierIndex + 1];
