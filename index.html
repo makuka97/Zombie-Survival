@@ -434,10 +434,8 @@
         if (this.wave % 5 === 0) {
           this.isBossWave = true;
           this.waveTotal = 1;
-          this.vendingMachine = null; // no vending during boss fight
           this.showBanner('BOSS FIGHT');
           for (let p of this.players) {
-            if (!p.connected) continue;
             p.savedAmmo = p.ammo;
             p.ammo = Infinity;
           }
@@ -632,18 +630,41 @@
 
       _bossKill(b) {
         b.dead = true;
+        const bx = b.x, by = b.y; // capture position before boss is nulled
         for (let p of this.players) {
-          if (p.alive&&p.connected) { p.points+=1000; p.hp=p.maxHp; }
-        }
-        const dropCount = 4+Math.floor(Math.random()*4);
-        for (let i=0;i<dropCount;i++) {
-          const a=Math.random()*Math.PI*2, d=30+Math.random()*80;
-          this.ammoPacks.push({x:b.x+Math.cos(a)*d, y:b.y+Math.sin(a)*d});
+          if (p.alive && p.connected) { p.points += 1000; p.hp = p.maxHp; }
         }
         setTimeout(() => {
-          this.boss=null; this.waveKilled=this.waveTotal; this.wave++;
-          setTimeout(()=>this.startWave(),3000);
+          this.boss = null; this.waveKilled = this.waveTotal; this.wave++;
+          // Restore normal ammo first (startWave does this), then drop packs
+          // so players aren't on Infinity ammo when they pick them up
+          setTimeout(() => {
+            this.startWave();
+            // Drops appear after wave transition — ammo is now finite again
+            this._spawnBossDrops(bx, by);
+          }, 3000);
         }, 800);
+      }
+
+      _spawnBossDrops(bx, by) {
+        const W = this.canvas.width, H = this.canvas.height, pad = 40;
+        const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+        const ammoCount  = 4 + Math.floor(Math.random() * 4); // 4–7 ammo packs
+        const healCount  = 2 + Math.floor(Math.random() * 3); // 2–4 health packs
+        for (let i = 0; i < ammoCount; i++) {
+          const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 100;
+          this.ammoPacks.push({
+            x: clamp(bx + Math.cos(a) * d, pad, W - pad),
+            y: clamp(by + Math.sin(a) * d, pad, H - pad)
+          });
+        }
+        for (let i = 0; i < healCount; i++) {
+          const a = Math.random() * Math.PI * 2, d = 40 + Math.random() * 100;
+          this.healthPacks.push({
+            x: clamp(bx + Math.cos(a) * d, pad, W - pad),
+            y: clamp(by + Math.sin(a) * d, pad, H - pad)
+          });
+        }
       }
 
       _bossTouchDamage(b, extraRadius=0) {
