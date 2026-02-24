@@ -230,7 +230,7 @@
   <script>
     // ── Pull shared constants (defined in /shared/game-constants.js) ──
     const {
-      WEAPONS, ZOMBIE_TYPES,
+      WEAPONS, ZOMBIE_TYPES, KILL_TIERS,
       MYSTERY_BOX_COST, BOX_USE_RANGE,
       VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
       MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
@@ -294,7 +294,9 @@
             alive: true, connected: false,
             firing: false, fireCooldown: 0,
             meleeing: false,
-            meleeCooldown: 0
+            meleeCooldown: 0,
+            killCount: 0,    // total zombie kills this game
+            tierIndex: 0,    // current KILL_TIERS index
           };
         }
       }
@@ -390,6 +392,42 @@
         }
       }
 
+      // ── KILL TIER SYSTEM ────────────────────────────────────────────
+      // Called every time a player gets a zombie kill.
+      // Checks if they've crossed a tier threshold — if so, upgrades
+      // their damage multiplier and ammo automatically.
+      onZombieKill(player) {
+        player.killCount++;
+        const nextTierIdx = player.tierIndex + 1;
+        if (nextTierIdx >= KILL_TIERS.length) return; // already max tier
+        const nextTier = KILL_TIERS[nextTierIdx];
+        if (player.killCount >= nextTier.kills) {
+          player.tierIndex = nextTierIdx;
+          // Refill ammo with new capacity so the upgrade feels rewarding
+          const weapon = WEAPONS[player.currentWeapon];
+          player.ammo = Math.min(
+            this.getEffectiveAmmoCapacity(player),
+            player.ammo + nextTier.ammoBonus
+          );
+          this.showTierBanner(player, nextTier);
+        }
+      }
+
+      // Returns damage multiplier for a player based on their tier
+      getEffectiveDamage(player, baseDamage) {
+        return Math.ceil(baseDamage * KILL_TIERS[player.tierIndex].damageMult);
+      }
+
+      // Returns total ammo capacity (base + tier bonus)
+      getEffectiveAmmoCapacity(player) {
+        const base = WEAPONS[player.currentWeapon].ammoCapacity;
+        return base + KILL_TIERS[player.tierIndex].ammoBonus;
+      }
+
+      showTierBanner(player, tier) {
+        this.showBanner(`P${player.slot} → ${tier.name} TIER`, tier.color);
+      }
+
       spawnMysteryBox() {
         const margin = 100;
         this.mysteryBox = {
@@ -451,8 +489,9 @@
             }
           }
           this.spawnVendingMachine(); // new random location each wave
-          const baseCount = 3 + (this.wave - 1) * 2;
-          this.waveTotal  = Math.ceil(baseCount * (playerCount / 2));
+          // Fewer zombies but they scale in HP — quality over quantity
+          const baseCount = 2 + Math.floor((this.wave - 1) * 1.2);
+          this.waveTotal  = Math.ceil(baseCount * Math.max(1, playerCount * 0.6));
           this.showBanner('WAVE ' + this.wave);
           for (let i = 0; i < this.waveTotal; i++) {
             setTimeout(() => this.spawnZombie(), i * 500);
@@ -819,9 +858,12 @@
         if (b.pieces.every(p=>!p.alive)&&!b.dead) this._bossKill(b);
       }
 
-      showBanner(text) {
+      showBanner(text, color = '#ff0000') {
         const el = document.getElementById('wave-banner');
-        el.textContent = text; el.style.display = 'block';
+        el.textContent = text;
+        el.style.color = color;
+        el.style.textShadow = `0 0 20px ${color}`;
+        el.style.display = 'block';
         setTimeout(() => { el.style.display = 'none'; }, 4000);
       }
 
@@ -835,9 +877,11 @@
         else                 { x = -50; y = Math.random()*H; }
         const type     = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
+        // HP scales +1 per wave so later waves feel tougher without needing more zombies
+        const hpScale  = typeData.hp + (this.wave - 1);
         this.zombies.push({
           x, y, type,
-          hp: typeData.hp, maxHp: typeData.hp,
+          hp: hpScale, maxHp: hpScale,
           speed: typeData.speed, size: typeData.size,
           color: typeData.color, borderColor: typeData.borderColor,
           points: typeData.points
@@ -858,7 +902,8 @@
       }
 
       fireBullet(p) {
-        const weapon = WEAPONS[p.currentWeapon];
+        const weapon  = WEAPONS[p.currentWeapon];
+        const damage  = this.getEffectiveDamage(p, weapon.damage); // tier multiplier applied here
         const bx = p.x + Math.cos(p.angle) * this.PLAYER_SIZE;
         const by = p.y + Math.sin(p.angle) * this.PLAYER_SIZE;
         const w  = p.currentWeapon;
@@ -871,7 +916,7 @@
               x: bx, y: by,
               vx: Math.cos(a) * this.BULLET_SPEED * (0.8 + Math.random() * 0.4),
               vy: Math.sin(a) * this.BULLET_SPEED * (0.8 + Math.random() * 0.4),
-              damage: weapon.damage, color: p.color, weapon: w,
+              damage, color: p.color, weapon: w, owner: p,
               life: 18 + Math.floor(Math.random() * 8)
             });
           }
@@ -880,7 +925,7 @@
             x: bx, y: by,
             vx: Math.cos(p.angle) * this.BULLET_SPEED,
             vy: Math.sin(p.angle) * this.BULLET_SPEED,
-            damage: weapon.damage, color: p.color, weapon: w
+            damage, color: p.color, weapon: w, owner: p
           });
         }
 
@@ -980,6 +1025,7 @@
 
           if (z.hp <= 0) {
             p.points += z.points;
+            this.onZombieKill(p);
             this.ammoPacks.push({ x: z.x, y: z.y });
             if (Math.random() < 0.08) this.healthPacks.push({ x: z.x, y: z.y });
             this.triggerExplosion(z.x, z.y, z.borderColor);
@@ -1101,6 +1147,7 @@
           p.currentWeapon='pistol'; p.alive=true;
           p.firing=false; p.fireCooldown=0;
           p.meleeing=false; p.meleeCooldown=0;
+          p.killCount=0; p.tierIndex=0;
         }
         document.getElementById('game-over-screen').style.display  = 'none';
         document.getElementById('game-info').style.display         = 'none';
@@ -1162,7 +1209,8 @@
               if (z.hp<=0){
                 let nearest=null,nearestDist=Infinity;
                 for (let p of this.players){if(!p.alive||!p.connected)continue;const dx=p.x-z.x,dy=p.y-z.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<nearestDist){nearestDist=dist;nearest=p;}}
-                if(nearest)nearest.points+=z.points;
+                const killer = b.owner || nearest;
+                if(killer){ killer.points+=z.points; this.onZombieKill(killer); }
                 if(Math.random()<this.AMMO_DROP_CHANCE)this.ammoPacks.push({x:z.x,y:z.y});
                 if(Math.random()<0.08)this.healthPacks.push({x:z.x,y:z.y});
                 this.triggerExplosion(z.x,z.y,z.borderColor);
@@ -1527,7 +1575,9 @@
                     weapon: p.currentWeapon,
                     canUseMysteryBox: this.canUseMysteryBox(p),
                     canUseVending: this.canUseVending(p),
-                    vendingCost: this.vendingCost
+                    vendingCost: this.vendingCost,
+                    killCount: p.killCount,
+                    tierIndex: p.tierIndex
                   }))
                 }
               });
