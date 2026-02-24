@@ -126,6 +126,12 @@
     #points-display { font-size: 18px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
     #points-display span { font-size: 12px; color: #555; }
 
+    #tier-display {
+      font-size: 13px; font-weight: bold; letter-spacing: 2px;
+      color: #ffffff; transition: color 0.4s, text-shadow 0.4s;
+    }
+    #tier-display span { font-size: 10px; color: #444; letter-spacing: 1px; }
+
     #controls {
       display: flex; flex: 1; align-items: center;
       justify-content: space-around; padding: 20px 40px;
@@ -295,6 +301,7 @@
       <div id="weapon-display"><span>WEAPON </span>PISTOL</div>
       <div id="points-display"><span>$ </span>0</div>
       <div id="ammo-display"><span>AMMO </span>30</div>
+      <div id="tier-display"><span>TIER </span>DEFAULT</div>
     </div>
     <div id="melee-banner">⚔ KNIFE MODE — FIND AMMO!</div>
     <div id="controls">
@@ -415,6 +422,7 @@
           this.updatePoints(d.points);
           this.updateWeapon(d.weapon);
           this.updateActionButton(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
+          this.updateTier(d.tierIndex, d.killCount);
           if (d.gameOver) this.showGameOver();
         });
         this.socket.on('lobby-update', d => {
@@ -434,6 +442,7 @@
           this.ammo = 30; this.points = 0; this.weapon = 'pistol';
           this.stopLoop();
           this.updateAmmo(30); this.updatePoints(0); this.updateWeapon('pistol');
+          this.updateTier(0, 0);
           this.showLobby();
         });
       }
@@ -631,6 +640,23 @@
         if (this.weapon !== weapon) this.showWeaponPopup(weapon);
         this.weapon = weapon;
         document.getElementById('weapon-display').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
+      }
+
+      updateTier(tierIndex, killCount) {
+        const tiers = [
+          { name: 'DEFAULT', color: '#ffffff', kills: 0   },
+          { name: 'GREEN',   color: '#00ff66', kills: 50  },
+          { name: 'BLUE',    color: '#4488ff', kills: 100 },
+          { name: 'PURPLE',  color: '#cc44ff', kills: 150 },
+          { name: 'GOLD',    color: '#ffcc00', kills: 250 },
+        ];
+        const tier = tiers[tierIndex] || tiers[0];
+        const next = tiers[tierIndex + 1];
+        const el   = document.getElementById('tier-display');
+        el.style.color      = tier.color;
+        el.style.textShadow = `0 0 10px ${tier.color}`;
+        const progress = next ? ` · ${killCount}/${next.kills}` : ' · MAX';
+        el.innerHTML = `<span>TIER </span>${tier.name}${progress}`;
       }
 
       showWeaponPopup(weapon) {
