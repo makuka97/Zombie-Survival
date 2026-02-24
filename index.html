@@ -312,7 +312,13 @@
         }
       }
 
-      addPlayer(slot)    { this.players[slot-1].connected = true;  this.updateHUD(); }
+      addPlayer(slot) {
+        const p = this.players[slot-1];
+        p.connected = true;
+        // If a player joins mid-boss-wave make sure they also have infinite ammo
+        if (this.isBossWave) { p.savedAmmo = p.ammo; p.ammo = Infinity; }
+        this.updateHUD();
+      }
       removePlayer(slot) { this.players[slot-1].connected = false; this.updateHUD(); }
       connectedCount()   { return this.players.filter(p => p.connected).length; }
 
@@ -485,6 +491,7 @@
           this.waveTotal = 1;
           this.showBanner('BOSS FIGHT');
           for (let p of this.players) {
+            if (!p.connected) continue;
             p.savedAmmo = p.ammo;
             p.ammo = Infinity;
           }
