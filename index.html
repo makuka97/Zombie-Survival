@@ -264,6 +264,7 @@
         this.waveKilled = 0;
         this.gameOver   = false;
         this.gameStarted = false;
+        this._spawnTimeouts = []; // tracked so stale wave spawns can be cancelled
         this.reviveMap  = new Map();
         this.mysteryBox  = null;
         this.vendingMachine = null;
@@ -286,6 +287,7 @@
 
         this.socket   = null;
         this.roomCode = null;
+        this._hudFrame = 0; // throttle DOM HUD updates to every 10 frames
 
         // ── Pre-bake background grid once — blit each frame instead of 50+ strokes ──
         this._buildGridCache();
@@ -499,6 +501,10 @@
       }
 
       startWave() {
+        // Cancel any zombie spawns still pending from the previous wave
+        for (const t of this._spawnTimeouts) clearTimeout(t);
+        this._spawnTimeouts = [];
+
         const playerCount = Math.max(1, this.connectedCount());
         this.waveKilled = 0;
 
@@ -528,7 +534,7 @@
           this.waveTotal  = Math.ceil(baseCount * Math.max(1, playerCount * 0.6));
           this.showBanner('WAVE ' + this.wave);
           for (let i = 0; i < this.waveTotal; i++) {
-            setTimeout(() => this.spawnZombie(), i * 500);
+            this._spawnTimeouts.push(setTimeout(() => this.spawnZombie(), i * 500));
           }
         }
       }
@@ -1375,6 +1381,8 @@
       restart() {
         this.zombies=[]; this.bullets=[]; this.ammoPacks=[]; this.healthPacks=[];
         this.wave=1; this.waveTotal=0; this.waveKilled=0;
+        for (const t of this._spawnTimeouts) clearTimeout(t);
+        this._spawnTimeouts = [];
         this.gameOver=false; this.gameStarted=false;
         this.reviveMap.clear(); this.mysteryBox=null;
         this.vendingMachine=null; this.vendingCost=VENDING_BASE_COST;
@@ -1500,6 +1508,9 @@
           const a=this.ammoPacks[i],hs2=this.PLAYER_SIZE/2;
           for (let p of this.players){if(!p.alive)continue;if(this.aabb(a.x-this.AMMO_SIZE/2,a.y-this.AMMO_SIZE/2,this.AMMO_SIZE,p.x-hs2,p.y-hs2,this.PLAYER_SIZE)){const weapon=WEAPONS[p.currentWeapon];p.ammo+=Math.floor(weapon.ammoCapacity*0.5);this.ammoPacks.splice(i,1);break;}}
         }
+        // Cap pack arrays — oldest packs beyond the limit are silently dropped
+        if (this.ammoPacks.length  > 30) this.ammoPacks.splice(0,  this.ammoPacks.length  - 30);
+        if (this.healthPacks.length > 20) this.healthPacks.splice(0, this.healthPacks.length - 20);
 
         for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) {
           const pt = this.particles[i];
@@ -1858,6 +1869,7 @@
       }
 
       updateHUD() {
+        if (++this._hudFrame % 10 !== 0) return;
         document.getElementById('wave').textContent         = this.wave;
         document.getElementById('zombie-count').textContent = this.zombies.length;
         document.getElementById('player-count').textContent = this.connectedCount();
@@ -1878,12 +1890,14 @@
       start() {
         let lastTime = 0;
         const frameDelay = 1000 / 60;
+        let broadcastFrame = 0;
         const loop = (currentTime) => {
           const deltaTime = currentTime - lastTime;
           if (deltaTime >= frameDelay) {
             this.update();
             this.render();
-            if (this.socket && this.roomCode) {
+            // Broadcast at 20hz (every 3 frames) — controllers don't need 60hz state
+            if (this.socket && this.roomCode && ++broadcastFrame % 3 === 0) {
               this.socket.emit('game-state-broadcast', {
                 roomCode: this.roomCode,
                 gameState: {
