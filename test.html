@@ -468,7 +468,8 @@
     const base = {
       type, x: CANVAS_W/2, y: -120,
       dropping: true, dropTarget: CANVAS_H/2,
-      vx: 3.5, vy: 2.5,
+      vx: type==='pentagon' ? 5.5 : 3.5,
+      vy: type==='pentagon' ? 4.0 : 2.5,
       rotation: 0, spinSpeed: 0.03,
       flashTimer: 0, dead: false,
       bossBullets: [], shootTimer: 0,
@@ -478,8 +479,8 @@
     else if (type==='octagon')  return {...base, corners: Array.from({length:cfg.corners.count},()=>({hp:cfg.corners.hp,maxHp:cfg.corners.hp})),shootInterval:cfg.shootInterval};
     else if (type==='pentagon') return {...base,
       panels: Array.from({length:cfg.panels.count},(_,i)=>({hp:cfg.panels.hp,maxHp:cfg.panels.hp,state:'orbit',orbitIdx:i})),
-      coreHp:20, coreMaxHp:20, rage:false,
-      throwTimer:120, activePanel:-1, boomerang:null, rageShootTimer:0,
+      coreHp:35, coreMaxHp:35, rage:false,
+      throwTimer:60, activePanel:-1, boomerang:null, rageShootTimer:0,
     };    else if (type==='diamond')  return {...base, coreHp:cfg.coreHp,coreMaxHp:cfg.coreHp,split:false,shards:[]};
     else if (type==='spiral')   return {...base,
       arms:Array.from({length:cfg.arms.count},()=>({hp:cfg.arms.hp,maxHp:cfg.arms.hp})),
@@ -515,7 +516,7 @@
     if      (b.type==='triangle')  b.tips[pt.idx].hp    = Math.max(0, b.tips[pt.idx].hp    - amount);
     else if (b.type==='octagon')   b.corners[pt.idx].hp  = Math.max(0, b.corners[pt.idx].hp  - amount);
     else if (b.type==='pentagon')  {
-      if(pt.boomerang&&b.activePanel>=0){b.panels[b.activePanel].hp=0;b.panels[b.activePanel].state='dead';b.boomerang=null;b.activePanel=-1;b.throwTimer=Math.max(25,80-b.panels.filter(p=>p.state==='dead').length*12);}
+      if(pt.boomerang&&b.activePanel>=0){b.panels[b.activePanel].hp=0;b.panels[b.activePanel].state='dead';b.boomerang=null;b.activePanel=-1;b.throwTimer=Math.max(15,55-b.panels.filter(p=>p.state==='dead').length*10);}
       else if(pt.core&&b.rage){b.coreHp=Math.max(0,b.coreHp-amount);}
     }
     else if (b.type==='diamond')   { if(!b.split){b.coreHp=Math.max(0,b.coreHp-amount);}else{const s=b.shards[pt.idx];if(s){s.hp=Math.max(0,s.hp-amount);if(s.hp<=0)s.alive=false;}} }
@@ -603,11 +604,11 @@
         const dist=bm.maxDist*Math.sin(bm.t*Math.PI);
         bm.x=b.x+Math.cos(angle)*dist; bm.y=b.y+Math.sin(angle)*dist;
         if(!state.godMode){const p=state.player;if(p&&p.alive){const dx=p.x-bm.x,dy=p.y-bm.y;if(Math.sqrt(dx*dx+dy*dy)<22+PLAYER_SIZE/2){p.hp-=1.2;if(p.hp<=0){p.alive=false;p.hp=0;}}}}
-        if(bm.t>=1){b.panels[b.activePanel].state='orbit';b.boomerang=null;b.activePanel=-1;b.throwTimer=Math.max(25,80-deadCount*12);}
+        if(bm.t>=1){b.panels[b.activePanel].state='orbit';b.boomerang=null;b.activePanel=-1;b.throwTimer=Math.max(15,55-deadCount*10);}
       } else {
         if(--b.throwTimer<=0){
           const alive=b.panels.map((p,i)=>({p,i})).filter(({p})=>p.state==='orbit');
-          if(alive.length>0){const pick=alive[Math.floor(Math.random()*alive.length)];b.activePanel=pick.i;b.panels[pick.i].state='flying';const speed=0.012+deadCount*0.004,launchA=b.rotation+(pick.i/5)*Math.PI*2,maxDist=180-deadCount*15;b.boomerang={x:b.x,y:b.y,t:0,speed,launchAngle:launchA,maxDist};}
+          if(alive.length>0){const pick=alive[Math.floor(Math.random()*alive.length)];b.activePanel=pick.i;b.panels[pick.i].state='flying';const speed=0.018+deadCount*0.006,launchA=b.rotation+(pick.i/5)*Math.PI*2,maxDist=200-deadCount*15;b.boomerang={x:b.x,y:b.y,t:0,speed,launchAngle:launchA,maxDist};}
         }
       }
 
