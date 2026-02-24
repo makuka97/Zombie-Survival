@@ -270,7 +270,18 @@
         this.vendingCost    = VENDING_BASE_COST; // persists all game, resets on restart
 
         this.meleeFlashes = [];
-        this.particles   = [];
+
+        // ── Particle object pool ────────────────────────────────
+        // Pre-allocate all slots once; never push/splice at runtime.
+        // Pool sizes: zombie death=15, bomber explosion=20,
+        //             pistol=10, smg=10, shotgun=10, ar=10, lmg=10,
+        //             raygun=40, thundergun=40  → total = 165
+        this.PARTICLE_POOL_SIZE = 165;
+        this.particles = Array.from({ length: this.PARTICLE_POOL_SIZE }, () => ({
+          x:0, y:0, vx:0, vy:0, color:'#fff', life:0, maxLife:1, size:1
+        }));
+        // ────────────────────────────────────────────────────────
+
         this.boss = null;
 
         this.socket   = null;
@@ -1062,12 +1073,17 @@
         const typeData = ZOMBIE_TYPES[type];
         // HP scales gently — +1 HP every 3 waves so later waves feel tougher without a spike
         const hpScale  = typeData.hp + Math.floor((this.wave - 1) / 3);
+        // runners get an expanded invisible hitRadius (~1.75x visual size) so they
+        // are registerable hits despite their small drawn square.  All other types
+        // use their visual size/2 directly, so hitRadius === size/2 for them.
+        const hitRadius = type === 'runner' ? typeData.size * 0.875 : typeData.size / 2;
         this.zombies.push({
           x, y, type,
           hp: hpScale, maxHp: hpScale,
           speed: typeData.speed, size: typeData.size,
           color: typeData.color, borderColor: typeData.borderColor,
-          points: typeData.points
+          points: typeData.points,
+          hitRadius,
         });
       }
 
@@ -1119,49 +1135,49 @@
       spawnMuzzleEffect(x, y, angle, weapon, playerColor) {
         switch(weapon) {
           case 'pistol': {
-            this.particles.push({ x, y, vx: Math.cos(angle)*6, vy: Math.sin(angle)*6, color: '#ffffff', life: 4, maxLife: 4, size: 4 });
+            this._emitParticle(x, y, Math.cos(angle)*6, Math.sin(angle)*6, '#ffffff', 4, 4);
             for (let i = 0; i < 3; i++) {
               const a = angle + (Math.random()-0.5)*0.5;
-              this.particles.push({ x, y, vx: Math.cos(a)*(3+Math.random()*3), vy: Math.sin(a)*(3+Math.random()*3), color: '#ffee88', life: 5, maxLife: 5, size: 2 });
+              this._emitParticle(x, y, Math.cos(a)*(3+Math.random()*3), Math.sin(a)*(3+Math.random()*3), '#ffee88', 5, 2);
             }
             break;
           }
           case 'smg': {
-            this.particles.push({ x, y, vx: Math.cos(angle)*7, vy: Math.sin(angle)*7, color: '#ffffff', life: 3, maxLife: 3, size: 3 });
+            this._emitParticle(x, y, Math.cos(angle)*7, Math.sin(angle)*7, '#ffffff', 3, 3);
             for (let i = 0; i < 4; i++) {
               const a = angle + (Math.random()-0.5)*0.45;
               const s = 4 + Math.random()*4;
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: i===0 ? '#ffffff' : '#ffee44', life: 5, maxLife: 5, size: 2 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, i===0?'#ffffff':'#ffee44', 5, 2);
             }
             break;
           }
           case 'shotgun': {
-            this.particles.push({ x, y, vx: Math.cos(angle)*5, vy: Math.sin(angle)*5, color: '#ffffff', life: 6, maxLife: 6, size: 10 });
-            this.particles.push({ x, y, vx: Math.cos(angle)*3, vy: Math.sin(angle)*3, color: '#ffaa00', life: 8, maxLife: 8, size: 7 });
+            this._emitParticle(x, y, Math.cos(angle)*5, Math.sin(angle)*5, '#ffffff', 6, 10);
+            this._emitParticle(x, y, Math.cos(angle)*3, Math.sin(angle)*3, '#ffaa00', 8, 7);
             for (let i = 0; i < 14; i++) {
               const a = angle + (Math.random()-0.5)*1.0;
               const s = 2 + Math.random()*6;
               const colors = ['#ffffff','#ffcc00','#ffaa00','#ff6600'];
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: colors[Math.floor(Math.random()*colors.length)], life: 10+Math.random()*5|0, maxLife: 14, size: 2+Math.random()*3 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, colors[Math.floor(Math.random()*colors.length)], 10+Math.random()*5|0, 2+Math.random()*3);
             }
             break;
           }
           case 'ar': {
-            this.particles.push({ x, y, vx: Math.cos(angle)*8, vy: Math.sin(angle)*8, color: '#ffffff', life: 5, maxLife: 5, size: 6 });
+            this._emitParticle(x, y, Math.cos(angle)*8, Math.sin(angle)*8, '#ffffff', 5, 6);
             for (let i = 0; i < 6; i++) {
               const a = angle + (Math.random()-0.5)*0.4;
               const s = 4 + Math.random()*5;
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: i < 2 ? '#ffffff' : '#ffcc00', life: 8, maxLife: 8, size: 2+Math.random()*2 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, i < 2?'#ffffff':'#ffcc00', 8, 2+Math.random()*2);
             }
             break;
           }
           case 'lmg': {
-            this.particles.push({ x, y, vx: Math.cos(angle)*7, vy: Math.sin(angle)*7, color: '#ffffff', life: 5, maxLife: 5, size: 8 });
-            this.particles.push({ x, y, vx: Math.cos(angle)*4, vy: Math.sin(angle)*4, color: '#ff8800', life: 7, maxLife: 7, size: 6 });
+            this._emitParticle(x, y, Math.cos(angle)*7, Math.sin(angle)*7, '#ffffff', 5, 8);
+            this._emitParticle(x, y, Math.cos(angle)*4, Math.sin(angle)*4, '#ff8800', 7, 6);
             for (let i = 0; i < 8; i++) {
               const a = angle + (Math.random()-0.5)*0.35;
               const s = 5 + Math.random()*5;
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: i%3===0 ? '#ffffff' : i%3===1 ? '#ffaa00' : '#ffee00', life: 7, maxLife: 7, size: 2+Math.random()*3 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, i%3===0?'#ffffff':i%3===1?'#ffaa00':'#ffee00', 7, 2+Math.random()*3);
             }
             break;
           }
@@ -1170,19 +1186,19 @@
               const a = angle + (Math.random()-0.5)*(i < 8 ? 0.3 : 1.2);
               const s = 3 + Math.random()*9;
               const colors = ['#00eeff','#00aaff','#aaf0ff','#ffffff','#0066ff'];
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: colors[Math.floor(Math.random()*colors.length)], life: 8+Math.random()*8|0, maxLife: 14, size: 1+Math.random()*3 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, colors[Math.floor(Math.random()*colors.length)], 8+Math.random()*8|0, 1+Math.random()*3);
             }
-            this.particles.push({ x, y, vx: Math.cos(angle)*10, vy: Math.sin(angle)*10, color: '#ffffff', life: 4, maxLife: 4, size: 5 });
-            this.particles.push({ x, y, vx: 0, vy: 0, color: '#00eeff', life: 6, maxLife: 6, size: 8 });
+            this._emitParticle(x, y, Math.cos(angle)*10, Math.sin(angle)*10, '#ffffff', 4, 5);
+            this._emitParticle(x, y, 0, 0, '#00eeff', 6, 8);
             break;
           }
           case 'thundergun': {
-            this.particles.push({ x, y, vx: 0, vy: 0, color: '#ffffff', life: 8, maxLife: 8, size: 18 });
-            this.particles.push({ x, y, vx: 0, vy: 0, color: '#ff2200', life: 10, maxLife: 10, size: 14 });
+            this._emitParticle(x, y, 0, 0, '#ffffff', 8, 18);
+            this._emitParticle(x, y, 0, 0, '#ff2200', 10, 14);
             for (let i = 0; i < 20; i++) {
               const a = (i / 20) * Math.PI * 2;
               const s = 4 + Math.random()*5;
-              this.particles.push({ x, y, vx: Math.cos(a)*s, vy: Math.sin(a)*s, color: i%3===0 ? '#ffffff' : '#ff2200', life: 20, maxLife: 20, size: 3+Math.random()*4 });
+              this._emitParticle(x, y, Math.cos(a)*s, Math.sin(a)*s, i%3===0?'#ffffff':'#ff2200', 20, 3+Math.random()*4);
             }
             break;
           }
@@ -1196,7 +1212,7 @@
           const z  = this.zombies[j];
           const dx = z.x - p.x, dy = z.y - p.y;
           const dist = Math.sqrt(dx*dx + dy*dy);
-          if (dist > MELEE_RANGE + z.size / 2) continue;
+          if (dist > MELEE_RANGE + (z.hitRadius??z.size/2)) continue;
 
           const angleToZombie = Math.atan2(dy, dx);
           let angleDiff = angleToZombie - p.angle;
@@ -1245,12 +1261,29 @@
         return ax < bx+bs && ax+as > bx && ay < by+bs && ay+as > by;
       }
 
+      // ── Particle pool helpers ───────────────────────────────────
+      // Returns a dormant slot from the pool and marks it active by setting
+      // its life, or returns null when all slots are in use (effect is silently skipped).
+      _acquireParticle() {
+        for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) {
+          if (this.particles[i].life <= 0) return this.particles[i];
+        }
+        return null; // pool full — skip this particle
+      }
+
+      _emitParticle(x, y, vx, vy, color, life, size) {
+        const pt = this._acquireParticle();
+        if (!pt) return;
+        pt.x=x; pt.y=y; pt.vx=vx; pt.vy=vy;
+        pt.color=color; pt.life=life; pt.maxLife=life; pt.size=size;
+      }
+
       spawnParticles(x, y, color, count = 12) {
         for (let i = 0; i < count; i++) {
           const angle  = Math.random() * Math.PI * 2;
           const speed  = 1.5 + Math.random() * 4;
           const life   = 20 + Math.floor(Math.random() * 20);
-          this.particles.push({ x, y, vx: Math.cos(angle)*speed, vy: Math.sin(angle)*speed, color, life, maxLife: life, size: 2 + Math.random() * 4 });
+          this._emitParticle(x, y, Math.cos(angle)*speed, Math.sin(angle)*speed, color, life, 2 + Math.random() * 4);
         }
       }
 
@@ -1266,7 +1299,7 @@
         for (let i = 0; i < 20; i++) {
           const a = (i / 20) * Math.PI * 2;
           const speed = 2 + Math.random() * 4;
-          this.particles.push({ x: bx, y: by, vx: Math.cos(a)*speed, vy: Math.sin(a)*speed, color: i%2===0 ? '#4499ff' : '#ffffff', size: 5+Math.random()*5, life: 30+Math.random()*20, maxLife: 50 });
+          this._emitParticle(bx, by, Math.cos(a)*speed, Math.sin(a)*speed, i%2===0?'#4499ff':'#ffffff', 30+Math.random()*20, 5+Math.random()*5);
         }
         for (let p of this.players) {
           if (!p.alive || !p.connected) continue;
@@ -1322,7 +1355,9 @@
         this.gameOver=false; this.gameStarted=false;
         this.reviveMap.clear(); this.mysteryBox=null;
         this.vendingMachine=null; this.vendingCost=VENDING_BASE_COST;
-        this.meleeFlashes=[]; this.particles=[]; this.boss=null; this.isBossWave=false;
+        this.meleeFlashes=[]; this.boss=null; this.isBossWave=false;
+        // Reset pool: mark all slots inactive without reallocating
+        for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) this.particles[i].life = 0;
         for (let p of this.players) { p.savedAmmo=undefined; }
 
         for (let p of this.players) {
@@ -1389,7 +1424,7 @@
           for (let j = this.zombies.length-1; j >= 0; j--) {
             const z = this.zombies[j];
             const bdx=b.x-z.x, bdy=b.y-z.y;
-            if (Math.sqrt(bdx*bdx+bdy*bdy) < z.size/2+this.BULLET_SIZE/2) {
+            if (Math.sqrt(bdx*bdx+bdy*bdy) < (z.hitRadius??z.size/2)+this.BULLET_SIZE/2) {
               z.hp-=b.damage; hit=true;
               if (z.hp<=0){
                 let nearest=null,nearestDist=Infinity;
@@ -1431,7 +1466,7 @@
           for (let p of this.players){if(!p.alive||!p.connected)continue;const dx=p.x-z.x,dy=p.y-z.y,dist=Math.sqrt(dx*dx+dy*dy);if(dist<nearestDist){nearestDist=dist;nearest=p;}}
           if(!nearest)continue;
           const dx=nearest.x-z.x,dy=nearest.y-z.y,dist=Math.sqrt(dx*dx+dy*dy);
-          const zr=z.size/2,pr=this.PLAYER_SIZE/2,minDist=zr+pr;
+          const zr=z.hitRadius??z.size/2,pr=this.PLAYER_SIZE/2,minDist=zr+pr;
           if(dist>minDist&&dist>0){z.x+=(dx/dist)*z.speed;z.y+=(dy/dist)*z.speed;}
           else if(dist<minDist&&dist>0){z.x=nearest.x-(dx/dist)*minDist;z.y=nearest.y-(dy/dist)*minDist;}
           const zpDx=nearest.x-z.x,zpDy=nearest.y-z.y;
@@ -1443,9 +1478,10 @@
           for (let p of this.players){if(!p.alive)continue;if(this.aabb(a.x-this.AMMO_SIZE/2,a.y-this.AMMO_SIZE/2,this.AMMO_SIZE,p.x-hs2,p.y-hs2,this.PLAYER_SIZE)){const weapon=WEAPONS[p.currentWeapon];p.ammo+=Math.floor(weapon.ammoCapacity*0.5);this.ammoPacks.splice(i,1);break;}}
         }
 
-        for (let i=this.particles.length-1;i>=0;i--){
-          const pt=this.particles[i]; pt.x+=pt.vx; pt.y+=pt.vy; pt.vx*=0.92; pt.vy*=0.92; pt.life--;
-          if(pt.life<=0)this.particles.splice(i,1);
+        for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) {
+          const pt = this.particles[i];
+          if (pt.life <= 0) continue;
+          pt.x+=pt.vx; pt.y+=pt.vy; pt.vx*=0.92; pt.vy*=0.92; pt.life--;
         }
 
         for (let i=this.healthPacks.length-1;i>=0;i--){
@@ -1562,7 +1598,9 @@
           ctx.restore();
         }
 
-        for (let pt of this.particles) {
+        for (let i = 0; i < this.PARTICLE_POOL_SIZE; i++) {
+          const pt = this.particles[i];
+          if (pt.life <= 0) continue;
           const alpha=pt.life/pt.maxLife;
           ctx.save(); ctx.globalAlpha=alpha; ctx.fillStyle=pt.color; ctx.shadowColor=pt.color; ctx.shadowBlur=6;
           ctx.beginPath(); ctx.arc(pt.x,pt.y,pt.size*alpha,0,Math.PI*2); ctx.fill(); ctx.restore();
