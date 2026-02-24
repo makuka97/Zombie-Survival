@@ -675,14 +675,9 @@
         }
         setTimeout(() => {
           this.boss = null; this.waveKilled = this.waveTotal; this.wave++;
-          // Restore normal ammo first (startWave does this), then drop packs
-          // so players aren't on Infinity ammo when they pick them up
-          setTimeout(() => {
-            this.startWave();
-            // Drops appear after wave transition — ammo is now finite again
-            this._spawnBossDrops(bx, by);
-          }, 3000);
-        }, 800);
+          this._spawnBossDrops(bx, by); // drops appear immediately when boss dies
+          setTimeout(() => this.startWave(), 3000);
+        }, 500);
       }
 
       _spawnBossDrops(bx, by) {
@@ -877,8 +872,8 @@
         else                 { x = -50; y = Math.random()*H; }
         const type     = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
-        // HP scales +1 per wave so later waves feel tougher without needing more zombies
-        const hpScale  = typeData.hp + (this.wave - 1);
+        // HP scales gently — +1 HP every 3 waves so later waves feel tougher without a spike
+        const hpScale  = typeData.hp + Math.floor((this.wave - 1) / 3);
         this.zombies.push({
           x, y, type,
           hp: hpScale, maxHp: hpScale,
