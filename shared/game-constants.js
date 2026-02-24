@@ -84,7 +84,17 @@ const GAME_CONSTANTS = (() => {
     thundergun: { name: 'Thundergun',    damage: 10, fireRate: 30, ammoCapacity: 8,   rarity: 'legendary'}
   };
 
-  // ── Zombie Types ─────────────────────────────────────────────
+  // ── Kill Tiers (weapon upgrade progression) ───────────────────
+  // Each tier unlocks at a kill threshold and applies a flat damage
+  // multiplier and ammo bonus on top of the base weapon stats.
+  // Stacks with mystery box — box rolls the weapon, tier modifies it.
+  const KILL_TIERS = [
+    { name: 'DEFAULT', kills: 0,   color: '#ffffff', damageMult: 1.0, ammoBonus: 0   },
+    { name: 'GREEN',   kills: 50,  color: '#00ff66', damageMult: 1.1, ammoBonus: 50  },
+    { name: 'BLUE',    kills: 100, color: '#4488ff', damageMult: 1.2, ammoBonus: 100 },
+    { name: 'PURPLE',  kills: 150, color: '#cc44ff', damageMult: 1.3, ammoBonus: 150 },
+    { name: 'GOLD',    kills: 250, color: '#ffcc00', damageMult: 1.4, ammoBonus: 200 },
+  ];
   // NOTE: speed values are CLIENT speeds (full 60fps).
   // Server divides by 2 automatically in spawnZombie() — see server.js comment.
   //
@@ -153,6 +163,8 @@ const GAME_CONSTANTS = (() => {
     MYSTERY_BOX_COST, BOX_USE_RANGE,
     // Vending machine
     VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
+    // Kill tiers
+    KILL_TIERS,
     // Melee
     MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
     // Revive
