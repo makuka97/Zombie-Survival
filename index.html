@@ -1982,27 +1982,26 @@
             this.render();
             // Broadcast at 20hz (every 3 frames) — controllers don't need 60hz state
             if (this.socket && this.roomCode && ++broadcastFrame % 3 === 0) {
-              const ps = this.players.map(p => ({
-                health: p.hp, ammo: p.ammo === Infinity ? -1 : p.ammo,
-                isAlive: p.alive, points: p.points, weapon: p.currentWeapon,
-                canUseMysteryBox: this.canUseMysteryBox(p),
-                canUseVending: this.canUseVending(p),
-                vendingCost: this.vendingCost,
-                killCount: p.killCount, tierIndex: p.tierIndex
-              }));
               this.socket.emit('game-state-broadcast', {
                 roomCode: this.roomCode,
-                gameState: { wave: this.wave, zombiesRemaining: this.zombies.length, gameOver: this.gameOver, players: ps }
+                gameState: {
+                  wave: this.wave,
+                  zombiesRemaining: this.zombies.length,
+                  gameOver: this.gameOver,
+                  players: this.players.map(p => ({
+                    health: p.hp,
+                    ammo: p.ammo === Infinity ? -1 : p.ammo,
+                    isAlive: p.alive,
+                    points: p.points,
+                    weapon: p.currentWeapon,
+                    canUseMysteryBox: this.canUseMysteryBox(p),
+                    canUseVending: this.canUseVending(p),
+                    vendingCost: this.vendingCost,
+                    killCount: p.killCount,
+                    tierIndex: p.tierIndex
+                  }))
+                }
               });
-              // Feed host overlay directly (host = slot 1 = index 0)
-              const ho = window._hostOverlay;
-              if (ho && ps[0]) {
-                const p = ps[0];
-                ho.updateAmmo(p.ammo); ho.updatePoints(p.points); ho.updateWeapon(p.weapon);
-                ho.updateActionBtn(p.canUseMysteryBox, p.canUseVending, p.points, p.vendingCost);
-                ho.updateTier(p.tierIndex, p.killCount);
-                if (this.gameOver) ho.showGameOver();
-              }
             }
             lastTime = currentTime - (deltaTime % frameDelay);
           }
@@ -2016,12 +2015,12 @@
     const socket = io({ transports: ['websocket'] });
     game.socket  = socket;
 
-    socket.on('connect', () => socket.emit('create-room'));
+    socket.on('connect',      () => socket.emit('create-room'));
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
       new QRCode(document.getElementById('qr-code'), {
-        text: `${window.location.origin}/controller.html?room=${data.roomCode}`,
+        text: `${window.location.origin}/controller.html`,
         width: 128, height: 128,
         colorDark: '#000000', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
@@ -2045,399 +2044,12 @@
     socket.on('ready-countdown-cancelled', () => {
       document.getElementById('countdown').style.display = 'none';
     });
-    socket.on('all-ready', () => {
-      game.beginGame();
-      hostOverlay.show(socket, game.roomCode);
-    });
-    socket.on('restart-game', () => {
-      game.restart();
-      hostOverlay.hide();
-    });
+    socket.on('all-ready',           ()  => game.beginGame());
+    socket.on('restart-game',        ()  => game.restart());
     socket.on('restart-vote-update', (d) => {
       document.getElementById('vote-display').textContent =
         `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
-      hostOverlay.updateVoteStatus(d.votes, d.needed);
     });
-
-    // ── HOST OVERLAY ─────────────────────────────────────────────────
-    // Appears over the canvas when the game starts, giving the host
-    // the same controller UI as everyone else. Peek button lets them
-    // see the canvas when not casting to a TV.
-    const hostOverlay = new HostOverlay();
-    window._hostOverlay = hostOverlay;
-
-    class HostOverlay {
-      constructor() {
-        this.roomCode  = null;
-        this.socket    = null;
-        this.firing    = false;
-        this.meleeing  = false;
-        this.inMelee   = false;
-        this.hasVoted  = false;
-        this.peeking   = false;
-        this.loop      = null;
-        this.weapon    = 'pistol';
-        this._inject();
-      }
-
-      _inject() {
-        // Styles
-        const style = document.createElement('style');
-        style.textContent = `
-          #host-overlay {
-            display: none; position: fixed; inset: 0; z-index: 500;
-            background: #111; flex-direction: column;
-            font-family: 'Courier New', monospace; color: #fff;
-            touch-action: none; -webkit-tap-highlight-color: transparent;
-          }
-          #host-overlay.visible { display: flex; }
-          #host-overlay.peeking { background: rgba(0,0,0,0.18); }
-
-          #ho-hud {
-            position: absolute; top: 10px; left: 0; right: 54px;
-            display: flex; justify-content: space-between; padding: 0 16px; z-index: 10;
-          }
-          #ho-weapon { font-size: 15px; font-weight: bold; letter-spacing: 2px; }
-          #ho-weapon span { font-size: 11px; color: #888; }
-          #ho-ammo { font-size: 18px; font-weight: bold; color: #ffff00; letter-spacing: 2px; }
-          #ho-ammo span { font-size: 11px; color: #555; }
-          #ho-ammo.low { color: #ff3333; animation: ho-flash 0.5s infinite; }
-          #ho-ammo.empty { color: #888; }
-          #ho-points { font-size: 16px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
-          #ho-points span { font-size: 11px; color: #555; }
-          #ho-tier { font-size: 12px; font-weight: bold; letter-spacing: 2px; }
-          #ho-tier span { font-size: 10px; color: #444; }
-          @keyframes ho-flash { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-          #ho-melee-banner {
-            position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
-            background: rgba(0,0,0,0.85); border: 2px solid #00ff66;
-            border-radius: 8px; padding: 3px 12px; font-size: 11px;
-            color: #00ff66; letter-spacing: 2px; display: none; z-index: 20;
-            animation: ho-pulse 1.2s infinite;
-          }
-          @keyframes ho-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-          #ho-controls {
-            position: absolute; bottom: 0; left: 0; right: 0; height: 65%;
-            display: flex; align-items: center;
-            justify-content: space-around; padding: 20px 36px;
-          }
-
-          #ho-joystick-zone {
-            width: 180px; height: 180px; border-radius: 50%;
-            background: rgba(0,255,0,0.04); border: 3px solid #00ff00;
-            position: relative; touch-action: none; flex-shrink: 0;
-          }
-          #ho-joystick-zone::before {
-            content:''; position:absolute; width:2px; height:100%;
-            top:0; left:50%; transform:translateX(-50%); background:rgba(0,255,0,0.12);
-          }
-          #ho-joystick-zone::after {
-            content:''; position:absolute; height:2px; width:100%;
-            left:0; top:50%; transform:translateY(-50%); background:rgba(0,255,0,0.12);
-          }
-          #ho-joystick-knob {
-            width: 66px; height: 66px; border-radius: 50%; background: #00ff00;
-            position: absolute; top:50%; left:50%;
-            transform: translate(-50%,-50%); pointer-events: none;
-            box-shadow: 0 0 18px rgba(0,255,0,0.8);
-          }
-
-          #ho-fire-btn {
-            width: 155px; height: 155px; border-radius: 50%;
-            background: rgba(255,40,40,0.12); border: 4px solid #ff3333;
-            color: #ff3333; font-size: 20px; font-weight: bold;
-            font-family: 'Courier New', monospace; letter-spacing: 3px;
-            display: flex; align-items: center; justify-content: center;
-            touch-action: none; user-select: none; flex-shrink: 0;
-            transition: all 0.15s; flex-direction: column; gap: 4px;
-          }
-          #ho-fire-btn .lbl { font-size: 13px; letter-spacing: 3px; }
-          #ho-fire-btn.active { background:#ff3333; color:#000; transform:scale(0.92); box-shadow:0 0 40px rgba(255,50,50,0.9); }
-          #ho-fire-btn.melee-mode { background:rgba(0,255,100,0.08); border-color:#00ff66; color:#00ff66; }
-          #ho-fire-btn.melee-mode.active { background:#00ff66; color:#000; box-shadow:0 0 50px rgba(0,255,100,1); }
-
-          #ho-action-btn {
-            position: absolute; bottom: 50%; left: 50%;
-            transform: translate(-50%, 50%);
-            width: 110px; height: 110px;
-            font-size: 11px; font-weight: bold; line-height: 1.4;
-            font-family: 'Courier New', monospace; letter-spacing: 1px;
-            border-radius: 50%; border: 3px solid #222;
-            background: #0a0a0a; color: #333;
-            transition: all 0.2s; pointer-events: none; z-index: 20;
-          }
-          #ho-action-btn.mode-box  { background:#1a0030; color:#cc88ff; border-color:#8833cc; pointer-events:auto; cursor:pointer; box-shadow:0 0 18px rgba(150,50,255,0.5); animation:ho-pulse-box 1s infinite; }
-          #ho-action-btn.mode-vend { background:#001a08; color:#00ff66; border-color:#00cc44; pointer-events:auto; cursor:pointer; box-shadow:0 0 18px rgba(0,255,100,0.5); animation:ho-pulse-vend 1s infinite; }
-          #ho-action-btn.mode-broke { background:#1a0a0a; color:#663333; border-color:#331111; pointer-events:none; }
-          @keyframes ho-pulse-box  { 0%,100%{box-shadow:0 0 18px rgba(150,50,255,0.5)} 50%{box-shadow:0 0 35px rgba(187,0,255,1)} }
-          @keyframes ho-pulse-vend { 0%,100%{box-shadow:0 0 15px rgba(0,255,100,0.4)} 50%{box-shadow:0 0 30px rgba(0,255,100,0.9)} }
-
-          #ho-gameover {
-            position: absolute; inset: 0; display: none;
-            flex-direction: column; align-items: center; justify-content: center;
-            gap: 20px; background: rgba(0,0,0,0.92); z-index: 30;
-          }
-          #ho-gameover.visible { display: flex; }
-          #ho-gameover h1 { font-size: 46px; color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
-          #ho-gameover p  { font-size: 14px; color: #888; letter-spacing: 2px; }
-          #ho-restart-btn {
-            width: 220px; height: 64px; font-size: 22px; font-weight: bold;
-            background: #00ff00; color: #000; border: none; border-radius: 14px;
-            letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
-          }
-          #ho-restart-btn.voted { background:#444; color:#888; }
-          #ho-vote-status { font-size: 15px; color: #00ff00; letter-spacing: 2px; min-height: 20px; }
-
-          #ho-peek-btn {
-            position: fixed; top: 10px; right: 10px; z-index: 600;
-            width: 44px; height: 44px; border-radius: 50%;
-            border: 2px solid #333; background: rgba(0,0,0,0.7);
-            color: #555; font-size: 18px; display: none;
-            align-items: center; justify-content: center; cursor: pointer;
-          }
-          #ho-peek-btn.visible { display: flex; }
-          #ho-peek-btn.peeking { border-color: #00ff00; color: #00ff00; }
-
-          #ho-weapon-popup {
-            position: fixed; top: 50%; left: 50%;
-            transform: translate(-50%, -50%);
-            background: rgba(0,0,0,0.95); padding: 28px 44px;
-            border-radius: 14px; border: 3px solid #bb00ff;
-            text-align: center; display: none; z-index: 700;
-          }
-          #ho-weapon-popup h2 { font-size: 28px; color: #bb00ff; margin-bottom: 8px; letter-spacing: 3px; }
-          #ho-weapon-popup p  { font-size: 16px; color: #fff; }
-        `;
-        document.head.appendChild(style);
-
-        // HTML
-        document.body.insertAdjacentHTML('beforeend', `
-          <div id="host-overlay">
-            <div id="ho-hud">
-              <div id="ho-weapon"><span>WEAPON </span>PISTOL</div>
-              <div id="ho-points"><span>$ </span>0</div>
-              <div id="ho-ammo"><span>AMMO </span>30</div>
-              <div id="ho-tier"><span>TIER </span>DEFAULT</div>
-            </div>
-            <div id="ho-melee-banner">⚔ KNIFE MODE</div>
-            <div id="ho-controls">
-              <div id="ho-joystick-zone"><div id="ho-joystick-knob"></div></div>
-              <div id="ho-fire-btn"><div class="lbl">FIRE</div></div>
-            </div>
-            <button id="ho-action-btn">—</button>
-            <div id="ho-gameover">
-              <h1>GAME OVER</h1>
-              <p>All players have fallen</p>
-              <button id="ho-restart-btn">RESTART</button>
-              <div id="ho-vote-status"></div>
-            </div>
-          </div>
-          <button id="ho-peek-btn">👁</button>
-          <div id="ho-weapon-popup"><h2 id="ho-popup-name">SMG</h2><p>Weapon Acquired!</p></div>
-        `);
-
-        this._bindJoystick();
-        this._bindFireBtn();
-        this._bindActionBtn();
-        this._bindRestartBtn();
-        this._bindPeekBtn();
-
-      }
-
-      show(sock, roomCode) {
-        this.socket   = sock;
-        this.roomCode = roomCode;
-        document.getElementById('host-overlay').classList.add('visible');
-        document.getElementById('ho-peek-btn').classList.add('visible');
-        this._startLoop();
-      }
-
-      hide() {
-        document.getElementById('host-overlay').classList.remove('visible');
-        document.getElementById('ho-peek-btn').classList.remove('visible');
-        document.getElementById('ho-gameover').classList.remove('visible');
-        this._stopLoop();
-        this.hasVoted = false;
-        const btn = document.getElementById('ho-restart-btn');
-        btn.textContent = 'RESTART'; btn.classList.remove('voted');
-      }
-
-      updateVoteStatus(votes, needed) {
-        document.getElementById('ho-vote-status').textContent = `Votes: ${votes} / ${needed}`;
-      }
-
-      showGameOver() {
-        this._stopLoop();
-        document.getElementById('ho-gameover').classList.add('visible');
-      }
-
-      _bindJoystick() {
-        const zone = document.getElementById('ho-joystick-zone');
-        const knob = document.getElementById('ho-joystick-knob');
-        const maxR = 56;
-        let active = false;
-        this._joystickAngle = null;
-
-        const getOffset = (e) => {
-          const r = zone.getBoundingClientRect();
-          const s = e.touches ? e.touches[0] : e;
-          return { x: s.clientX - r.left - r.width/2, y: s.clientY - r.top - r.height/2 };
-        };
-        const onStart = (e) => { e.preventDefault(); active = true; onMove(e); };
-        const onMove  = (e) => {
-          if (!active) return; e.preventDefault();
-          const {x,y} = getOffset(e);
-          this._joystickAngle = Math.atan2(y, x);
-          const c = Math.min(Math.sqrt(x*x+y*y), maxR);
-          knob.style.transform = `translate(calc(-50% + ${Math.cos(this._joystickAngle)*c}px), calc(-50% + ${Math.sin(this._joystickAngle)*c}px))`;
-        };
-        const onEnd = (e) => { e.preventDefault(); active = false; this._joystickAngle = null; knob.style.transform = 'translate(-50%,-50%)'; };
-        const o = { passive: false };
-        zone.addEventListener('touchstart',  onStart, o);
-        zone.addEventListener('touchmove',   onMove,  o);
-        zone.addEventListener('touchend',    onEnd,   o);
-        zone.addEventListener('touchcancel', onEnd,   o);
-      }
-
-      _bindFireBtn() {
-        const btn = document.getElementById('ho-fire-btn');
-        const press   = (e) => { e.preventDefault(); if (this.inMelee) this.meleeing=true; else this.firing=true; btn.classList.add('active'); };
-        const release = (e) => { e.preventDefault(); this.firing=false; this.meleeing=false; btn.classList.remove('active'); };
-        const o = { passive: false };
-        btn.addEventListener('touchstart',  press,   o);
-        btn.addEventListener('touchend',    release, o);
-        btn.addEventListener('touchcancel', release, o);
-        btn.addEventListener('mousedown',   press);
-        btn.addEventListener('mouseup',     release);
-        btn.addEventListener('mouseleave',  release);
-      }
-
-      _bindActionBtn() {
-        const btn = document.getElementById('ho-action-btn');
-        btn.addEventListener('click', () => {
-          if (!this.socket || !this.roomCode) return;
-          if (btn.classList.contains('mode-box'))  this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
-          if (btn.classList.contains('mode-vend')) this.socket.emit('vending-purchase',     { roomCode: this.roomCode });
-        });
-      }
-
-      _bindRestartBtn() {
-        document.getElementById('ho-restart-btn').addEventListener('click', () => {
-          if (this.hasVoted || !this.socket) return;
-          this.hasVoted = true;
-          const btn = document.getElementById('ho-restart-btn');
-          btn.textContent = 'VOTED!'; btn.classList.add('voted');
-          this.socket.emit('restart-vote', { roomCode: this.roomCode });
-        });
-      }
-
-      _bindPeekBtn() {
-        const peekBtn = document.getElementById('ho-peek-btn');
-        const overlay = document.getElementById('host-overlay');
-        const gc      = document.getElementById('game-container');
-        peekBtn.addEventListener('click', () => {
-          this.peeking = !this.peeking;
-          if (this.peeking) {
-            gc.style.opacity = '1';
-            overlay.classList.add('peeking');
-            peekBtn.classList.add('peeking');
-            peekBtn.textContent = '🙈';
-          } else {
-            gc.style.opacity = '1';
-            overlay.classList.remove('peeking');
-            peekBtn.classList.remove('peeking');
-            peekBtn.textContent = '👁';
-          }
-        });
-      }
-
-      _ensureLoop() {
-        if (this.loop) return;
-        this._startLoop();
-      }
-
-      _startLoop() {
-        this._stopLoop();
-        this.loop = setInterval(() => {
-          if (!this.socket || !this.roomCode) return;
-          this.socket.emit('player-input', {
-            roomCode: this.roomCode,
-            input: { angle: this._joystickAngle, fire: this.firing, melee: this.meleeing }
-          });
-        }, 50);
-      }
-      _stopLoop() { if (this.loop) { clearInterval(this.loop); this.loop = null; } }
-
-      updateAmmo(ammo) {
-        const el = document.getElementById('ho-ammo');
-        if (ammo === -1 || ammo === Infinity) {
-          el.innerHTML = `<span>AMMO </span>∞`; el.className = '';
-          this._setMeleeMode(false);
-        } else if (ammo === 0) {
-          el.innerHTML = `<span>AMMO </span>OUT`;
-          el.classList.remove('low'); el.classList.add('empty');
-          this._setMeleeMode(true);
-        } else {
-          el.innerHTML = `<span>AMMO </span>${ammo}`;
-          el.classList.remove('empty');
-          ammo <= 5 ? el.classList.add('low') : el.classList.remove('low');
-          this._setMeleeMode(false);
-        }
-      }
-
-      updatePoints(pts) {
-        document.getElementById('ho-points').innerHTML = `<span>$ </span>${pts}`;
-      }
-
-      updateWeapon(weapon) {
-        if (this._lastWeapon && this._lastWeapon !== weapon) this._showWeaponPopup(weapon);
-        this._lastWeapon = weapon;
-        document.getElementById('ho-weapon').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
-      }
-
-      updateTier(idx, kills) {
-        const tiers = [
-          {name:'DEFAULT',color:'#ffffff'},{name:'GREEN',color:'#00ff66'},
-          {name:'BLUE',color:'#4488ff'},{name:'PURPLE',color:'#cc44ff'},{name:'GOLD',color:'#ffcc00'}
-        ];
-        const t = tiers[idx]||tiers[0], next = tiers[idx+1];
-        const el = document.getElementById('ho-tier');
-        el.style.color = t.color;
-        el.innerHTML = `<span>TIER </span>${t.name}${next?` · ${kills}/${next.kills}`:' · MAX'}`;
-      }
-
-      updateActionBtn(canBox, canVend, points, vendingCost) {
-        const btn = document.getElementById('ho-action-btn');
-        btn.classList.remove('mode-box','mode-vend','mode-broke');
-        if (canBox) {
-          if ((points||0) >= 950) { btn.classList.add('mode-box');   btn.innerHTML=`MYSTERY<br>BOX<br>$950`; }
-          else                    { btn.classList.add('mode-broke'); btn.innerHTML=`MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-(points||0)}</span>`; }
-        } else if (canVend) {
-          const c = vendingCost||500;
-          if ((points||0) >= c) { btn.classList.add('mode-vend');   btn.innerHTML=`HEALTH<br>+25 HP<br>$${c}`; }
-          else                  { btn.classList.add('mode-broke'); btn.innerHTML=`HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${c-(points||0)}</span>`; }
-        } else { btn.innerHTML='—'; }
-      }
-
-      _setMeleeMode(on) {
-        if (this.inMelee === on) return;
-        this.inMelee = on;
-        const btn    = document.getElementById('ho-fire-btn');
-        const banner = document.getElementById('ho-melee-banner');
-        const lbl    = btn.querySelector('.lbl');
-        if (on)  { btn.classList.add('melee-mode');    lbl.textContent='KNIFE'; banner.style.display='block'; this.firing=false; }
-        else     { btn.classList.remove('melee-mode'); lbl.textContent='FIRE';  banner.style.display='none';  this.meleeing=false; }
-      }
-
-      _showWeaponPopup(weapon) {
-        document.getElementById('ho-popup-name').textContent = weapon.toUpperCase().replace('_',' ');
-        const p = document.getElementById('ho-weapon-popup');
-        p.style.display = 'block';
-        setTimeout(() => { p.style.display = 'none'; }, 2000);
-      }
-    }
 
     const BASE_W = 1334;
     const BASE_H = 750;
