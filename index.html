@@ -335,6 +335,22 @@
     }
     #mh-lobby.visible { display: flex; }
     #mh-lobby h1 { font-size: 22px; color: #00ff00; letter-spacing: 4px; }
+    #mh-room-code-display {
+      text-align: center;
+    }
+    #mh-room-code-display p { font-size: 12px; color: #555; letter-spacing: 3px; margin-bottom: 6px; }
+    #mh-room-code-big {
+      font-size: 52px; font-weight: bold; letter-spacing: 10px;
+      color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4);
+    }
+    #mh-copy-btn {
+      margin-top: 8px;
+      padding: 8px 20px; font-size: 12px; letter-spacing: 2px;
+      background: transparent; border: 1px solid #333; border-radius: 20px;
+      color: #555; font-family: 'Courier New', monospace; cursor: pointer;
+      transition: all 0.2s;
+    }
+    #mh-copy-btn.copied { border-color: #00ff00; color: #00ff00; }
     #mh-player-badge {
       font-size: 26px; font-weight: bold; padding: 12px 28px;
       border-radius: 12px; border: 3px solid; letter-spacing: 3px;
@@ -460,7 +476,12 @@
     <div id="mh-lobby" class="visible">
       <h1>ZOMBIE SURVIVAL</h1>
       <div id="mh-player-badge">PLAYER 1</div>
-      <p>You are the host. Share the room code so others can join!</p>
+      <div id="mh-room-code-display">
+        <p>ROOM CODE</p>
+        <div id="mh-room-code-big">----</div>
+        <button id="mh-copy-btn">TAP TO COPY LINK</button>
+      </div>
+      <p style="font-size:11px;color:#444;max-width:260px;text-align:center;">Share this code — others go to the same URL and enter it, or tap Copy to share the direct link</p>
       <button id="mh-ready-btn">READY UP</button>
       <div id="mh-waiting"></div>
       <div id="mh-countdown"></div>
@@ -2346,16 +2367,42 @@
         this.loop      = null;
         this.peeking   = false;
 
-        this.joystick  = this._makeJoystick();
-        this._bindSocket();
+        this._bindSocket();   // bind ALL events first
         this._bindFireBtn();
         this._bindActionBtn();
         this._bindReadyBtn();
         this._bindRestartBtn();
         this._bindPeekBtn();
         this._requestWakeLock();
+        this.joystick = this._makeJoystick();
 
-        socket.on('connect', () => socket.emit('create-remote-room'));
+        // Show connecting status
+        this._setStatus('CONNECTING...', '#555');
+
+        // Emit create-remote-room — handle both already-connected and future connect
+        const doCreate = () => {
+          this._setStatus('CREATING ROOM...', '#888');
+          socket.emit('create-remote-room');
+        };
+        if (socket.connected) {
+          doCreate();
+        } else {
+          socket.once('connect', doCreate);
+        }
+        socket.on('disconnect', () => this._setStatus('RECONNECTING...', '#ff4400'));
+        socket.on('reconnect',  () => { this._setStatus('CREATING ROOM...', '#888'); socket.emit('create-remote-room'); });
+      }
+
+      _setStatus(msg, color='#555') {
+        let el = document.getElementById('mh-status');
+        if (!el) {
+          el = document.createElement('div');
+          el.id = 'mh-status';
+          el.style.cssText = 'position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:2px;z-index:800;transition:color 0.3s;font-family:Courier New,monospace;';
+          document.body.appendChild(el);
+        }
+        el.style.color = color;
+        el.textContent = msg;
       }
 
       _makeJoystick() {
@@ -2363,7 +2410,6 @@
         const knob = document.getElementById('mh-joystick-knob');
         const maxR = 56;
         let active = false, angle = null;
-
         const getOffset = (e) => {
           const r = zone.getBoundingClientRect();
           const s = e.touches ? e.touches[0] : e;
@@ -2377,14 +2423,12 @@
           const c = Math.min(Math.sqrt(x*x+y*y), maxR);
           knob.style.transform = `translate(calc(-50% + ${Math.cos(angle)*c}px), calc(-50% + ${Math.sin(angle)*c}px))`;
         };
-        const onEnd   = (e) => { e.preventDefault(); active = false; angle = null; knob.style.transform = 'translate(-50%,-50%)'; };
-
+        const onEnd = (e) => { e.preventDefault(); active = false; angle = null; knob.style.transform = 'translate(-50%,-50%)'; };
         const o = { passive: false };
         zone.addEventListener('touchstart',  onStart, o);
         zone.addEventListener('touchmove',   onMove,  o);
         zone.addEventListener('touchend',    onEnd,   o);
         zone.addEventListener('touchcancel', onEnd,   o);
-
         return { getAngle: () => active ? angle : null };
       }
 
@@ -2395,27 +2439,50 @@
           this.roomCode = d.roomCode;
           this.slot     = d.slotNumber;
           this.color    = d.color;
+          this._setStatus(`ROOM ${d.roomCode} · PLAYER ${d.slotNumber}`, '#00ff00');
 
-          // Show room code on the canvas HUD behind (in case they peek)
-          document.getElementById('room-code').textContent = d.roomCode;
-          new QRCode(document.getElementById('qr-code'), {
-            text: `${window.location.origin}/controller.html?room=${d.roomCode}`,
-            width: 128, height: 128,
-            colorDark: '#000000', colorLight: '#ffffff',
-            correctLevel: QRCode.CorrectLevel.M
-          });
+          // Show room code large in the lobby
+          const codeEl = document.getElementById('mh-room-code-big');
+          if (codeEl) codeEl.textContent = d.roomCode;
 
-          // Update player badge in mobile lobby
+          // Copy link button
+          const copyBtn = document.getElementById('mh-copy-btn');
+          if (copyBtn) {
+            copyBtn.onclick = () => {
+              const url = `${window.location.origin}/controller.html?room=${d.roomCode}`;
+              navigator.clipboard.writeText(url).then(() => {
+                copyBtn.textContent = '✓ COPIED!';
+                copyBtn.classList.add('copied');
+                setTimeout(() => { copyBtn.textContent = 'COPY JOIN LINK'; copyBtn.classList.remove('copied'); }, 2000);
+              }).catch(() => {
+                copyBtn.textContent = url; // fallback — show URL directly
+              });
+            };
+          }
+
+          // Color the player badge
           const badge = document.getElementById('mh-player-badge');
-          badge.textContent = `PLAYER ${this.slot}`;
+          badge.textContent   = `PLAYER ${this.slot}`;
           badge.style.color       = this.color;
           badge.style.borderColor = this.color;
+          badge.style.background  = 'rgba(0,0,0,0.5)';
+
+          // Show room code in canvas HUD behind (for peek/cast)
+          document.getElementById('room-code').textContent = d.roomCode;
+          try {
+            new QRCode(document.getElementById('qr-code'), {
+              text: `${window.location.origin}/controller.html?room=${d.roomCode}`,
+              width: 128, height: 128,
+              colorDark: '#000000', colorLight: '#ffffff',
+              correctLevel: QRCode.CorrectLevel.M
+            });
+          } catch(e) {}
 
           game.roomCode = d.roomCode;
           game.start();
         });
 
-        s.on('player-joined',       (d) => game.addPlayer(d.slotNumber));
+        s.on('player-joined',       (d) => { game.addPlayer(d.slotNumber); });
         s.on('player-disconnected', (d) => game.removePlayer(d.slotNumber));
         s.on('player-removed',      (d) => game.removePlayer(d.slotNumber));
         s.on('player-input',        (d) => game.handleInput(d.slotNumber, d.input));
@@ -2425,7 +2492,6 @@
 
         s.on('ready-countdown', (d) => {
           document.getElementById('mh-countdown').textContent = d.seconds;
-          // Also mirror to canvas lobby
           const el = document.getElementById('countdown');
           el.style.display='block'; el.textContent=d.seconds;
         });
@@ -2434,63 +2500,52 @@
           document.getElementById('countdown').style.display = 'none';
           document.getElementById('mh-waiting').textContent = '';
         });
-
-        s.on('all-ready', () => {
-          game.beginGame();
-          this._showController();
-          this._startLoop();
-        });
-
         s.on('game-starting-remote', () => {
           game.beginGame();
           this._showController();
           this._startLoop();
         });
-
-        // game-state-update comes from server in remote mode
+        s.on('all-ready', () => {
+          game.beginGame();
+          this._showController();
+          this._startLoop();
+        });
         s.on('game-state-update', (d) => {
-          this._updateAmmo(d.ammo ?? d.health);
-          // ammo from remote broadcast
-          if (d.ammo !== undefined) this._updateAmmo(d.ammo);
-          if (d.points !== undefined) this._updatePoints(d.points);
-          if (d.weapon !== undefined) this._updateWeapon(d.weapon);
-          if (d.canUseMysteryBox !== undefined || d.canUseVending !== undefined) {
+          if (d.ammo    !== undefined) this._updateAmmo(d.ammo);
+          if (d.points  !== undefined) this._updatePoints(d.points);
+          if (d.weapon  !== undefined) this._updateWeapon(d.weapon);
+          if (d.canUseMysteryBox !== undefined || d.canUseVending !== undefined)
             this._updateActionBtn(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
-          }
           if (d.tierIndex !== undefined) this._updateTier(d.tierIndex, d.killCount);
           if (d.gameOver) this._showGameOver();
         });
-
         s.on('restart-game', () => {
-          game.restart();
-          this._showLobby();
+          game.restart(); this._showLobby();
           this.hasVoted = false; this.isReady = false;
         });
-
         s.on('game-restarting-remote', () => {
-          game.restart();
-          this._showLobby();
+          game.restart(); this._showLobby(); this._stopLoop();
           this.hasVoted = false; this.isReady = false;
-          this._stopLoop();
         });
-
         s.on('restart-vote-update', (d) => {
           document.getElementById('mh-vote-status').textContent = `Votes: ${d.votes} / ${d.needed}`;
-          document.getElementById('vote-display').textContent =
-            `Restart votes: ${d.votes} / ${d.needed}`;
         });
-
         s.on('explosion', (d) => game.spawnParticles(d.x, d.y, d.color));
+        s.on('ping', () => s.emit('pong'));
       }
 
       _bindFireBtn() {
         const btn = document.getElementById('mh-fire-btn');
-        const press   = (e) => { e.preventDefault(); if (this.inMelee) { this.meleeing=true; } else { this.firing=true; } btn.classList.add('active'); };
+        const press   = (e) => { e.preventDefault(); if (this.inMelee) this.meleeing=true; else this.firing=true; btn.classList.add('active'); };
         const release = (e) => { e.preventDefault(); this.firing=false; this.meleeing=false; btn.classList.remove('active'); };
         const o = { passive: false };
         btn.addEventListener('touchstart',  press,   o);
         btn.addEventListener('touchend',    release, o);
         btn.addEventListener('touchcancel', release, o);
+        // Mouse fallback for desktop testing
+        btn.addEventListener('mousedown',  press);
+        btn.addEventListener('mouseup',    release);
+        btn.addEventListener('mouseleave', release);
       }
 
       _bindActionBtn() {
@@ -2503,11 +2558,11 @@
 
       _bindReadyBtn() {
         document.getElementById('mh-ready-btn').addEventListener('click', () => {
-          if (this.isReady) return;
+          if (this.isReady || !this.roomCode) return;
           this.isReady = true;
           const btn = document.getElementById('mh-ready-btn');
           btn.textContent = 'READY!'; btn.classList.add('voted');
-          document.getElementById('mh-waiting').textContent = 'Waiting for others...';
+          document.getElementById('mh-waiting').textContent = 'Starting soon...';
           this.socket.emit('player-ready', { roomCode: this.roomCode });
         });
       }
@@ -2526,7 +2581,6 @@
         const peekBtn = document.getElementById('peek-btn');
         const overlay = document.getElementById('mobile-host-overlay');
         const gc      = document.getElementById('game-container');
-
         peekBtn.addEventListener('click', () => {
           this.peeking = !this.peeking;
           if (this.peeking) {
@@ -2632,20 +2686,20 @@
         const btn    = document.getElementById('mh-fire-btn');
         const banner = document.getElementById('mh-melee-banner');
         const lbl    = btn.querySelector('.lbl');
-        if (on) { btn.classList.add('melee-mode'); lbl.textContent='KNIFE'; banner.style.display='block'; this.firing=false; }
-        else    { btn.classList.remove('melee-mode'); lbl.textContent='FIRE'; banner.style.display='none'; this.meleeing=false; }
+        if (on)  { btn.classList.add('melee-mode');    lbl.textContent='KNIFE'; banner.style.display='block'; this.firing=false;    }
+        else     { btn.classList.remove('melee-mode'); lbl.textContent='FIRE';  banner.style.display='none';  this.meleeing=false;  }
       }
 
       _updateActionBtn(canBox, canVend, points, vendingCost) {
         const btn = document.getElementById('mh-action-btn');
         btn.classList.remove('mode-box','mode-vend','mode-broke');
         if (canBox) {
-          if (points >= 950) { btn.classList.add('mode-box'); btn.innerHTML=`MYSTERY<br>BOX<br>$950`; }
-          else               { btn.classList.add('mode-broke'); btn.innerHTML=`MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-points}</span>`; }
+          if ((points||0) >= 950) { btn.classList.add('mode-box');   btn.innerHTML=`MYSTERY<br>BOX<br>$950`; }
+          else                    { btn.classList.add('mode-broke'); btn.innerHTML=`MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-(points||0)}</span>`; }
         } else if (canVend) {
           const c = vendingCost||500;
-          if (points >= c) { btn.classList.add('mode-vend'); btn.innerHTML=`HEALTH<br>+25 HP<br>$${c}`; }
-          else             { btn.classList.add('mode-broke'); btn.innerHTML=`HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${c-points}</span>`; }
+          if ((points||0) >= c) { btn.classList.add('mode-vend');   btn.innerHTML=`HEALTH<br>+25 HP<br>$${c}`; }
+          else                  { btn.classList.add('mode-broke'); btn.innerHTML=`HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${c-(points||0)}</span>`; }
         } else { btn.innerHTML='—'; }
       }
 
