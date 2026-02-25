@@ -247,7 +247,7 @@
         this.BULLET_SIZE  = 6;
         this.AMMO_SIZE    = 20;
         this.BOX_SIZE     = 50;
-        this.PLAYER_SPEED = 3;
+        this.PLAYER_SPEED = 3.5;
         this.BULLET_SPEED = 8;
         this.REVIVE_RADIUS = 40;
         this.REVIVE_TIME   = 3000;
@@ -826,10 +826,10 @@
         if (b.rage) {
           this._bossTouchDamage(b);
           b.rageShootTimer++;
-          if (b.rageShootTimer >= 8) { // rapid fire in all directions
+          if (b.rageShootTimer >= 8) {
             b.rageShootTimer = 0;
-            for (let i = 0; i < 8; i++) {
-              const a = b.rotation + (i / 8) * Math.PI * 2;
+            for (let i = 0; i < 4; i++) {
+              const a = b.rotation + (i / 4) * Math.PI * 2;
               b.bossBullets.push({ x:b.x, y:b.y, vx:Math.cos(a)*4, vy:Math.sin(a)*4, damage:12, life:110, color:'#0099ff' });
             }
           }
@@ -842,7 +842,6 @@
           b.rage = true;
           b.boomerang = null;
           b.activePanel = -1;
-          this.showBanner('PENTAGON RAGE!', '#0099ff');
           return;
         }
 
@@ -1994,4 +1993,3 @@
   </script>
 </body>
 </html>
-
