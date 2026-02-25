@@ -170,231 +170,6 @@
     }
     #game-over-screen p { font-size: clamp(14px, 3vw, 24px); color: #fff; margin-top: 20px; }
     #vote-display { font-size: clamp(16px, 4vw, 28px); color: #00ff00; margin-top: 20px; }
-
-    /* ── MOBILE HOST OVERLAY ─────────────────────────────────────── */
-    /* Sits on top of everything — covers the canvas completely       */
-    #mobile-host-overlay {
-      display: none; /* shown only on mobile */
-      position: fixed;
-      inset: 0;
-      z-index: 500;
-      background: #111;
-      flex-direction: column;
-      touch-action: none;
-      font-family: 'Courier New', monospace;
-      color: #fff;
-      -webkit-tap-highlight-color: transparent;
-    }
-    #mobile-host-overlay.active { display: flex; }
-
-    /* Peek button — fixed top-right corner */
-    #peek-btn {
-      position: fixed;
-      top: 10px; right: 10px;
-      z-index: 600;
-      width: 44px; height: 44px;
-      border-radius: 50%;
-      border: 2px solid #333;
-      background: rgba(0,0,0,0.7);
-      color: #555;
-      font-size: 18px;
-      display: none;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      transition: all 0.2s;
-    }
-    #peek-btn.active { display: flex; }
-    #peek-btn.peeking { border-color: #00ff00; color: #00ff00; background: rgba(0,20,0,0.9); }
-
-    /* When peeking, canvas shows through at 80% — controls stay fully usable */
-    #mobile-host-overlay.peeking {
-      background: transparent;
-    }
-    /* Dim just the background fill, keep controls solid */
-    #mobile-host-overlay.peeking::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      background: rgba(0,0,0,0.2);
-      pointer-events: none;
-      z-index: 0;
-    }
-
-    /* HUD bar */
-    #mh-hud {
-      position: absolute; top: 10px; left: 0; right: 54px;
-      display: flex; justify-content: space-between;
-      padding: 0 16px; z-index: 10; transition: opacity 0.2s;
-    }
-    #mh-weapon { font-size: 15px; font-weight: bold; letter-spacing: 2px; }
-    #mh-weapon span { font-size: 11px; color: #888; }
-    #mh-ammo { font-size: 18px; font-weight: bold; color: #ffff00; letter-spacing: 2px; }
-    #mh-ammo span { font-size: 11px; color: #555; }
-    #mh-ammo.low { color: #ff3333; animation: mh-flash 0.5s infinite; }
-    #mh-ammo.empty { color: #888; }
-    #mh-points { font-size: 16px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
-    #mh-points span { font-size: 11px; color: #555; }
-    #mh-tier { font-size: 12px; font-weight: bold; letter-spacing: 2px; }
-    #mh-tier span { font-size: 10px; color: #444; }
-    @keyframes mh-flash { 0%,100%{opacity:1} 50%{opacity:0.2} }
-
-    /* Melee banner */
-    #mh-melee-banner {
-      position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); border: 2px solid #00ff66;
-      border-radius: 8px; padding: 3px 12px; font-size: 11px;
-      color: #00ff66; letter-spacing: 2px; display: none; z-index: 20;
-      animation: mh-pulse 1.2s infinite;
-    }
-    @keyframes mh-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
-
-    /* Controls area */
-    #mh-controls {
-      position: absolute; bottom: 0; left: 0; right: 0;
-      height: 65%; display: flex; align-items: center;
-      justify-content: space-around; padding: 20px 36px;
-      transition: opacity 0.2s;
-    }
-
-    /* Joystick */
-    #mh-joystick-zone {
-      width: 180px; height: 180px; border-radius: 50%;
-      background: rgba(0,255,0,0.04); border: 3px solid #00ff00;
-      position: relative; touch-action: none; flex-shrink: 0;
-    }
-    #mh-joystick-zone::before {
-      content:''; position:absolute; width:2px; height:100%;
-      top:0; left:50%; transform:translateX(-50%); background:rgba(0,255,0,0.12);
-    }
-    #mh-joystick-zone::after {
-      content:''; position:absolute; height:2px; width:100%;
-      left:0; top:50%; transform:translateY(-50%); background:rgba(0,255,0,0.12);
-    }
-    #mh-joystick-knob {
-      width: 66px; height: 66px; border-radius: 50%; background: #00ff00;
-      position: absolute; top:50%; left:50%;
-      transform: translate(-50%,-50%); pointer-events: none;
-      box-shadow: 0 0 18px rgba(0,255,0,0.8);
-    }
-
-    /* Fire button */
-    #mh-fire-btn {
-      width: 155px; height: 155px; border-radius: 50%;
-      background: rgba(255,40,40,0.12); border: 4px solid #ff3333;
-      color: #ff3333; font-size: 20px; font-weight: bold;
-      font-family: 'Courier New', monospace; letter-spacing: 3px;
-      display: flex; align-items: center; justify-content: center;
-      touch-action: none; user-select: none; flex-shrink: 0;
-      transition: all 0.15s; box-shadow: 0 0 18px rgba(255,50,50,0.2);
-      flex-direction: column; gap: 4px;
-    }
-    #mh-fire-btn .lbl { font-size: 13px; letter-spacing: 3px; }
-    #mh-fire-btn.active { background:#ff3333; color:#000; transform:scale(0.92); box-shadow:0 0 40px rgba(255,50,50,0.9); }
-    #mh-fire-btn.melee-mode { background:rgba(0,255,100,0.08); border-color:#00ff66; color:#00ff66; }
-    #mh-fire-btn.melee-mode.active { background:#00ff66; color:#000; box-shadow:0 0 50px rgba(0,255,100,1); }
-
-    /* Action button (mystery box / vending) */
-    #mh-action-btn {
-      position: absolute; bottom: 50%; left: 50%;
-      transform: translate(-50%, 50%);
-      width: 110px; height: 110px;
-      font-size: 11px; font-weight: bold; line-height: 1.4;
-      font-family: 'Courier New', monospace; letter-spacing: 1px;
-      border-radius: 50%; border: 3px solid #222;
-      background: #0a0a0a; color: #333;
-      transition: all 0.2s; cursor: default;
-      z-index: 20; pointer-events: none;
-    }
-    #mh-action-btn.mode-box {
-      background:#1a0030; color:#cc88ff; border-color:#8833cc;
-      pointer-events:auto; cursor:pointer;
-      box-shadow:0 0 18px rgba(150,50,255,0.5);
-      animation:mh-pulse-box 1s infinite;
-    }
-    #mh-action-btn.mode-vend {
-      background:#001a08; color:#00ff66; border-color:#00cc44;
-      pointer-events:auto; cursor:pointer;
-      box-shadow:0 0 18px rgba(0,255,100,0.5);
-      animation:mh-pulse-vend 1s infinite;
-    }
-    #mh-action-btn.mode-broke {
-      background:#1a0a0a; color:#663333; border-color:#331111;
-      pointer-events:none;
-    }
-    @keyframes mh-pulse-box { 0%,100%{box-shadow:0 0 18px rgba(150,50,255,0.5)} 50%{box-shadow:0 0 35px rgba(187,0,255,1)} }
-    @keyframes mh-pulse-vend { 0%,100%{box-shadow:0 0 15px rgba(0,255,100,0.4)} 50%{box-shadow:0 0 30px rgba(0,255,100,0.9)} }
-
-    /* Lobby overlay */
-    #mh-lobby {
-      position: absolute; inset: 0;
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 20px; background: #111; z-index: 30;
-      transition: opacity 0.2s;
-    }
-    #mh-lobby.visible { display: flex; }
-    #mh-lobby h1 { font-size: 22px; color: #00ff00; letter-spacing: 4px; }
-    #mh-room-code-display {
-      text-align: center;
-    }
-    #mh-room-code-display p { font-size: 12px; color: #555; letter-spacing: 3px; margin-bottom: 6px; }
-    #mh-room-code-big {
-      font-size: 52px; font-weight: bold; letter-spacing: 10px;
-      color: #fff; text-shadow: 0 0 20px rgba(255,255,255,0.4);
-    }
-    #mh-copy-btn {
-      margin-top: 8px;
-      padding: 8px 20px; font-size: 12px; letter-spacing: 2px;
-      background: transparent; border: 1px solid #333; border-radius: 20px;
-      color: #555; font-family: 'Courier New', monospace; cursor: pointer;
-      transition: all 0.2s;
-    }
-    #mh-copy-btn.copied { border-color: #00ff00; color: #00ff00; }
-    #mh-player-badge {
-      font-size: 26px; font-weight: bold; padding: 12px 28px;
-      border-radius: 12px; border: 3px solid; letter-spacing: 3px;
-    }
-    #mh-lobby p { font-size: 13px; color: #555; letter-spacing: 2px; text-align: center; max-width: 280px; }
-    #mh-ready-btn {
-      width: 240px; height: 72px; font-size: 26px; font-weight: bold;
-      background: #00ff00; color: #000; border: none; border-radius: 14px;
-      letter-spacing: 4px; cursor: pointer; font-family: 'Courier New', monospace;
-      box-shadow: 0 0 28px rgba(0,255,0,0.5);
-    }
-    #mh-ready-btn.voted { background:#333; color:#00ff00; border:3px solid #00ff00; box-shadow:none; font-size:20px; }
-    #mh-waiting { font-size: 13px; color: #00ff00; letter-spacing: 2px; min-height: 18px; animation: mh-pulse 1.5s infinite; }
-    #mh-countdown { font-size: 80px; font-weight: bold; color: #ff0000; text-shadow: 0 0 30px #ff0000; min-height: 90px; }
-
-    /* Game over overlay */
-    #mh-gameover {
-      position: absolute; inset: 0;
-      display: none; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 20px; background: #000; z-index: 30;
-      transition: opacity 0.2s;
-    }
-    #mh-gameover.visible { display: flex; }
-    #mh-gameover h1 { font-size: 46px; color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
-    #mh-gameover p  { font-size: 15px; color: #888; letter-spacing: 2px; }
-    #mh-restart-btn {
-      width: 220px; height: 64px; font-size: 22px; font-weight: bold;
-      background: #00ff00; color: #000; border: none; border-radius: 14px;
-      letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
-    }
-    #mh-restart-btn.voted { background:#444; color:#888; }
-    #mh-vote-status { font-size: 16px; color: #00ff00; letter-spacing: 2px; min-height: 22px; }
-
-    /* Weapon popup */
-    #mh-weapon-popup {
-      position: fixed; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.95); padding: 28px 44px;
-      border-radius: 14px; border: 3px solid #bb00ff;
-      text-align: center; display: none; z-index: 700;
-    }
-    #mh-weapon-popup h2 { font-size: 28px; color: #bb00ff; margin-bottom: 8px; }
-    #mh-weapon-popup p  { font-size: 16px; color: #fff; }
   </style>
 </head>
 <body>
@@ -450,61 +225,6 @@
   </div>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
-
-  <!-- Mobile host overlay — covers the canvas on phones, same feel as controller.html -->
-  <div id="mobile-host-overlay">
-
-    <!-- HUD -->
-    <div id="mh-hud">
-      <div id="mh-weapon"><span>WEAPON </span>PISTOL</div>
-      <div id="mh-points"><span>$ </span>0</div>
-      <div id="mh-ammo"><span>AMMO </span>30</div>
-      <div id="mh-tier"><span>TIER </span>DEFAULT</div>
-    </div>
-    <div id="mh-melee-banner">⚔ KNIFE MODE — FIND AMMO!</div>
-
-    <!-- Controls -->
-    <div id="mh-controls">
-      <div id="mh-joystick-zone"><div id="mh-joystick-knob"></div></div>
-      <div id="mh-fire-btn"><div class="lbl">FIRE</div></div>
-    </div>
-
-    <!-- Action button (mystery box / vending) -->
-    <button id="mh-action-btn">—</button>
-
-    <!-- Lobby screen -->
-    <div id="mh-lobby" class="visible">
-      <h1>ZOMBIE SURVIVAL</h1>
-      <div id="mh-player-badge">PLAYER 1</div>
-      <div id="mh-room-code-display">
-        <p>ROOM CODE</p>
-        <div id="mh-room-code-big">----</div>
-        <button id="mh-copy-btn">TAP TO COPY LINK</button>
-      </div>
-      <p style="font-size:11px;color:#444;max-width:260px;text-align:center;">Share this code — others go to the same URL and enter it, or tap Copy to share the direct link</p>
-      <button id="mh-ready-btn">READY UP</button>
-      <div id="mh-waiting"></div>
-      <div id="mh-countdown"></div>
-    </div>
-
-    <!-- Game over screen -->
-    <div id="mh-gameover">
-      <h1>GAME OVER</h1>
-      <p>All players have fallen</p>
-      <button id="mh-restart-btn">RESTART</button>
-      <div id="mh-vote-status"></div>
-    </div>
-
-  </div>
-
-  <!-- Peek toggle button — always on top -->
-  <button id="peek-btn" title="Peek at game canvas">👁</button>
-
-  <!-- Weapon popup -->
-  <div id="mh-weapon-popup">
-    <h2 id="mh-weapon-popup-name">SMG</h2>
-    <p>Weapon Acquired!</p>
-  </div>
   <script src="/shared/game-constants.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -2262,26 +1982,27 @@
             this.render();
             // Broadcast at 20hz (every 3 frames) — controllers don't need 60hz state
             if (this.socket && this.roomCode && ++broadcastFrame % 3 === 0) {
+              const ps = this.players.map(p => ({
+                health: p.hp, ammo: p.ammo === Infinity ? -1 : p.ammo,
+                isAlive: p.alive, points: p.points, weapon: p.currentWeapon,
+                canUseMysteryBox: this.canUseMysteryBox(p),
+                canUseVending: this.canUseVending(p),
+                vendingCost: this.vendingCost,
+                killCount: p.killCount, tierIndex: p.tierIndex
+              }));
               this.socket.emit('game-state-broadcast', {
                 roomCode: this.roomCode,
-                gameState: {
-                  wave: this.wave,
-                  zombiesRemaining: this.zombies.length,
-                  gameOver: this.gameOver,
-                  players: this.players.map(p => ({
-                    health: p.hp,
-                    ammo: p.ammo === Infinity ? -1 : p.ammo,
-                    isAlive: p.alive,
-                    points: p.points,
-                    weapon: p.currentWeapon,
-                    canUseMysteryBox: this.canUseMysteryBox(p),
-                    canUseVending: this.canUseVending(p),
-                    vendingCost: this.vendingCost,
-                    killCount: p.killCount,
-                    tierIndex: p.tierIndex
-                  }))
-                }
+                gameState: { wave: this.wave, zombiesRemaining: this.zombies.length, gameOver: this.gameOver, players: ps }
               });
+              // Feed host overlay directly (host = slot 1 = index 0)
+              const ho = window._hostOverlay;
+              if (ho && ps[0]) {
+                const p = ps[0];
+                ho.updateAmmo(p.ammo); ho.updatePoints(p.points); ho.updateWeapon(p.weapon);
+                ho.updateActionBtn(p.canUseMysteryBox, p.canUseVending, p.points, p.vendingCost);
+                ho.updateTier(p.tierIndex, p.killCount);
+                if (this.gameOver) ho.showGameOver();
+              }
             }
             lastTime = currentTime - (deltaTime % frameDelay);
           }
@@ -2291,125 +2012,274 @@
       }
     }
 
-    // ── MOBILE DETECTION ────────────────────────────────────────────
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)
-                  || (window.innerWidth <= 900 && 'ontouchstart' in window);
-
     const game   = new GameEngine();
     const socket = io({ transports: ['websocket'] });
     game.socket  = socket;
 
-    // ── DESKTOP MODE ─────────────────────────────────────────────────
-    if (!isMobile) {
-      socket.on('connect', () => socket.emit('create-room'));
-      socket.on('room-created', (data) => {
-        game.roomCode = data.roomCode;
-        document.getElementById('room-code').textContent = data.roomCode;
-        new QRCode(document.getElementById('qr-code'), {
-          text: `${window.location.origin}/controller.html?room=${data.roomCode}`,
-          width: 128, height: 128,
-          colorDark: '#000000', colorLight: '#ffffff',
-          correctLevel: QRCode.CorrectLevel.M
-        });
-        game.start();
+    socket.on('connect', () => socket.emit('create-room'));
+    socket.on('room-created', (data) => {
+      game.roomCode = data.roomCode;
+      document.getElementById('room-code').textContent = data.roomCode;
+      new QRCode(document.getElementById('qr-code'), {
+        text: `${window.location.origin}/controller.html?room=${data.roomCode}`,
+        width: 128, height: 128,
+        colorDark: '#000000', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
       });
+      game.start();
+    });
 
-      socket.on('explosion',            (d) => game.spawnParticles(d.x, d.y, d.color));
-      socket.on('player-joined',        (d) => game.addPlayer(d.slotNumber));
-      socket.on('player-disconnected',  (d) => game.removePlayer(d.slotNumber));
-      socket.on('player-removed',       (d) => game.removePlayer(d.slotNumber));
-      socket.on('player-input',         (d) => game.handleInput(d.slotNumber, d.input));
-      socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
-      socket.on('vending-purchase',     (d) => game.handleVendingPurchase(d.slotNumber));
-      socket.on('lobby-update',         (d) => game.updateLobby(d.players));
-      socket.on('ready-countdown', (d) => {
-        const el = document.getElementById('countdown');
-        el.style.display='block'; el.textContent=d.seconds;
-        el.style.animation='none'; el.offsetHeight; el.style.animation='pop 0.3s ease';
-      });
-      socket.on('ready-countdown-cancelled', () => {
-        document.getElementById('countdown').style.display = 'none';
-      });
-      socket.on('all-ready',           ()  => game.beginGame());
-      socket.on('restart-game',        ()  => game.restart());
-      socket.on('restart-vote-update', (d) => {
-        document.getElementById('vote-display').textContent =
-          `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
-      });
+    socket.on('explosion',            (d) => game.spawnParticles(d.x, d.y, d.color));
+    socket.on('player-joined',        (d) => game.addPlayer(d.slotNumber));
+    socket.on('player-disconnected',  (d) => game.removePlayer(d.slotNumber));
+    socket.on('player-removed',       (d) => game.removePlayer(d.slotNumber));
+    socket.on('player-input',         (d) => game.handleInput(d.slotNumber, d.input));
+    socket.on('mystery-box-purchase', (d) => game.handleMysteryBoxPurchase(d.slotNumber));
+    socket.on('vending-purchase',     (d) => game.handleVendingPurchase(d.slotNumber));
+    socket.on('lobby-update',         (d) => game.updateLobby(d.players));
+    socket.on('ready-countdown', (d) => {
+      const el = document.getElementById('countdown');
+      el.style.display='block'; el.textContent=d.seconds;
+      el.style.animation='none'; el.offsetHeight; el.style.animation='pop 0.3s ease';
+    });
+    socket.on('ready-countdown-cancelled', () => {
+      document.getElementById('countdown').style.display = 'none';
+    });
+    socket.on('all-ready', () => {
+      game.beginGame();
+      hostOverlay.show(socket, game.roomCode);
+    });
+    socket.on('restart-game', () => {
+      game.restart();
+      hostOverlay.hide();
+    });
+    socket.on('restart-vote-update', (d) => {
+      document.getElementById('vote-display').textContent =
+        `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
+      hostOverlay.updateVoteStatus(d.votes, d.needed);
+    });
 
-    // ── MOBILE HOST MODE ─────────────────────────────────────────────
-    } else {
-      // Hide the game-container scrolling/sizing — canvas still renders behind
-      document.getElementById('game-container').style.visibility = 'hidden';
+    // ── HOST OVERLAY ─────────────────────────────────────────────────
+    // Appears over the canvas when the game starts, giving the host
+    // the same controller UI as everyone else. Peek button lets them
+    // see the canvas when not casting to a TV.
+    const hostOverlay = new HostOverlay();
+    window._hostOverlay = hostOverlay;
 
-      // Show the mobile overlay and peek button
-      document.getElementById('mobile-host-overlay').classList.add('active');
-      document.getElementById('peek-btn').classList.add('active');
-
-      new MobileHost(socket, game);
-    }
-
-    // ── MOBILE HOST CLASS ────────────────────────────────────────────
-    class MobileHost {
-      constructor(socket, game) {
-        this.socket    = socket;
-        this.game      = game;
+    class HostOverlay {
+      constructor() {
         this.roomCode  = null;
-        this.slot      = 1;
-        this.color     = '#00ffff';
+        this.socket    = null;
         this.firing    = false;
         this.meleeing  = false;
         this.inMelee   = false;
-        this.isReady   = false;
         this.hasVoted  = false;
-        this.weapon    = 'pistol';
-        this.ammo      = 30;
-        this.loop      = null;
         this.peeking   = false;
+        this.loop      = null;
+        this.weapon    = 'pistol';
+        this._inject();
+      }
 
-        this._bindSocket();   // bind ALL events first
+      _inject() {
+        // Styles
+        const style = document.createElement('style');
+        style.textContent = `
+          #host-overlay {
+            display: none; position: fixed; inset: 0; z-index: 500;
+            background: #111; flex-direction: column;
+            font-family: 'Courier New', monospace; color: #fff;
+            touch-action: none; -webkit-tap-highlight-color: transparent;
+          }
+          #host-overlay.visible { display: flex; }
+          #host-overlay.peeking { background: rgba(0,0,0,0.18); }
+
+          #ho-hud {
+            position: absolute; top: 10px; left: 0; right: 54px;
+            display: flex; justify-content: space-between; padding: 0 16px; z-index: 10;
+          }
+          #ho-weapon { font-size: 15px; font-weight: bold; letter-spacing: 2px; }
+          #ho-weapon span { font-size: 11px; color: #888; }
+          #ho-ammo { font-size: 18px; font-weight: bold; color: #ffff00; letter-spacing: 2px; }
+          #ho-ammo span { font-size: 11px; color: #555; }
+          #ho-ammo.low { color: #ff3333; animation: ho-flash 0.5s infinite; }
+          #ho-ammo.empty { color: #888; }
+          #ho-points { font-size: 16px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
+          #ho-points span { font-size: 11px; color: #555; }
+          #ho-tier { font-size: 12px; font-weight: bold; letter-spacing: 2px; }
+          #ho-tier span { font-size: 10px; color: #444; }
+          @keyframes ho-flash { 0%,100%{opacity:1} 50%{opacity:0.2} }
+
+          #ho-melee-banner {
+            position: absolute; top: 46px; left: 50%; transform: translateX(-50%);
+            background: rgba(0,0,0,0.85); border: 2px solid #00ff66;
+            border-radius: 8px; padding: 3px 12px; font-size: 11px;
+            color: #00ff66; letter-spacing: 2px; display: none; z-index: 20;
+            animation: ho-pulse 1.2s infinite;
+          }
+          @keyframes ho-pulse { 0%,100%{opacity:1} 50%{opacity:0.3} }
+
+          #ho-controls {
+            position: absolute; bottom: 0; left: 0; right: 0; height: 65%;
+            display: flex; align-items: center;
+            justify-content: space-around; padding: 20px 36px;
+          }
+
+          #ho-joystick-zone {
+            width: 180px; height: 180px; border-radius: 50%;
+            background: rgba(0,255,0,0.04); border: 3px solid #00ff00;
+            position: relative; touch-action: none; flex-shrink: 0;
+          }
+          #ho-joystick-zone::before {
+            content:''; position:absolute; width:2px; height:100%;
+            top:0; left:50%; transform:translateX(-50%); background:rgba(0,255,0,0.12);
+          }
+          #ho-joystick-zone::after {
+            content:''; position:absolute; height:2px; width:100%;
+            left:0; top:50%; transform:translateY(-50%); background:rgba(0,255,0,0.12);
+          }
+          #ho-joystick-knob {
+            width: 66px; height: 66px; border-radius: 50%; background: #00ff00;
+            position: absolute; top:50%; left:50%;
+            transform: translate(-50%,-50%); pointer-events: none;
+            box-shadow: 0 0 18px rgba(0,255,0,0.8);
+          }
+
+          #ho-fire-btn {
+            width: 155px; height: 155px; border-radius: 50%;
+            background: rgba(255,40,40,0.12); border: 4px solid #ff3333;
+            color: #ff3333; font-size: 20px; font-weight: bold;
+            font-family: 'Courier New', monospace; letter-spacing: 3px;
+            display: flex; align-items: center; justify-content: center;
+            touch-action: none; user-select: none; flex-shrink: 0;
+            transition: all 0.15s; flex-direction: column; gap: 4px;
+          }
+          #ho-fire-btn .lbl { font-size: 13px; letter-spacing: 3px; }
+          #ho-fire-btn.active { background:#ff3333; color:#000; transform:scale(0.92); box-shadow:0 0 40px rgba(255,50,50,0.9); }
+          #ho-fire-btn.melee-mode { background:rgba(0,255,100,0.08); border-color:#00ff66; color:#00ff66; }
+          #ho-fire-btn.melee-mode.active { background:#00ff66; color:#000; box-shadow:0 0 50px rgba(0,255,100,1); }
+
+          #ho-action-btn {
+            position: absolute; bottom: 50%; left: 50%;
+            transform: translate(-50%, 50%);
+            width: 110px; height: 110px;
+            font-size: 11px; font-weight: bold; line-height: 1.4;
+            font-family: 'Courier New', monospace; letter-spacing: 1px;
+            border-radius: 50%; border: 3px solid #222;
+            background: #0a0a0a; color: #333;
+            transition: all 0.2s; pointer-events: none; z-index: 20;
+          }
+          #ho-action-btn.mode-box  { background:#1a0030; color:#cc88ff; border-color:#8833cc; pointer-events:auto; cursor:pointer; box-shadow:0 0 18px rgba(150,50,255,0.5); animation:ho-pulse-box 1s infinite; }
+          #ho-action-btn.mode-vend { background:#001a08; color:#00ff66; border-color:#00cc44; pointer-events:auto; cursor:pointer; box-shadow:0 0 18px rgba(0,255,100,0.5); animation:ho-pulse-vend 1s infinite; }
+          #ho-action-btn.mode-broke { background:#1a0a0a; color:#663333; border-color:#331111; pointer-events:none; }
+          @keyframes ho-pulse-box  { 0%,100%{box-shadow:0 0 18px rgba(150,50,255,0.5)} 50%{box-shadow:0 0 35px rgba(187,0,255,1)} }
+          @keyframes ho-pulse-vend { 0%,100%{box-shadow:0 0 15px rgba(0,255,100,0.4)} 50%{box-shadow:0 0 30px rgba(0,255,100,0.9)} }
+
+          #ho-gameover {
+            position: absolute; inset: 0; display: none;
+            flex-direction: column; align-items: center; justify-content: center;
+            gap: 20px; background: rgba(0,0,0,0.92); z-index: 30;
+          }
+          #ho-gameover.visible { display: flex; }
+          #ho-gameover h1 { font-size: 46px; color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
+          #ho-gameover p  { font-size: 14px; color: #888; letter-spacing: 2px; }
+          #ho-restart-btn {
+            width: 220px; height: 64px; font-size: 22px; font-weight: bold;
+            background: #00ff00; color: #000; border: none; border-radius: 14px;
+            letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
+          }
+          #ho-restart-btn.voted { background:#444; color:#888; }
+          #ho-vote-status { font-size: 15px; color: #00ff00; letter-spacing: 2px; min-height: 20px; }
+
+          #ho-peek-btn {
+            position: fixed; top: 10px; right: 10px; z-index: 600;
+            width: 44px; height: 44px; border-radius: 50%;
+            border: 2px solid #333; background: rgba(0,0,0,0.7);
+            color: #555; font-size: 18px; display: none;
+            align-items: center; justify-content: center; cursor: pointer;
+          }
+          #ho-peek-btn.visible { display: flex; }
+          #ho-peek-btn.peeking { border-color: #00ff00; color: #00ff00; }
+
+          #ho-weapon-popup {
+            position: fixed; top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0,0,0,0.95); padding: 28px 44px;
+            border-radius: 14px; border: 3px solid #bb00ff;
+            text-align: center; display: none; z-index: 700;
+          }
+          #ho-weapon-popup h2 { font-size: 28px; color: #bb00ff; margin-bottom: 8px; letter-spacing: 3px; }
+          #ho-weapon-popup p  { font-size: 16px; color: #fff; }
+        `;
+        document.head.appendChild(style);
+
+        // HTML
+        document.body.insertAdjacentHTML('beforeend', `
+          <div id="host-overlay">
+            <div id="ho-hud">
+              <div id="ho-weapon"><span>WEAPON </span>PISTOL</div>
+              <div id="ho-points"><span>$ </span>0</div>
+              <div id="ho-ammo"><span>AMMO </span>30</div>
+              <div id="ho-tier"><span>TIER </span>DEFAULT</div>
+            </div>
+            <div id="ho-melee-banner">⚔ KNIFE MODE</div>
+            <div id="ho-controls">
+              <div id="ho-joystick-zone"><div id="ho-joystick-knob"></div></div>
+              <div id="ho-fire-btn"><div class="lbl">FIRE</div></div>
+            </div>
+            <button id="ho-action-btn">—</button>
+            <div id="ho-gameover">
+              <h1>GAME OVER</h1>
+              <p>All players have fallen</p>
+              <button id="ho-restart-btn">RESTART</button>
+              <div id="ho-vote-status"></div>
+            </div>
+          </div>
+          <button id="ho-peek-btn">👁</button>
+          <div id="ho-weapon-popup"><h2 id="ho-popup-name">SMG</h2><p>Weapon Acquired!</p></div>
+        `);
+
+        this._bindJoystick();
         this._bindFireBtn();
         this._bindActionBtn();
-        this._bindReadyBtn();
         this._bindRestartBtn();
         this._bindPeekBtn();
-        this._requestWakeLock();
-        this.joystick = this._makeJoystick();
 
-        // Show connecting status
-        this._setStatus('CONNECTING...', '#555');
-
-        // Emit create-remote-room — handle both already-connected and future connect
-        const doCreate = () => {
-          this._setStatus('CREATING ROOM...', '#888');
-          socket.emit('create-remote-room');
-        };
-        if (socket.connected) {
-          doCreate();
-        } else {
-          socket.once('connect', doCreate);
-        }
-        socket.on('disconnect', () => this._setStatus('RECONNECTING...', '#ff4400'));
-        socket.on('reconnect',  () => { this._setStatus('CREATING ROOM...', '#888'); socket.emit('create-remote-room'); });
       }
 
-      _setStatus(msg, color='#555') {
-        let el = document.getElementById('mh-status');
-        if (!el) {
-          el = document.createElement('div');
-          el.id = 'mh-status';
-          el.style.cssText = 'position:fixed;bottom:8px;left:50%;transform:translateX(-50%);font-size:10px;letter-spacing:2px;z-index:800;transition:color 0.3s;font-family:Courier New,monospace;';
-          document.body.appendChild(el);
-        }
-        el.style.color = color;
-        el.textContent = msg;
+      show(sock, roomCode) {
+        this.socket   = sock;
+        this.roomCode = roomCode;
+        document.getElementById('host-overlay').classList.add('visible');
+        document.getElementById('ho-peek-btn').classList.add('visible');
+        this._startLoop();
       }
 
-      _makeJoystick() {
-        const zone = document.getElementById('mh-joystick-zone');
-        const knob = document.getElementById('mh-joystick-knob');
+      hide() {
+        document.getElementById('host-overlay').classList.remove('visible');
+        document.getElementById('ho-peek-btn').classList.remove('visible');
+        document.getElementById('ho-gameover').classList.remove('visible');
+        this._stopLoop();
+        this.hasVoted = false;
+        const btn = document.getElementById('ho-restart-btn');
+        btn.textContent = 'RESTART'; btn.classList.remove('voted');
+      }
+
+      updateVoteStatus(votes, needed) {
+        document.getElementById('ho-vote-status').textContent = `Votes: ${votes} / ${needed}`;
+      }
+
+      showGameOver() {
+        this._stopLoop();
+        document.getElementById('ho-gameover').classList.add('visible');
+      }
+
+      _bindJoystick() {
+        const zone = document.getElementById('ho-joystick-zone');
+        const knob = document.getElementById('ho-joystick-knob');
         const maxR = 56;
-        let active = false, angle = null;
+        let active = false;
+        this._joystickAngle = null;
+
         const getOffset = (e) => {
           const r = zone.getBoundingClientRect();
           const s = e.touches ? e.touches[0] : e;
@@ -2419,179 +2289,63 @@
         const onMove  = (e) => {
           if (!active) return; e.preventDefault();
           const {x,y} = getOffset(e);
-          angle = Math.atan2(y, x);
+          this._joystickAngle = Math.atan2(y, x);
           const c = Math.min(Math.sqrt(x*x+y*y), maxR);
-          knob.style.transform = `translate(calc(-50% + ${Math.cos(angle)*c}px), calc(-50% + ${Math.sin(angle)*c}px))`;
+          knob.style.transform = `translate(calc(-50% + ${Math.cos(this._joystickAngle)*c}px), calc(-50% + ${Math.sin(this._joystickAngle)*c}px))`;
         };
-        const onEnd = (e) => { e.preventDefault(); active = false; angle = null; knob.style.transform = 'translate(-50%,-50%)'; };
+        const onEnd = (e) => { e.preventDefault(); active = false; this._joystickAngle = null; knob.style.transform = 'translate(-50%,-50%)'; };
         const o = { passive: false };
         zone.addEventListener('touchstart',  onStart, o);
         zone.addEventListener('touchmove',   onMove,  o);
         zone.addEventListener('touchend',    onEnd,   o);
         zone.addEventListener('touchcancel', onEnd,   o);
-        return { getAngle: () => active ? angle : null };
-      }
-
-      _bindSocket() {
-        const s = this.socket;
-
-        s.on('join-success', (d) => {
-          this.roomCode = d.roomCode;
-          this.slot     = d.slotNumber;
-          this.color    = d.color;
-          this._setStatus(`ROOM ${d.roomCode} · PLAYER ${d.slotNumber}`, '#00ff00');
-
-          // Show room code large in the lobby
-          const codeEl = document.getElementById('mh-room-code-big');
-          if (codeEl) codeEl.textContent = d.roomCode;
-
-          // Copy link button
-          const copyBtn = document.getElementById('mh-copy-btn');
-          if (copyBtn) {
-            copyBtn.onclick = () => {
-              const url = `${window.location.origin}/controller.html?room=${d.roomCode}`;
-              navigator.clipboard.writeText(url).then(() => {
-                copyBtn.textContent = '✓ COPIED!';
-                copyBtn.classList.add('copied');
-                setTimeout(() => { copyBtn.textContent = 'COPY JOIN LINK'; copyBtn.classList.remove('copied'); }, 2000);
-              }).catch(() => {
-                copyBtn.textContent = url; // fallback — show URL directly
-              });
-            };
-          }
-
-          // Color the player badge
-          const badge = document.getElementById('mh-player-badge');
-          badge.textContent   = `PLAYER ${this.slot}`;
-          badge.style.color       = this.color;
-          badge.style.borderColor = this.color;
-          badge.style.background  = 'rgba(0,0,0,0.5)';
-
-          // Show room code in canvas HUD behind (for peek/cast)
-          document.getElementById('room-code').textContent = d.roomCode;
-          try {
-            new QRCode(document.getElementById('qr-code'), {
-              text: `${window.location.origin}/controller.html?room=${d.roomCode}`,
-              width: 128, height: 128,
-              colorDark: '#000000', colorLight: '#ffffff',
-              correctLevel: QRCode.CorrectLevel.M
-            });
-          } catch(e) {}
-
-          game.roomCode = d.roomCode;
-          game.start();
-        });
-
-        s.on('player-joined',       (d) => { game.addPlayer(d.slotNumber); });
-        s.on('player-disconnected', (d) => game.removePlayer(d.slotNumber));
-        s.on('player-removed',      (d) => game.removePlayer(d.slotNumber));
-        s.on('player-input',        (d) => game.handleInput(d.slotNumber, d.input));
-        s.on('mystery-box-purchase',(d) => game.handleMysteryBoxPurchase(d.slotNumber));
-        s.on('vending-purchase',    (d) => game.handleVendingPurchase(d.slotNumber));
-        s.on('lobby-update',        (d) => game.updateLobby(d.players));
-
-        s.on('ready-countdown', (d) => {
-          document.getElementById('mh-countdown').textContent = d.seconds;
-          const el = document.getElementById('countdown');
-          el.style.display='block'; el.textContent=d.seconds;
-        });
-        s.on('ready-countdown-cancelled', () => {
-          document.getElementById('mh-countdown').textContent = '';
-          document.getElementById('countdown').style.display = 'none';
-          document.getElementById('mh-waiting').textContent = '';
-        });
-        s.on('game-starting-remote', () => {
-          game.beginGame();
-          this._showController();
-          this._startLoop();
-        });
-        s.on('all-ready', () => {
-          game.beginGame();
-          this._showController();
-          this._startLoop();
-        });
-        s.on('game-state-update', (d) => {
-          if (d.ammo    !== undefined) this._updateAmmo(d.ammo);
-          if (d.points  !== undefined) this._updatePoints(d.points);
-          if (d.weapon  !== undefined) this._updateWeapon(d.weapon);
-          if (d.canUseMysteryBox !== undefined || d.canUseVending !== undefined)
-            this._updateActionBtn(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
-          if (d.tierIndex !== undefined) this._updateTier(d.tierIndex, d.killCount);
-          if (d.gameOver) this._showGameOver();
-        });
-        s.on('restart-game', () => {
-          game.restart(); this._showLobby();
-          this.hasVoted = false; this.isReady = false;
-        });
-        s.on('game-restarting-remote', () => {
-          game.restart(); this._showLobby(); this._stopLoop();
-          this.hasVoted = false; this.isReady = false;
-        });
-        s.on('restart-vote-update', (d) => {
-          document.getElementById('mh-vote-status').textContent = `Votes: ${d.votes} / ${d.needed}`;
-        });
-        s.on('explosion', (d) => game.spawnParticles(d.x, d.y, d.color));
-        s.on('ping', () => s.emit('pong'));
       }
 
       _bindFireBtn() {
-        const btn = document.getElementById('mh-fire-btn');
+        const btn = document.getElementById('ho-fire-btn');
         const press   = (e) => { e.preventDefault(); if (this.inMelee) this.meleeing=true; else this.firing=true; btn.classList.add('active'); };
         const release = (e) => { e.preventDefault(); this.firing=false; this.meleeing=false; btn.classList.remove('active'); };
         const o = { passive: false };
         btn.addEventListener('touchstart',  press,   o);
         btn.addEventListener('touchend',    release, o);
         btn.addEventListener('touchcancel', release, o);
-        // Mouse fallback for desktop testing
-        btn.addEventListener('mousedown',  press);
-        btn.addEventListener('mouseup',    release);
-        btn.addEventListener('mouseleave', release);
+        btn.addEventListener('mousedown',   press);
+        btn.addEventListener('mouseup',     release);
+        btn.addEventListener('mouseleave',  release);
       }
 
       _bindActionBtn() {
-        const btn = document.getElementById('mh-action-btn');
+        const btn = document.getElementById('ho-action-btn');
         btn.addEventListener('click', () => {
+          if (!this.socket || !this.roomCode) return;
           if (btn.classList.contains('mode-box'))  this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
           if (btn.classList.contains('mode-vend')) this.socket.emit('vending-purchase',     { roomCode: this.roomCode });
         });
       }
 
-      _bindReadyBtn() {
-        document.getElementById('mh-ready-btn').addEventListener('click', () => {
-          if (this.isReady || !this.roomCode) return;
-          this.isReady = true;
-          const btn = document.getElementById('mh-ready-btn');
-          btn.textContent = 'READY!'; btn.classList.add('voted');
-          document.getElementById('mh-waiting').textContent = 'Starting soon...';
-          this.socket.emit('player-ready', { roomCode: this.roomCode });
-        });
-      }
-
       _bindRestartBtn() {
-        document.getElementById('mh-restart-btn').addEventListener('click', () => {
-          if (this.hasVoted) return;
+        document.getElementById('ho-restart-btn').addEventListener('click', () => {
+          if (this.hasVoted || !this.socket) return;
           this.hasVoted = true;
-          const btn = document.getElementById('mh-restart-btn');
+          const btn = document.getElementById('ho-restart-btn');
           btn.textContent = 'VOTED!'; btn.classList.add('voted');
           this.socket.emit('restart-vote', { roomCode: this.roomCode });
         });
       }
 
       _bindPeekBtn() {
-        const peekBtn = document.getElementById('peek-btn');
-        const overlay = document.getElementById('mobile-host-overlay');
+        const peekBtn = document.getElementById('ho-peek-btn');
+        const overlay = document.getElementById('host-overlay');
         const gc      = document.getElementById('game-container');
         peekBtn.addEventListener('click', () => {
           this.peeking = !this.peeking;
           if (this.peeking) {
-            gc.style.visibility = 'visible';
-            gc.style.opacity    = '0.82';
+            gc.style.opacity = '1';
             overlay.classList.add('peeking');
             peekBtn.classList.add('peeking');
             peekBtn.textContent = '🙈';
           } else {
-            gc.style.visibility = 'hidden';
-            gc.style.opacity    = '1';
+            gc.style.opacity = '1';
             overlay.classList.remove('peeking');
             peekBtn.classList.remove('peeking');
             peekBtn.textContent = '👁';
@@ -2599,51 +2353,25 @@
         });
       }
 
+      _ensureLoop() {
+        if (this.loop) return;
+        this._startLoop();
+      }
+
       _startLoop() {
         this._stopLoop();
         this.loop = setInterval(() => {
+          if (!this.socket || !this.roomCode) return;
           this.socket.emit('player-input', {
             roomCode: this.roomCode,
-            input: { angle: this.joystick.getAngle(), fire: this.firing, melee: this.meleeing }
+            input: { angle: this._joystickAngle, fire: this.firing, melee: this.meleeing }
           });
         }, 50);
       }
       _stopLoop() { if (this.loop) { clearInterval(this.loop); this.loop = null; } }
 
-      _showLobby() {
-        document.getElementById('mh-lobby').classList.add('visible');
-        document.getElementById('mh-gameover').classList.remove('visible');
-        document.getElementById('mh-controls').style.display = 'none';
-        document.getElementById('mh-hud').style.display = 'none';
-        document.getElementById('mh-action-btn').style.display = 'none';
-        const btn = document.getElementById('mh-ready-btn');
-        btn.textContent = 'READY UP'; btn.classList.remove('voted');
-        document.getElementById('mh-waiting').textContent = '';
-        document.getElementById('mh-countdown').textContent = '';
-        this.isReady = false;
-      }
-
-      _showController() {
-        document.getElementById('mh-lobby').classList.remove('visible');
-        document.getElementById('mh-gameover').classList.remove('visible');
-        document.getElementById('mh-controls').style.display = 'flex';
-        document.getElementById('mh-hud').style.display = 'flex';
-        document.getElementById('mh-action-btn').style.display = 'flex';
-      }
-
-      _showGameOver() {
-        this._stopLoop();
-        document.getElementById('mh-gameover').classList.add('visible');
-        document.getElementById('mh-controls').style.display = 'none';
-        const btn = document.getElementById('mh-restart-btn');
-        btn.textContent = 'RESTART'; btn.classList.remove('voted');
-        document.getElementById('mh-vote-status').textContent = '';
-        this.hasVoted = false;
-      }
-
-      _updateAmmo(ammo) {
-        this.ammo = ammo;
-        const el = document.getElementById('mh-ammo');
+      updateAmmo(ammo) {
+        const el = document.getElementById('ho-ammo');
         if (ammo === -1 || ammo === Infinity) {
           el.innerHTML = `<span>AMMO </span>∞`; el.className = '';
           this._setMeleeMode(false);
@@ -2659,39 +2387,29 @@
         }
       }
 
-      _updatePoints(pts) {
-        document.getElementById('mh-points').innerHTML = `<span>$ </span>${pts}`;
+      updatePoints(pts) {
+        document.getElementById('ho-points').innerHTML = `<span>$ </span>${pts}`;
       }
 
-      _updateWeapon(weapon) {
-        if (this.weapon !== weapon) this._showWeaponPopup(weapon);
-        this.weapon = weapon;
-        document.getElementById('mh-weapon').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
+      updateWeapon(weapon) {
+        if (this._lastWeapon && this._lastWeapon !== weapon) this._showWeaponPopup(weapon);
+        this._lastWeapon = weapon;
+        document.getElementById('ho-weapon').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
       }
 
-      _updateTier(idx, kills) {
+      updateTier(idx, kills) {
         const tiers = [
           {name:'DEFAULT',color:'#ffffff'},{name:'GREEN',color:'#00ff66'},
           {name:'BLUE',color:'#4488ff'},{name:'PURPLE',color:'#cc44ff'},{name:'GOLD',color:'#ffcc00'}
         ];
         const t = tiers[idx]||tiers[0], next = tiers[idx+1];
-        const el = document.getElementById('mh-tier');
+        const el = document.getElementById('ho-tier');
         el.style.color = t.color;
         el.innerHTML = `<span>TIER </span>${t.name}${next?` · ${kills}/${next.kills}`:' · MAX'}`;
       }
 
-      _setMeleeMode(on) {
-        if (this.inMelee === on) return;
-        this.inMelee = on;
-        const btn    = document.getElementById('mh-fire-btn');
-        const banner = document.getElementById('mh-melee-banner');
-        const lbl    = btn.querySelector('.lbl');
-        if (on)  { btn.classList.add('melee-mode');    lbl.textContent='KNIFE'; banner.style.display='block'; this.firing=false;    }
-        else     { btn.classList.remove('melee-mode'); lbl.textContent='FIRE';  banner.style.display='none';  this.meleeing=false;  }
-      }
-
-      _updateActionBtn(canBox, canVend, points, vendingCost) {
-        const btn = document.getElementById('mh-action-btn');
+      updateActionBtn(canBox, canVend, points, vendingCost) {
+        const btn = document.getElementById('ho-action-btn');
         btn.classList.remove('mode-box','mode-vend','mode-broke');
         if (canBox) {
           if ((points||0) >= 950) { btn.classList.add('mode-box');   btn.innerHTML=`MYSTERY<br>BOX<br>$950`; }
@@ -2703,24 +2421,21 @@
         } else { btn.innerHTML='—'; }
       }
 
-      _showWeaponPopup(weapon) {
-        document.getElementById('mh-weapon-popup-name').textContent = weapon.toUpperCase().replace('_',' ');
-        const p = document.getElementById('mh-weapon-popup');
-        p.style.display = 'block';
-        setTimeout(() => { p.style.display = 'none'; }, 2000);
+      _setMeleeMode(on) {
+        if (this.inMelee === on) return;
+        this.inMelee = on;
+        const btn    = document.getElementById('ho-fire-btn');
+        const banner = document.getElementById('ho-melee-banner');
+        const lbl    = btn.querySelector('.lbl');
+        if (on)  { btn.classList.add('melee-mode');    lbl.textContent='KNIFE'; banner.style.display='block'; this.firing=false; }
+        else     { btn.classList.remove('melee-mode'); lbl.textContent='FIRE';  banner.style.display='none';  this.meleeing=false; }
       }
 
-      async _requestWakeLock() {
-        try {
-          if ('wakeLock' in navigator) {
-            await navigator.wakeLock.request('screen');
-            document.addEventListener('visibilitychange', async () => {
-              if (document.visibilityState === 'visible') {
-                try { await navigator.wakeLock.request('screen'); } catch(_) {}
-              }
-            });
-          }
-        } catch(e) {}
+      _showWeaponPopup(weapon) {
+        document.getElementById('ho-popup-name').textContent = weapon.toUpperCase().replace('_',' ');
+        const p = document.getElementById('ho-weapon-popup');
+        p.style.display = 'block';
+        setTimeout(() => { p.style.display = 'none'; }, 2000);
       }
     }
 
