@@ -541,25 +541,44 @@
 
       // ── BOSS FACTORY ─────────────────────────────────────────────────
       getBossType() {
+        // Waves 5–30: fixed sequence. Wave 35+: random from all 6 types.
+        if (this.wave > 30) {
+          return BOSS_TYPES[Math.floor(Math.random() * BOSS_TYPES.length)];
+        }
         return BOSS_TYPES[Math.floor((this.wave / 5 - 1)) % BOSS_TYPES.length];
+      }
+
+      // Returns a random vivid color for post-wave-30 remix bosses
+      _randomBossColor() {
+        const colors = [
+          '#ff2244', '#ff6600', '#ffcc00', '#00ff88',
+          '#00ccff', '#aa44ff', '#ff44cc', '#ffffff',
+          '#ff0000', '#00ffff', '#88ff00', '#ff8800',
+        ];
+        return colors[Math.floor(Math.random() * colors.length)];
       }
 
       spawnBoss() {
         const W = this.canvas.width, H = this.canvas.height;
-        const type = this.getBossType();
-        const cfg  = BOSS_CONFIGS[type];
+        const type    = this.getBossType();
+        const cfg     = BOSS_CONFIGS[type];
+        const isRemix = this.wave > 30;
+
+        // Post-wave-30 remixes get a random color and a speed bump
+        const bossColor = isRemix ? this._randomBossColor() : cfg.color;
+        const speedMult = isRemix ? 1.0 + (Math.floor((this.wave - 30) / 5)) * 0.15 : 1.0;
 
         const base = {
           type,
           x: W / 2, y: -120,
           dropping: true, dropTarget: H / 2,
-          vx: type === 'pentagon' ? 5.5 : 3.5,
-          vy: type === 'pentagon' ? 4.0 : 2.5,
-          rotation: 0, spinSpeed: 0.03,
+          vx: (type === 'pentagon' ? 5.5 : 3.5) * speedMult,
+          vy: (type === 'pentagon' ? 4.0 : 2.5) * speedMult,
+          rotation: 0, spinSpeed: 0.03 * speedMult,
           flashTimer: 0, dead: false,
           bossBullets: [],
           shootTimer: 0,
-          radius: cfg.radius, color: cfg.color, pad: cfg.pad, label: cfg.label
+          radius: cfg.radius, color: bossColor, pad: cfg.pad, label: cfg.label
         };
 
         if (type === 'triangle') {
