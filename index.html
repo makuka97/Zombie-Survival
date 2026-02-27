@@ -409,7 +409,14 @@
         p.points -= MYSTERY_BOX_COST;
         const weapon = this.rollRandomWeapon();
         p.currentWeapon = weapon;
-        p.ammo = WEAPONS[weapon].ammoCapacity;
+        if (this.isBossWave) {
+          // During boss wave: stay on Infinity, update savedAmmo to new weapon's capacity
+          // so the correct ammo is restored when the boss wave ends
+          p.ammo = Infinity;
+          p.savedAmmo = WEAPONS[weapon].ammoCapacity;
+        } else {
+          p.ammo = this.getEffectiveAmmoCapacity(p);
+        }
         setTimeout(() => this.spawnMysteryBox(), 1000);
       }
 
@@ -2015,12 +2022,12 @@
     const socket = io({ transports: ['websocket'] });
     game.socket  = socket;
 
-    socket.on('connect',      () => socket.emit('create-room'));
+    socket.on('connect', () => socket.emit('create-room'));
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
       new QRCode(document.getElementById('qr-code'), {
-        text: `${window.location.origin}/controller.html`,
+        text: `${window.location.origin}/controller.html?room=${data.roomCode}`,
         width: 128, height: 128,
         colorDark: '#000000', colorLight: '#ffffff',
         correctLevel: QRCode.CorrectLevel.M
@@ -2044,12 +2051,13 @@
     socket.on('ready-countdown-cancelled', () => {
       document.getElementById('countdown').style.display = 'none';
     });
-    socket.on('all-ready',           ()  => game.beginGame());
-    socket.on('restart-game',        ()  => game.restart());
+    socket.on('all-ready', () => game.beginGame());
+    socket.on('restart-game', () => game.restart());
     socket.on('restart-vote-update', (d) => {
       document.getElementById('vote-display').textContent =
         `Restart votes: ${d.votes} / ${d.needed} - Vote YES on your phone!`;
     });
+
 
     const BASE_W = 1334;
     const BASE_H = 750;
