@@ -225,6 +225,35 @@
   </div>
 
   <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script>
+    // Robust QR render — tries qrcode lib first, falls back to Google Charts img
+    function renderQR(containerEl, url) {
+      containerEl.innerHTML = '';
+      // Try the unpkg qrcode library
+      if (typeof QRCode !== 'undefined' && QRCode.toCanvas) {
+        const canvas = document.createElement('canvas');
+        containerEl.appendChild(canvas);
+        QRCode.toCanvas(canvas, url, { width: 160, margin: 1, color: { dark: '#000000', light: '#ffffff' } }, (err) => {
+          if (err) fallbackQR(containerEl, url);
+        });
+      } else {
+        fallbackQR(containerEl, url);
+      }
+    }
+    function fallbackQR(containerEl, url) {
+      // Google Charts QR — works without any JS library
+      containerEl.innerHTML = '';
+      const img = document.createElement('img');
+      img.width  = 160;
+      img.height = 160;
+      img.src = `https://chart.googleapis.com/chart?chs=160x160&cht=qr&chl=${encodeURIComponent(url)}&choe=UTF-8`;
+      img.onerror = () => {
+        // Last resort: show the URL as text
+        containerEl.innerHTML = `<div style="font-size:9px;word-break:break-all;color:#000;padding:4px;max-width:160px">${url}</div>`;
+      };
+      containerEl.appendChild(img);
+    }
+  </script>
   <script src="/shared/game-constants.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -2152,10 +2181,7 @@
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
       const qrUrl = `${window.location.origin}/controller.html?room=${data.roomCode}`;
-      const canvas = document.createElement('canvas');
-      document.getElementById('qr-code').innerHTML = '';
-      document.getElementById('qr-code').appendChild(canvas);
-      QRCode.toCanvas(canvas, qrUrl, { width: 128, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
+      renderQR(document.getElementById('qr-code'), qrUrl);
       game.start();
     });
 
