@@ -321,8 +321,8 @@ class ServerGame {
     if(side===0){x=Math.random()*CANVAS_W;y=-50;}else if(side===1){x=CANVAS_W+50;y=Math.random()*CANVAS_H;}else if(side===2){x=Math.random()*CANVAS_W;y=CANVAS_H+50;}else{x=-50;y=Math.random()*CANVAS_H;}
     const type=this.rollZombieType(), td=ZOMBIE_TYPES[type];
     // CoD-style scaling: HP +15% per wave, speed +4% per wave
-    const hpMult    = 1 + (this.wave - 1) * 0.15;
-    const speedMult = 1 + (this.wave - 1) * 0.04;
+    const hpMult    = 1 + (this.wave - 1) * 0.2;
+    const speedMult = 1 + (this.wave - 1) * 0.05;
     const scaledHp    = Math.round(td.hp * hpMult);
     const scaledSpeed = SERVER_ZOMBIE_SPEED[type] * speedMult;
     this.zombies.push({x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
