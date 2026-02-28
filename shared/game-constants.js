@@ -61,7 +61,7 @@ const GAME_CONSTANTS = (() => {
   // ── Melee (knife) ────────────────────────────────────────────
   // Knife does 30 damage per swing. Regular zombies have 150 HP = 5 swings to kill.
   // Runners are weaker (75 HP = ~3 swings). Tanks are very tanky (600 HP).
-  const MELEE_DAMAGE = 30;
+  const MELEE_DAMAGE = 50;
   const MELEE_RANGE  = 55;
   const MELEE_ARC    = Math.PI * 0.6;
 
@@ -90,16 +90,16 @@ const GAME_CONSTANTS = (() => {
   // damage, fireRate, ammoCapacity: used by both server and client
   // rarity: used by mystery box roll
   const WEAPONS = {
-    pistol:     { name: 'Pistol',        damage: 1,  fireRate: 10, ammoCapacity: 30                      },
-    smg:        { name: 'SMG',           damage: 1,  fireRate: 5,  ammoCapacity: 60,  rarity: 'common'   },
-    shotgun:    { name: 'Shotgun',       damage: 3,  fireRate: 20, ammoCapacity: 24,  rarity: 'common'   },
-    ar:         { name: 'Assault Rifle', damage: 2,  fireRate: 7,  ammoCapacity: 45,  rarity: 'rare'     },
-    lmg:        { name: 'LMG',           damage: 2,  fireRate: 8,  ammoCapacity: 100, rarity: 'rare'     },
-    raygun:     { name: 'Ray Gun',       damage: 5,  fireRate: 12, ammoCapacity: 20,  rarity: 'legendary'},
-    thundergun: { name: 'Thundergun',    damage: 10, fireRate: 30, ammoCapacity: 8,   rarity: 'legendary'},
-    minigun:    { name: 'Minigun',       damage: 1,  fireRate: 2,  ammoCapacity: 200, rarity: 'rare'     },
-    plasma:     { name: 'Plasma Beam',   damage: 8,  fireRate: 18, ammoCapacity: 15,  rarity: 'legendary'},
-    chainsaw:   { name: 'Chainsaw',      damage: 3,  fireRate: 4,  ammoCapacity: Infinity, rarity: 'rare', melee: true },
+    pistol:     { name: 'Pistol',        damage: 8,  fireRate: 10, ammoCapacity: 30                      },
+    smg:        { name: 'SMG',           damage: 6,  fireRate: 5,  ammoCapacity: 60,  rarity: 'common'   },
+    shotgun:    { name: 'Shotgun',       damage: 12, fireRate: 20, ammoCapacity: 24,  rarity: 'common'   },
+    ar:         { name: 'Assault Rifle', damage: 10, fireRate: 7,  ammoCapacity: 45,  rarity: 'rare'     },
+    lmg:        { name: 'LMG',           damage: 9,  fireRate: 8,  ammoCapacity: 100, rarity: 'rare'     },
+    raygun:     { name: 'Ray Gun',       damage: 30, fireRate: 12, ammoCapacity: 20,  rarity: 'legendary'},
+    thundergun: { name: 'Thundergun',    damage: 60, fireRate: 30, ammoCapacity: 8,   rarity: 'legendary'},
+    minigun:    { name: 'Minigun',       damage: 6,  fireRate: 2,  ammoCapacity: 200, rarity: 'rare'     },
+    plasma:     { name: 'Plasma Beam',   damage: 45, fireRate: 18, ammoCapacity: 15,  rarity: 'legendary'},
+    chainsaw:   { name: 'Chainsaw',      damage: 15, fireRate: 4,  ammoCapacity: Infinity, rarity: 'rare', melee: true },
   };
 
   // ── Kill Tiers (weapon upgrade progression) ───────────────────
@@ -113,13 +113,13 @@ const GAME_CONSTANTS = (() => {
   //   rollZombieType() sets it to 15 after wave 5.
   // ── Zombie base stats ─────────────────────────────────────────
   // HP and speed here are BASE values for wave 1.
-  // Server scales them per wave: hp *= 1 + (wave-1)*0.15, speed *= 1 + (wave-1)*0.04
-  // This means by wave 10: hp is ~2.35x, speed is ~1.36x — CoD-like curve.
+  // Server scales them per wave: hp *= 1 + (wave-1)*0.2, speed *= 1 + (wave-1)*0.05
+  // Wave 1: easy. Wave 5: ~1.8x HP. Wave 10: ~2.8x HP — gradual CoD-like curve.
   const ZOMBIE_TYPES = {
-    regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.7,  hp: 150, points: 60,  weight: 70 },
-    runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.5,  hp: 75,  points: 80,  weight: 20 },
-    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.4,  hp: 600, points: 150, weight: 10 },
-    bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 0.9,  hp: 120, points: 100, weight: 0  }
+    regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.6,  hp: 40,  points: 60,  weight: 70 },
+    runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.3,  hp: 25,  points: 80,  weight: 20 },
+    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.35, hp: 180, points: 150, weight: 10 },
+    bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 0.8,  hp: 35,  points: 100, weight: 0  }
   };
 
   // ── Bomber explosion ─────────────────────────────────────────
