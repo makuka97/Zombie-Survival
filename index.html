@@ -224,7 +224,7 @@
     </div>
   </div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <script src="https://unpkg.com/qrcode@1.5.3/build/qrcode.min.js"></script>
   <script src="/shared/game-constants.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
@@ -2149,12 +2149,11 @@
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
-      new QRCode(document.getElementById('qr-code'), {
-        text: `${window.location.origin}/controller.html?room=${data.roomCode}`,
-        width: 128, height: 128,
-        colorDark: '#000000', colorLight: '#ffffff',
-        correctLevel: QRCode.CorrectLevel.M
-      });
+      const qrUrl = `${window.location.origin}/controller.html?room=${data.roomCode}`;
+      const canvas = document.createElement('canvas');
+      document.getElementById('qr-code').innerHTML = '';
+      document.getElementById('qr-code').appendChild(canvas);
+      QRCode.toCanvas(canvas, qrUrl, { width: 128, margin: 1, color: { dark: '#000000', light: '#ffffff' } });
       game.start();
     });
 
