@@ -218,12 +218,48 @@
       box-shadow: 0 0 18px rgba(0,255,100,0.5);
       animation: pulse-vend 1s infinite;
     }
+    /* Juggernog mode */
+    #action-btn.mode-jug {
+      background: #1a0008; color: #ff3366; border-color: #cc2244;
+      pointer-events: auto; cursor: pointer;
+      box-shadow: 0 0 18px rgba(255,50,100,0.5);
+      animation: pulse-jug 1s infinite;
+    }
+    /* Pack-a-Punch mode */
+    #action-btn.mode-pap {
+      background: #0a0018; color: #cc44ff; border-color: #9922dd;
+      pointer-events: auto; cursor: pointer;
+      box-shadow: 0 0 18px rgba(180,50,255,0.5);
+      animation: pulse-pap 1.2s infinite;
+    }
     /* Can't afford — in range but broke */
     #action-btn.mode-broke {
       background: #1a0a0a; color: #663333; border-color: #331111;
       pointer-events: none; cursor: default;
       animation: none;
     }
+    @keyframes pulse-jug {
+      0%,100% { box-shadow: 0 0 15px rgba(255,50,100,0.4); }
+      50%      { box-shadow: 0 0 30px rgba(255,50,100,0.9); }
+    }
+    @keyframes pulse-pap {
+      0%,100% { box-shadow: 0 0 18px rgba(180,50,255,0.4); }
+      50%      { box-shadow: 0 0 36px rgba(220,80,255,1); }
+    }
+    /* Knife toggle button */
+    #knife-btn {
+      position: absolute; bottom: 18px; right: 18px;
+      width: 72px; height: 72px; border-radius: 50%;
+      border: 2px solid #333; background: #0a0a0a; color: #444;
+      font-size: 10px; font-weight: bold; font-family: 'Courier New', monospace;
+      letter-spacing: 1px; cursor: pointer; z-index: 20;
+      transition: all 0.15s;
+    }
+    #knife-btn.active {
+      background: #002210; color: #00ff66; border-color: #00ff66;
+      box-shadow: 0 0 16px rgba(0,255,100,0.7);
+    }
+    #knife-btn:active { transform: scale(0.93); }
     /* FIX: removed extra ) that was breaking this animation */
     @keyframes pulse-box {
       0%   { box-shadow: 0 0 18px rgba(150,50,255,0.5); }
@@ -301,7 +337,6 @@
       <div id="weapon-display"><span>WEAPON </span>PISTOL</div>
       <div id="points-display"><span>$ </span>0</div>
       <div id="ammo-display"><span>AMMO </span>30</div>
-      <div id="tier-display"><span>TIER </span>DEFAULT</div>
     </div>
     <div id="melee-banner">⚔ KNIFE MODE — FIND AMMO!</div>
     <div id="controls">
@@ -310,6 +345,7 @@
     </div>
     <button id="mystery-box-btn" disabled>MYSTERY<br>BOX<br>$950</button>
     <button id="action-btn">—</button>
+    <button id="knife-btn">🔪<br>KNIFE</button>
   </div>
 
   <div id="gameover-screen">
@@ -373,6 +409,7 @@
         this.firing      = false;
         this.meleeing    = false;
         this.inMeleeMode = false;
+        this.manualKnife = false;
         this.joystick    = new Joystick('joystick-zone', 'joystick-knob');
         this.loop        = null;
         this.hasVoted    = false;
@@ -421,8 +458,14 @@
           this.updateAmmo(d.ammo);
           this.updatePoints(d.points);
           this.updateWeapon(d.weapon);
-          this.updateActionButton(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
-          this.updateTier(d.tierIndex, d.killCount);
+          this.updateActionButton(
+            d.canUseMysteryBox, d.canUseVending,
+            d.canUseJuggernog, d.canUsePap,
+            d.points, d.vendingCost,
+            d.hasJuggernog, d.nextPapCost
+          );
+          
+          this.updatePapStatus(d.papTier, d.hasJuggernog);
           if (d.gameOver) this.showGameOver();
         });
         this.socket.on('lobby-update', d => {
@@ -440,9 +483,11 @@
         this.socket.on('game-restarting', () => {
           this.hasVoted = false; this.isReady = false;
           this.ammo = 30; this.points = 0; this.weapon = 'pistol';
+          this.manualKnife = false; this._papTier = 0; this._hasJug = false;
+          document.getElementById('knife-btn').classList.remove('active');
           this.stopLoop();
           this.updateAmmo(30); this.updatePoints(0); this.updateWeapon('pistol');
-          this.updateTier(0, 0);
+          
           this.showLobby();
         });
       }
@@ -506,39 +551,55 @@
       bindActionBtn() {
         const btn = document.getElementById('action-btn');
         btn.addEventListener('click', () => {
-          if (btn.classList.contains('mode-box')) {
-            this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode });
-          } else if (btn.classList.contains('mode-vend')) {
-            this.socket.emit('vending-purchase', { roomCode: this.roomCode });
-          }
+          if (btn.classList.contains('mode-box'))  { this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode }); }
+          else if (btn.classList.contains('mode-vend')) { this.socket.emit('vending-purchase', { roomCode: this.roomCode }); }
+          else if (btn.classList.contains('mode-jug'))  { this.socket.emit('juggernog-purchase', { roomCode: this.roomCode }); }
+          else if (btn.classList.contains('mode-pap'))  { this.socket.emit('pap-purchase', { roomCode: this.roomCode }); }
+        });
+
+        // Knife toggle — manual switch even when you have ammo
+        const knifeBtn = document.getElementById('knife-btn');
+        knifeBtn.addEventListener('click', () => {
+          this.manualKnife = !this.manualKnife;
+          this.setMeleeMode(this.manualKnife || this.ammo === 0);
+          knifeBtn.classList.toggle('active', this.manualKnife);
         });
       }
 
-      updateActionButton(canUseMysteryBox, canUseVending, points, vendingCost) {
+      updateActionButton(canUseMysteryBox, canUseVending, canUseJuggernog, canUsePap, points, vendingCost, hasJuggernog, nextPapCost) {
         this.canUseMysteryBox = canUseMysteryBox;
         this.canUseVending    = canUseVending;
+        this.canUseJuggernog  = canUseJuggernog;
+        this.canUsePap        = canUsePap;
         const btn = document.getElementById('action-btn');
-        btn.classList.remove('mode-box', 'mode-vend', 'mode-broke');
+        btn.classList.remove('mode-box', 'mode-vend', 'mode-jug', 'mode-pap', 'mode-broke');
 
         if (canUseMysteryBox) {
           const canAfford = points >= 950;
-          if (canAfford) {
-            btn.classList.add('mode-box');
-            btn.innerHTML = `MYSTERY<br>BOX<br>$950`;
-          } else {
-            btn.classList.add('mode-broke');
-            btn.innerHTML = `MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-points}</span>`;
-          }
+          btn.classList.add(canAfford ? 'mode-box' : 'mode-broke');
+          btn.innerHTML = canAfford
+            ? `MYSTERY<br>BOX<br>$950`
+            : `MYSTERY<br>BOX<br><span style="color:#552222">NEED $${950-points}</span>`;
+        } else if (canUseJuggernog && !hasJuggernog) {
+          const cost = 2500;
+          const canAfford = points >= cost;
+          btn.classList.add(canAfford ? 'mode-jug' : 'mode-broke');
+          btn.innerHTML = canAfford
+            ? `❤ JUGGER<br>NOG<br>$${cost}`
+            : `❤ JUGGER<br>NOG<br><span style="color:#552222">NEED $${cost-points}</span>`;
+        } else if (canUsePap && nextPapCost != null) {
+          const canAfford = points >= nextPapCost;
+          btn.classList.add(canAfford ? 'mode-pap' : 'mode-broke');
+          btn.innerHTML = canAfford
+            ? `⚡ PACK-a<br>PUNCH<br>$${nextPapCost}`
+            : `⚡ PACK-a<br>PUNCH<br><span style="color:#552222">NEED $${nextPapCost-points}</span>`;
         } else if (canUseVending) {
           const cost = vendingCost || 500;
           const canAfford = points >= cost;
-          if (canAfford) {
-            btn.classList.add('mode-vend');
-            btn.innerHTML = `HEALTH<br>+25 HP<br>$${cost}`;
-          } else {
-            btn.classList.add('mode-broke');
-            btn.innerHTML = `HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${cost-points}</span>`;
-          }
+          btn.classList.add(canAfford ? 'mode-vend' : 'mode-broke');
+          btn.innerHTML = canAfford
+            ? `HEALTH<br>+25 HP<br>$${cost}`
+            : `HEALTH<br>+25 HP<br><span style="color:#552222">NEED $${cost-points}</span>`;
         } else {
           btn.innerHTML = `—`;
         }
@@ -618,16 +679,18 @@
         if (ammo === -1) {
           el.innerHTML = `<span>AMMO </span>∞`;
           el.className = 'ammo-display';
-          this.setMeleeMode(false);
+          if (!this.manualKnife) this.setMeleeMode(false);
         } else if (ammo === 0) {
           el.innerHTML = `<span>AMMO </span>OUT`;
           el.classList.remove('low'); el.classList.add('empty');
           this.setMeleeMode(true);
+          this.manualKnife = false;
+          document.getElementById('knife-btn').classList.remove('active');
         } else {
           el.innerHTML = `<span>AMMO </span>${ammo}`;
           el.classList.remove('empty');
           ammo <= 5 ? el.classList.add('low') : el.classList.remove('low');
-          this.setMeleeMode(false);
+          if (!this.manualKnife) this.setMeleeMode(false);
         }
       }
 
@@ -639,24 +702,27 @@
       updateWeapon(weapon) {
         if (this.weapon !== weapon) this.showWeaponPopup(weapon);
         this.weapon = weapon;
-        document.getElementById('weapon-display').innerHTML = `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
+        const papTier = this._papTier || 0;
+        const papColors = ['', '#4488ff', '#aa44ff', '#ffaa00'];
+        const papLabels = ['', ' ★', ' ★★', ' ★★★'];
+        const papSuffix = papTier > 0
+          ? `<span style="color:${papColors[papTier]};font-size:10px">${papLabels[papTier]}</span>`
+          : '';
+        const jugSuffix = this._hasJug ? `<span style="color:#ff3366;font-size:10px"> ❤</span>` : '';
+        document.getElementById('weapon-display').innerHTML =
+          `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}${papSuffix}${jugSuffix}`;
       }
 
-      updateTier(tierIndex, killCount) {
-        const tiers = [
-          { name: 'DEFAULT', color: '#ffffff', kills: 0  },
-          { name: 'GREEN',   color: '#00ff66', kills: 20 },
-          { name: 'BLUE',    color: '#4488ff', kills: 40 },
-          { name: 'PURPLE',  color: '#cc44ff', kills: 60 },
-          { name: 'GOLD',    color: '#ffcc00', kills: 90 },
-        ];
-        const tier = tiers[tierIndex] || tiers[0];
-        const next = tiers[tierIndex + 1];
-        const el   = document.getElementById('tier-display');
-        el.style.color      = tier.color;
-        el.style.textShadow = `0 0 10px ${tier.color}`;
-        const progress = next ? ` · ${killCount}/${next.kills}` : ' · MAX';
-        el.innerHTML = `<span>TIER </span>${tier.name}${progress}`;
+      updatePapStatus(papTier, hasJuggernog) {
+        // Show PaP tier and Juggernog on the weapon display
+        const el = document.getElementById('weapon-display');
+        if (!el) return;
+        // Update label suffix — handled via weapon display update
+        // Store for later weapon display refresh
+        this._papTier = papTier || 0;
+        this._hasJug  = !!hasJuggernog;
+        // Re-render weapon to show upgrades
+        this.updateWeapon(this.weapon);
       }
 
       showWeaponPopup(weapon) {
