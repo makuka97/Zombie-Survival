@@ -1234,9 +1234,9 @@
         else                 { x = -50; y = Math.random()*H; }
         const type     = this.rollZombieType();
         const typeData = ZOMBIE_TYPES[type];
-        // CoD-style scaling: HP +15% per wave, speed +4% per wave
-        const hpMult    = 1 + (this.wave - 1) * 0.15;
-        const speedMult = 1 + (this.wave - 1) * 0.04;
+        // CoD-style scaling: HP +20% per wave, speed +5% per wave
+        const hpMult    = 1 + (this.wave - 1) * 0.2;
+        const speedMult = 1 + (this.wave - 1) * 0.05;
         const scaledHp    = Math.round(typeData.hp * hpMult);
         const scaledSpeed = typeData.speed * speedMult;
         const hitRadius = type === 'runner' ? typeData.size * 0.875 : typeData.size / 2;
