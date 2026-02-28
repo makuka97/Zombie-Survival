@@ -17,9 +17,6 @@ app.get('/ping', (req, res) => res.json({ status: 'ok', uptime: process.uptime()
 app.use(express.static(path.join(__dirname)));
 app.get('/join/:roomCode', (req, res) => res.redirect(`/remote.html?room=${req.params.roomCode.toUpperCase()}`));
 
-// ================================================================
-// SHARED GAME CONSTANTS
-// ================================================================
 const C = require('./shared/game-constants');
 const {
   CANVAS_W, CANVAS_H, WALL,
@@ -28,6 +25,8 @@ const {
   AMMO_DROP_CHANCE, HEALTH_DROP_CHANCE,
   MYSTERY_BOX_COST, BOX_USE_RANGE,
   VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
+  JUGGERNOG_COST, JUGGERNOG_HP_BONUS, JUGGERNOG_USE_RANGE,
+  PAP_USE_RANGE, PAP_TIERS,
   MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
   REVIVE_RADIUS, REVIVE_TIME,
   BOSS_TYPES, BOSS_CONFIGS,
@@ -36,11 +35,10 @@ const {
   BOMBER_BLAST_RADIUS, BOMBER_PLAYER_DAMAGE, BOMBER_CHAIN_DEPTH
 } = C;
 
-// Server-only: halved speeds because server runs at 60Hz tick (not 60fps rAF)
 const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
-const BROADCAST_RATE = 20;  // FIX LAG: broadcast state at 20Hz, logic at 60Hz
-const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE; // = 3 ticks
+const BROADCAST_RATE = 20;
+const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
 const PLAYER_SPEED   = 1.25;
 const BULLET_SPEED   = 4;
 const SERVER_ZOMBIE_SPEED = {
@@ -50,9 +48,6 @@ const SERVER_ZOMBIE_SPEED = {
   bomber:  ZOMBIE_TYPES.bomber.speed  / 2,
 };
 
-// ================================================================
-// SERVER GAME ENGINE
-// ================================================================
 class ServerGame {
   constructor(room) {
     this.room = room;
@@ -66,8 +61,8 @@ class ServerGame {
     this.tickInterval = null;
     this.explosions = [];
     this._waveTimers = [];
-    this._waveAdvancing = false;  // FIX BOSS SKIP: guard against double wave advance
-    this._broadcastTick = 0;      // FIX LAG: broadcast counter
+    this._waveAdvancing = false;
+    this._broadcastTick = 0;
 
     for (let i = 0; i < MAX_PLAYERS; i++) {
       this.players[i] = {
@@ -103,9 +98,8 @@ class ServerGame {
 
   _scheduleWave(fn, delay) { const t=setTimeout(fn,delay); this._waveTimers.push(t); return t; }
 
-  // FIX BOSS SKIP: single wave-advance function — only one call can succeed
   _advanceWave() {
-    if (this._waveAdvancing) return; // already advancing, ignore duplicate calls
+    if (this._waveAdvancing) return;
     this._waveAdvancing = true;
     this.wave++;
     this._scheduleWave(() => this.startWave(), 3000);
@@ -144,16 +138,12 @@ class ServerGame {
 
   spawnVendingMachine() {
     if (this.isBossWave) { this.vendingMachine = null; return; }
-    const margin = 160;
-    let x, y, attempts = 0;
+    const margin = 160; let x, y, attempts = 0;
     do {
       x = margin + Math.random() * (CANVAS_W - margin * 2);
       y = margin + Math.random() * (CANVAS_H - margin * 2);
       attempts++;
-      if (this.mysteryBox) {
-        const dx = x - this.mysteryBox.x, dy = y - this.mysteryBox.y;
-        if (Math.sqrt(dx*dx+dy*dy) < 200 && attempts < 20) continue;
-      }
+      if (this.mysteryBox) { const dx = x - this.mysteryBox.x, dy = y - this.mysteryBox.y; if (Math.sqrt(dx*dx+dy*dy) < 200 && attempts < 20) continue; }
       break;
     } while (true);
     this.vendingMachine = { x, y };
@@ -164,11 +154,8 @@ class ServerGame {
     if (!p||!p.alive||!this.vendingMachine) return;
     const dx=p.x-this.vendingMachine.x, dy=p.y-this.vendingMachine.y;
     if (Math.sqrt(dx*dx+dy*dy)>VENDING_USE_RANGE) return;
-    if (p.points<this.vendingCost) return;
-    if (p.hp>=p.maxHp) return;
-    p.points       -= this.vendingCost;
-    p.hp            = Math.min(p.maxHp, p.hp + VENDING_HEAL_AMOUNT);
-    this.vendingCost += VENDING_COST_STEP;
+    if (p.points<this.vendingCost||p.hp>=p.maxHp) return;
+    p.points -= this.vendingCost; p.hp = Math.min(p.maxHp, p.hp + VENDING_HEAL_AMOUNT); this.vendingCost += VENDING_COST_STEP;
   }
 
   canUseVending(p) {
@@ -178,15 +165,13 @@ class ServerGame {
   }
 
   startWave() {
-    // FIX BOSS SKIP: reset guard at the start of every new wave
     this._waveAdvancing = false;
-
     const pc = Math.max(1, this.players.filter(p=>p.connected).length);
     this.waveKilled = 0;
     if (this.wave%5===0) {
       this.isBossWave=true; this.waveTotal=1;
       for (let p of this.players) { if (!p.connected) continue; p.savedAmmo=p.ammo; p.ammo=Infinity; }
-      this.vendingMachine = null; // no vending during boss fight
+      this.vendingMachine = null;
       this.room.broadcast('wave-event',{type:'boss',wave:this.wave});
       this._scheduleWave(()=>this.spawnBoss(),2000);
     } else {
@@ -195,7 +180,7 @@ class ServerGame {
         if (!p.connected) continue;
         if (p.savedAmmo!==undefined) { p.ammo=Math.max(p.savedAmmo,Math.floor(WEAPONS[p.currentWeapon].ammoCapacity*0.5)); p.savedAmmo=undefined; }
       }
-      this.spawnVendingMachine(); // new random location each wave
+      this.spawnVendingMachine();
       const baseCount=3+(this.wave-1)*2;
       this.waveTotal=Math.ceil(baseCount*(pc/2));
       this.room.broadcast('wave-event',{type:'normal',wave:this.wave});
@@ -207,15 +192,19 @@ class ServerGame {
 
   spawnBoss() {
     const type=this.getBossType(), cfg=BOSS_CONFIGS[type];
+    // Each full boss cycle (every 5 waves) bosses get 15% faster and configs get tougher
+    const cycle = Math.floor(this.wave / 5); // 1, 2, 3...
+    const speedBoost = 1 + (cycle - 1) * 0.15;
+    const bv = 3.5 * speedBoost, bvy = 2.5 * speedBoost;
     const base = { type, x:CANVAS_W/2, y:-120, dropping:true, dropTarget:CANVAS_H/2,
-      vx:3.5, vy:2.5, rotation:0, spinSpeed:0.03, flashTimer:0, dead:false,
+      vx:bv, vy:bvy, rotation:0, spinSpeed:0.03 + (cycle-1)*0.01, flashTimer:0, dead:false,
       bossBullets:[], shootTimer:0, radius:cfg.radius, color:cfg.color, pad:cfg.pad };
     if (type==='triangle') this.boss={...base, tips:Array.from({length:cfg.tips.count},()=>({hp:cfg.tips.hp,maxHp:cfg.tips.hp}))};
-    else if (type==='octagon') this.boss={...base, corners:Array.from({length:cfg.corners.count},()=>({hp:cfg.corners.hp,maxHp:cfg.corners.hp})),shootInterval:cfg.shootInterval};
+    else if (type==='octagon') this.boss={...base, corners:Array.from({length:cfg.corners.count},()=>({hp:cfg.corners.hp,maxHp:cfg.corners.hp})),shootInterval:Math.max(20, cfg.shootInterval - (cycle-1)*5)};
     else if (type==='pentagon') this.boss={...base, panels:Array.from({length:cfg.panels.count},()=>({hp:cfg.panels.hp,maxHp:cfg.panels.hp}))};
     else if (type==='diamond') this.boss={...base, coreHp:cfg.coreHp,coreMaxHp:cfg.coreHp,split:false,shards:[]};
     else if (type==='spiral') this.boss={...base, arms:Array.from({length:cfg.arms.count},()=>({hp:cfg.arms.hp,maxHp:cfg.arms.hp})),breathe:0};
-    else this.boss={...base, pieces:[{x:CANVAS_W/2,y:-120,rotation:0,vx:3.5,vy:2.5,hp:cfg.pieceHp,maxHp:cfg.pieceHp,radius:cfg.radius,alive:true}]};
+    else this.boss={...base, pieces:[{x:CANVAS_W/2,y:-120,rotation:0,vx:bv,vy:bvy,hp:cfg.pieceHp,maxHp:cfg.pieceHp,radius:cfg.radius,alive:true}]};
   }
 
   getBossHitPoints() {
@@ -226,23 +215,12 @@ class ServerGame {
     if (b.type==='pentagon')  return b.panels.map((p,i)=>{const a=b.rotation+(i/5)*Math.PI*2+Math.PI/5;return{x:b.x+Math.cos(a)*b.radius*0.6,y:b.y+Math.sin(a)*b.radius*0.6,idx:i};});
     if (b.type==='diamond') {
       if (!b.split) return [{x:b.x,y:b.y,idx:0,core:true}];
-      // FIX INVINCIBLE SHARD: use real array index (realIdx), not filtered index
-      return b.shards.reduce((acc,s,realIdx) => {
-        if (s.alive) acc.push({x:s.x,y:s.y,idx:realIdx,shard:true});
-        return acc;
-      }, []);
+      return b.shards.reduce((acc,s,realIdx) => { if (s.alive) acc.push({x:s.x,y:s.y,idx:realIdx,shard:true}); return acc; }, []);
     }
     if (b.type==='spiral')    return b.arms.map((arm,i)=>{const ext=b.radius+60+Math.sin(b.breathe+i)*30,a=b.rotation+(i/5)*Math.PI*2;return{x:b.x+Math.cos(a)*ext,y:b.y+Math.sin(a)*ext,idx:i};});
-    if (b.type==='fractal')   {
-      // FIX: also use real array index for fractal pieces
-      return b.pieces.reduce((acc,p,realIdx) => {
-        if (p.alive) acc.push({x:p.x,y:p.y,idx:realIdx,piece:true,radius:p.radius});
-        return acc;
-      }, []);
-    }
+    if (b.type==='fractal')   return b.pieces.reduce((acc,p,realIdx) => { if (p.alive) acc.push({x:p.x,y:p.y,idx:realIdx,piece:true,radius:p.radius}); return acc; }, []);
     return [];
   }
-  getBossTipPositions() { return this.getBossHitPoints(); }
 
   _bounceBox(b) {
     const p=b.pad; b.x+=b.vx; b.y+=b.vy;
@@ -256,7 +234,6 @@ class ServerGame {
     const dc=4+Math.floor(Math.random()*4);
     for (let i=0;i<dc;i++){const a=Math.random()*Math.PI*2,d=30+Math.random()*80;this.ammoPacks.push({x:b.x+Math.cos(a)*d,y:b.y+Math.sin(a)*d});}
     this.explosions.push({x:b.x,y:b.y,color:b.color,big:true});
-    // FIX BOSS SKIP: use _advanceWave() instead of inline wave++
     this._scheduleWave(()=>{this.boss=null;this._advanceWave();},800);
   }
 
@@ -273,20 +250,9 @@ class ServerGame {
     if      (b.type==='triangle')  b.tips[pt.idx].hp=Math.max(0,b.tips[pt.idx].hp-amount);
     else if (b.type==='octagon')   b.corners[pt.idx].hp=Math.max(0,b.corners[pt.idx].hp-amount);
     else if (b.type==='pentagon')  b.panels[pt.idx].hp=Math.max(0,b.panels[pt.idx].hp-amount);
-    else if (b.type==='diamond')   {
-      if (!b.split) { b.coreHp=Math.max(0,b.coreHp-amount); }
-      else {
-        // pt.idx is now always the real array index — no drift
-        const s=b.shards[pt.idx];
-        if (s) { s.hp=Math.max(0,s.hp-amount); if(s.hp<=0)s.alive=false; }
-      }
-    }
+    else if (b.type==='diamond')   { if (!b.split) { b.coreHp=Math.max(0,b.coreHp-amount); } else { const s=b.shards[pt.idx]; if (s) { s.hp=Math.max(0,s.hp-amount); if(s.hp<=0)s.alive=false; } } }
     else if (b.type==='spiral')    b.arms[pt.idx].hp=Math.max(0,b.arms[pt.idx].hp-amount);
-    else if (b.type==='fractal')   {
-      // pt.idx is now always the real array index — no drift
-      const piece=b.pieces[pt.idx];
-      if (piece) piece.hp=Math.max(0,piece.hp-amount);
-    }
+    else if (b.type==='fractal')   { const piece=b.pieces[pt.idx]; if (piece) piece.hp=Math.max(0,piece.hp-amount); }
   }
 
   updateBoss() {
@@ -294,7 +260,6 @@ class ServerGame {
     const b=this.boss;
     if (b.dropping){b.y+=6;b.rotation+=b.spinSpeed;if(b.y>=b.dropTarget){b.y=b.dropTarget;b.dropping=false;}return;}
     if (b.flashTimer>0) b.flashTimer--;
-
     for (let i=b.bossBullets.length-1;i>=0;i--) {
       const bb=b.bossBullets[i]; bb.x+=bb.vx; bb.y+=bb.vy; bb.life--;
       if (bb.life<=0||bb.x<0||bb.x>CANVAS_W||bb.y<0||bb.y>CANVAS_H){b.bossBullets.splice(i,1);continue;}
@@ -304,7 +269,6 @@ class ServerGame {
         if (Math.sqrt(dx*dx+dy*dy)<PLAYER_SIZE/2+5){p.hp-=bb.damage;b.bossBullets.splice(i,1);if(p.hp<=0&&p.alive){p.alive=false;p.hp=0;this.checkGameOver();}break;}
       }
     }
-
     if (b.type==='triangle') {
       const ta=b.tips.filter(t=>t.hp>0).length; b.spinSpeed=0.03+(3-ta)*0.025; b.rotation+=b.spinSpeed;
       this._bounceBox(b); this._bossTouchDamage(b); if(b.tips.every(t=>t.hp<=0)&&!b.dead)this._bossKill(b);
@@ -320,10 +284,7 @@ class ServerGame {
       b.rotation+=0.025;
       if (!b.split) {
         this._bounceBox(b); this._bossTouchDamage(b);
-        if (b.coreHp<=0&&!b.dead) {
-          b.split=true; const cfg=BOSS_CONFIGS.diamond;
-          b.shards=[0,Math.PI/2,Math.PI,Math.PI*1.5].map(a=>({x:b.x+Math.cos(a)*40,y:b.y+Math.sin(a)*40,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,rotation:0,hp:cfg.shardHp,maxHp:cfg.shardHp,alive:true,radius:cfg.shardRadius,pad:cfg.shardPad}));
-        }
+        if (b.coreHp<=0&&!b.dead) { b.split=true; const cfg=BOSS_CONFIGS.diamond; b.shards=[0,Math.PI/2,Math.PI,Math.PI*1.5].map(a=>({x:b.x+Math.cos(a)*40,y:b.y+Math.sin(a)*40,vx:Math.cos(a)*2.5,vy:Math.sin(a)*2.5,rotation:0,hp:cfg.shardHp,maxHp:cfg.shardHp,alive:true,radius:cfg.shardRadius,pad:cfg.shardPad})); }
       } else {
         for (let s of b.shards) {
           if (!s.alive) continue; s.rotation+=0.04; s.x+=s.vx; s.y+=s.vy;
@@ -356,14 +317,15 @@ class ServerGame {
   }
 
   spawnZombie() {
-    const side=Math.floor(Math.random()*4);
-    let x,y;
-    if(side===0){x=Math.random()*CANVAS_W;y=-50;}
-    else if(side===1){x=CANVAS_W+50;y=Math.random()*CANVAS_H;}
-    else if(side===2){x=Math.random()*CANVAS_W;y=CANVAS_H+50;}
-    else{x=-50;y=Math.random()*CANVAS_H;}
+    const side=Math.floor(Math.random()*4); let x,y;
+    if(side===0){x=Math.random()*CANVAS_W;y=-50;}else if(side===1){x=CANVAS_W+50;y=Math.random()*CANVAS_H;}else if(side===2){x=Math.random()*CANVAS_W;y=CANVAS_H+50;}else{x=-50;y=Math.random()*CANVAS_H;}
     const type=this.rollZombieType(), td=ZOMBIE_TYPES[type];
-    this.zombies.push({x,y,type,hp:td.hp,maxHp:td.hp,speed:SERVER_ZOMBIE_SPEED[type],size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
+    // CoD-style scaling: HP +15% per wave, speed +4% per wave
+    const hpMult    = 1 + (this.wave - 1) * 0.15;
+    const speedMult = 1 + (this.wave - 1) * 0.04;
+    const scaledHp    = Math.round(td.hp * hpMult);
+    const scaledSpeed = SERVER_ZOMBIE_SPEED[type] * speedMult;
+    this.zombies.push({x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
   }
 
   rollZombieType() {
@@ -386,15 +348,7 @@ class ServerGame {
       let ad=Math.atan2(dy,dx)-p.angle; while(ad>Math.PI)ad-=Math.PI*2; while(ad<-Math.PI)ad+=Math.PI*2;
       if(Math.abs(ad)>MELEE_ARC/2)continue;
       z.hp-=MELEE_DAMAGE;
-      if(z.hp<=0){
-        p.points+=z.points;this.ammoPacks.push({x:z.x,y:z.y});
-        if(Math.random()<HEALTH_DROP_CHANCE)this.healthPacks.push({x:z.x,y:z.y});
-        this.explosions.push({x:z.x,y:z.y,color:z.borderColor});
-        if(z.type==='bomber')this.triggerBomberExplosion(z.x,z.y);
-        this.zombies.splice(j,1); this.waveKilled++;
-        // FIX BOSS SKIP: use _advanceWave()
-        if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();
-      }
+      if(z.hp<=0){p.points+=z.points;this.ammoPacks.push({x:z.x,y:z.y});if(Math.random()<HEALTH_DROP_CHANCE)this.healthPacks.push({x:z.x,y:z.y});this.explosions.push({x:z.x,y:z.y,color:z.borderColor});if(z.type==='bomber')this.triggerBomberExplosion(z.x,z.y);this.zombies.splice(j,1);this.waveKilled++;if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();}
     }
     if (this.boss&&!this.boss.dead&&!this.boss.dropping) {
       for (const pt of this.getBossHitPoints()) {
@@ -412,10 +366,7 @@ class ServerGame {
     const toKill=[];
     for(let i=this.zombies.length-1;i>=0;i--){const z=this.zombies[i],dx=z.x-bx,dy=z.y-by;if(Math.sqrt(dx*dx+dy*dy)<BOMBER_BLAST_RADIUS+z.size/2)toKill.push({idx:i,z});}
     const chains=toKill.filter(({z})=>z.type==='bomber').map(({z})=>({x:z.x,y:z.y}));
-    for(const{idx,z}of toKill){this.explosions.push({x:z.x,y:z.y,color:z.borderColor});this.zombies.splice(idx,1);this.waveKilled++;
-      // FIX BOSS SKIP: use _advanceWave()
-      if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();
-    }
+    for(const{idx,z}of toKill){this.explosions.push({x:z.x,y:z.y,color:z.borderColor});this.zombies.splice(idx,1);this.waveKilled++;if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();}
     for(const pos of chains)this.triggerBomberExplosion(pos.x,pos.y,depth+1);
   }
 
@@ -447,7 +398,6 @@ class ServerGame {
     if(this.gameOver||!this.gameStarted)return;
     this.explosions=[];
     const hs=PLAYER_SIZE/2;
-
     for(let p of this.players){
       if(!p.connected||!p.alive)continue;
       const clamp=hs+WALL;
@@ -456,7 +406,6 @@ class ServerGame {
       if(p.firing&&(p.ammo>0||p.ammo===Infinity)&&p.fireCooldown<=0){this.fireBullet(p);p.fireCooldown=weapon.fireRate;}
       if(p.meleeing&&p.ammo===0&&p.ammo!==Infinity&&p.meleeCooldown<=0){this.performMelee(p);p.meleeCooldown=1;}
     }
-
     for(let i=this.bullets.length-1;i>=0;i--){
       const b=this.bullets[i]; b.x+=b.vx; b.y+=b.vy;
       if(b.x<0||b.x>CANVAS_W||b.y<0||b.y>CANVAS_H){this.bullets.splice(i,1);continue;}
@@ -465,10 +414,7 @@ class ServerGame {
         const z=this.zombies[j],dx=b.x-z.x,dy=b.y-z.y;
         if(Math.sqrt(dx*dx+dy*dy)<z.size/2+BULLET_SIZE/2){
           z.hp-=b.damage;hit=true;
-          if(z.hp<=0){let near=null,nd=Infinity;for(let p of this.players){if(!p.alive||!p.connected)continue;const d=Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2);if(d<nd){nd=d;near=p;}}if(near)near.points+=z.points;if(Math.random()<AMMO_DROP_CHANCE)this.ammoPacks.push({x:z.x,y:z.y});if(Math.random()<HEALTH_DROP_CHANCE)this.healthPacks.push({x:z.x,y:z.y});this.explosions.push({x:z.x,y:z.y,color:z.borderColor});if(z.type==='bomber')this.triggerBomberExplosion(z.x,z.y);this.zombies.splice(j,1);this.waveKilled++;
-            // FIX BOSS SKIP: use _advanceWave()
-            if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();
-          }
+          if(z.hp<=0){let near=null,nd=Infinity;for(let p of this.players){if(!p.alive||!p.connected)continue;const d=Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2);if(d<nd){nd=d;near=p;}}if(near)near.points+=z.points;if(Math.random()<AMMO_DROP_CHANCE)this.ammoPacks.push({x:z.x,y:z.y});if(Math.random()<HEALTH_DROP_CHANCE)this.healthPacks.push({x:z.x,y:z.y});this.explosions.push({x:z.x,y:z.y,color:z.borderColor});if(z.type==='bomber')this.triggerBomberExplosion(z.x,z.y);this.zombies.splice(j,1);this.waveKilled++;if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();}
           break;
         }
       }
@@ -481,7 +427,6 @@ class ServerGame {
       }
       if(hit)this.bullets.splice(i,1);
     }
-
     for(let z of this.zombies){
       let near=null,nd=Infinity;
       for(let p of this.players){if(!p.alive||!p.connected)continue;const d=Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2);if(d<nd){nd=d;near=p;}}
@@ -490,15 +435,10 @@ class ServerGame {
       if(dist>0){z.x+=(dx/dist)*z.speed;z.y+=(dy/dist)*z.speed;}
       if(Math.sqrt((near.x-z.x)**2+(near.y-z.y)**2)<z.size/2+PLAYER_SIZE/2){near.hp-=0.5;if(near.hp<=0&&near.alive){near.alive=false;near.hp=0;this.checkGameOver();}}
     }
-
     for(let i=this.ammoPacks.length-1;i>=0;i--){const a=this.ammoPacks[i];for(let p of this.players){if(!p.alive)continue;if(Math.sqrt((p.x-a.x)**2+(p.y-a.y)**2)<PLAYER_SIZE/2+10){if(p.ammo!==Infinity)p.ammo+=Math.floor(WEAPONS[p.currentWeapon].ammoCapacity*0.5);this.ammoPacks.splice(i,1);break;}}}
     for(let i=this.healthPacks.length-1;i>=0;i--){const h=this.healthPacks[i];for(let p of this.players){if(!p.alive)continue;if(Math.sqrt((p.x-h.x)**2+(p.y-h.y)**2)<PLAYER_SIZE/2+10){p.hp=Math.min(p.maxHp,p.hp+30);this.healthPacks.splice(i,1);break;}}}
-
     this.updateRevive();
     this.updateBoss();
-
-    // FIX LAG: only broadcast every 3 ticks (20Hz) instead of every tick (60Hz)
-    // Game logic still runs at full 60Hz — players won't notice the difference
     this._broadcastTick++;
     if (this._broadcastTick >= BROADCAST_EVERY) {
       this._broadcastTick = 0;
@@ -523,9 +463,6 @@ class ServerGame {
   }
 }
 
-// ================================================================
-// GAME ROOM
-// ================================================================
 class GameRoom {
   constructor(roomCode,mode='local') {
     this.roomCode=roomCode; this.mode=mode; this.hostSocket=null;
@@ -603,11 +540,12 @@ class GameRoom {
   relayPlayerInput(socketId,input){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleInput(player.slotNumber,input);else if(this.hostSocket)this.hostSocket.emit('player-input',{slotNumber:player.slotNumber,input});}
   handleMysteryBox(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleMysteryBox(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('mystery-box-purchase',{slotNumber:player.slotNumber});}
   handleVending(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleVendingMachine(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('vending-purchase',{slotNumber:player.slotNumber});}
+  handleJuggernog(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleJuggernogPurchase(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('juggernog-purchase',{slotNumber:player.slotNumber});}
+  handlePap(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handlePapPurchase(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('pap-purchase',{slotNumber:player.slotNumber});}
 
   handleReady(socketId){
     const player=this.players.get(socketId);if(!player||this.gameStarted)return;
     this.readyPlayers.add(player.slotNumber);this.broadcastLobbyState();
-    console.log(`[ROOM ${this.roomCode}] Player ${player.slotNumber} READY (${this.readyPlayers.size}/${this.players.size})`);
     if(this.readyPlayers.size>=this.players.size&&this.players.size>=1)this._startReadyCountdown();
   }
 
@@ -643,45 +581,33 @@ class GameRoom {
   broadcastExplosion(data){this.broadcast('explosion',data);if(this.hostSocket)this.hostSocket.emit('explosion',data);}
 
   broadcastLocalGameState(gameState){
-    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,canUseVending:ps.canUseVending,vendingCost:ps.vendingCost,killCount:ps.killCount||0,tierIndex:ps.tierIndex||0,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
+    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,maxHp:ps.maxHp,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,canUseVending:ps.canUseVending,canUseJuggernog:ps.canUseJuggernog,canUsePap:ps.canUsePap,vendingCost:ps.vendingCost,papTier:ps.papTier,hasJuggernog:ps.hasJuggernog,nextPapCost:ps.nextPapCost,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
   }
 
   destroy(){if(this.serverGame)this.serverGame.stop();for(let p of this.disconnectedPlayers.values())if(p.gracePeriodTimeout)clearTimeout(p.gracePeriodTimeout);for(let p of this.players.values())if(p.heartbeatInterval)clearInterval(p.heartbeatInterval);this.players.clear();this.disconnectedPlayers.clear();console.log(`[ROOM ${this.roomCode}] Destroyed`);}
 }
 
-// ================================================================
-// SOCKET HANDLERS
-// ================================================================
 const gameRooms=new Map();
 
 io.on('connection',(socket)=>{
   console.log(`[SERVER] Connected: ${socket.id}`);
-
   socket.on('create-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'local');gameRooms.set(c,r);r.setHost(socket);socket.join(c);});
-
-  socket.on('create-remote-room',()=>{
-    const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'remote');gameRooms.set(c,r);r.serverGame=new ServerGame(r);socket.join(c);
-    const pd=r.addPlayer(socket,socket.id);if(!pd)return;
-    socket.emit('join-success',{slotNumber:pd.slotNumber,color:pd.color,deviceFingerprint:socket.id,roomCode:c,mode:'remote'});
-    console.log(`[ROOM ${c}] Remote room created by Player 1`);
-  });
-
   socket.on('join-room',(data)=>{
     const r=gameRooms.get(data.roomCode);if(!r){socket.emit('join-failed',{reason:'Room not found'});return;}
     const pd=r.addPlayer(socket,data.deviceFingerprint);if(!pd)return;
     socket.join(data.roomCode);socket.emit('join-success',{slotNumber:pd.slotNumber,color:pd.color,deviceFingerprint:pd.deviceFingerprint,roomCode:data.roomCode,mode:r.mode});
   });
-
   socket.on('player-ready',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleReady(socket.id);});
   socket.on('player-input',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.relayPlayerInput(socket.id,d.input);});
   socket.on('mystery-box-purchase',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleMysteryBox(socket.id);});
   socket.on('vending-purchase',    (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleVending(socket.id);});
+  socket.on('juggernog-purchase',  (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleJuggernog(socket.id);});
+  socket.on('pap-purchase',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handlePap(socket.id);});
   socket.on('restart-vote',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('restart-vote-remote', (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('game-state-broadcast',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.broadcastLocalGameState(d.gameState);});
   socket.on('explosion',           (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.broadcastExplosion({x:d.x,y:d.y,color:d.color});});
   socket.on('ping-measure',()=>socket.emit('pong-ack'));
-
   socket.on('disconnect',()=>{
     console.log(`[SERVER] Disconnected: ${socket.id}`);
     for(let[code,room]of gameRooms.entries()){
@@ -693,13 +619,5 @@ io.on('connection',(socket)=>{
 
 const PORT=process.env.PORT||3000;
 server.listen(PORT,'0.0.0.0',()=>{
-  console.log('============================================');
-  console.log('  Z-TEAM Server — v2.2 (bug fixes)');
-  console.log('============================================');
-  console.log(`  Port        : ${PORT}`);
-  console.log(`  Logic rate  : ${TICK_RATE}Hz`);
-  console.log(`  Broadcast   : ${BROADCAST_RATE}Hz  (lag fix)`);
-  console.log(`  Boss skip   : fixed (_advanceWave guard)`);
-  console.log(`  Last shard  : fixed (real array index)`);
-  console.log('============================================');
+  console.log(`Z-TEAM Server running on port ${PORT}`);
 });
