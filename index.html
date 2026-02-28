@@ -1756,6 +1756,8 @@
           ctx.fillText('$'+PAP_TIERS[0].cost, m.x, m.y+27);
           ctx.restore();
         }
+
+        for (let a of this.ammoPacks) {
           ctx.fillStyle='#ffff00'; ctx.fillRect(a.x-this.AMMO_SIZE/2,a.y-this.AMMO_SIZE/2,this.AMMO_SIZE,this.AMMO_SIZE);
           ctx.strokeStyle='#ffaa00'; ctx.lineWidth=2; ctx.strokeRect(a.x-this.AMMO_SIZE/2,a.y-this.AMMO_SIZE/2,this.AMMO_SIZE,this.AMMO_SIZE);
           ctx.fillStyle='#000'; ctx.font='bold 12px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
