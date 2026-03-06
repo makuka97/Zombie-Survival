@@ -1639,7 +1639,7 @@
           ctx.lineWidth = 3;
           ctx.shadowColor = '#00ff66';
           ctx.shadowBlur = 12 * pulse;
-          ctx.beginPath(); ctx.roundRect(v.x-28, v.y-36, 56, 72, 6); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.rect(v.x-28, v.y-36, 56, 72); ctx.fill(); ctx.stroke();
           ctx.shadowBlur = 0;
           // health cross
           ctx.fillStyle = '#00ff66';
@@ -1991,8 +1991,12 @@
         const loop = (currentTime) => {
           const deltaTime = currentTime - lastTime;
           if (deltaTime >= frameDelay) {
-            this.update();
-            this.render();
+            try {
+              this.update();
+              this.render();
+            } catch(e) {
+              console.error('GAME LOOP ERROR:', e);
+            }
             // Broadcast at 20hz (every 3 frames) — controllers don't need 60hz state
             if (this.socket && this.roomCode && ++broadcastFrame % 3 === 0) {
               this.socket.emit('game-state-broadcast', {
