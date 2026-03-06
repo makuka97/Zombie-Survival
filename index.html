@@ -2056,7 +2056,12 @@
     socket.on('ready-countdown-cancelled', () => {
       document.getElementById('countdown').style.display = 'none';
     });
-    socket.on('all-ready', () => game.beginGame());
+    socket.on('all-ready', (d) => {
+      // Sync connected state from server before starting
+      if (d && d.slots) d.slots.forEach(slot => game.addPlayer(slot));
+      game.beginGame();
+    });
+    socket.on('player-reconnected', (d) => game.addPlayer(d.slotNumber));
     socket.on('restart-game', () => game.restart());
     socket.on('restart-vote-update', (d) => {
       document.getElementById('vote-display').textContent =
