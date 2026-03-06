@@ -25,8 +25,6 @@ const {
   AMMO_DROP_CHANCE, HEALTH_DROP_CHANCE,
   MYSTERY_BOX_COST, BOX_USE_RANGE,
   VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
-  JUGGERNOG_COST, JUGGERNOG_HP_BONUS, JUGGERNOG_USE_RANGE,
-  PAP_USE_RANGE, PAP_TIERS,
   MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
   REVIVE_RADIUS, REVIVE_TIME,
   BOSS_TYPES, BOSS_CONFIGS,
@@ -540,8 +538,6 @@ class GameRoom {
   relayPlayerInput(socketId,input){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleInput(player.slotNumber,input);else if(this.hostSocket)this.hostSocket.emit('player-input',{slotNumber:player.slotNumber,input});}
   handleMysteryBox(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleMysteryBox(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('mystery-box-purchase',{slotNumber:player.slotNumber});}
   handleVending(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleVendingMachine(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('vending-purchase',{slotNumber:player.slotNumber});}
-  handleJuggernog(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handleJuggernogPurchase(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('juggernog-purchase',{slotNumber:player.slotNumber});}
-  handlePap(socketId){const player=this.players.get(socketId);if(!player)return;if(this.mode==='remote'&&this.serverGame)this.serverGame.handlePapPurchase(player.slotNumber);else if(this.hostSocket)this.hostSocket.emit('pap-purchase',{slotNumber:player.slotNumber});}
 
   handleReady(socketId){
     const player=this.players.get(socketId);if(!player||this.gameStarted)return;
@@ -581,7 +577,7 @@ class GameRoom {
   broadcastExplosion(data){this.broadcast('explosion',data);if(this.hostSocket)this.hostSocket.emit('explosion',data);}
 
   broadcastLocalGameState(gameState){
-    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,maxHp:ps.maxHp,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,canUseVending:ps.canUseVending,canUseJuggernog:ps.canUseJuggernog,canUsePap:ps.canUsePap,vendingCost:ps.vendingCost,papTier:ps.papTier,hasJuggernog:ps.hasJuggernog,nextPapCost:ps.nextPapCost,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
+    for(let[socketId,player]of this.players){const socket=io.sockets.sockets.get(socketId);if(socket&&player.connected){const ps=gameState.players?gameState.players[player.slotNumber-1]:null;if(ps)socket.emit('game-state-update',{health:ps.health,maxHp:ps.maxHp,ammo:ps.ammo===Infinity?-1:ps.ammo,isAlive:ps.isAlive,points:ps.points,weapon:ps.weapon,canUseMysteryBox:ps.canUseMysteryBox,canUseVending:ps.canUseVending,vendingCost:ps.vendingCost,wave:gameState.wave||1,zombiesRemaining:gameState.zombiesRemaining||0,gameOver:gameState.gameOver||false});}}
   }
 
   destroy(){if(this.serverGame)this.serverGame.stop();for(let p of this.disconnectedPlayers.values())if(p.gracePeriodTimeout)clearTimeout(p.gracePeriodTimeout);for(let p of this.players.values())if(p.heartbeatInterval)clearInterval(p.heartbeatInterval);this.players.clear();this.disconnectedPlayers.clear();console.log(`[ROOM ${this.roomCode}] Destroyed`);}
@@ -601,8 +597,6 @@ io.on('connection',(socket)=>{
   socket.on('player-input',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.relayPlayerInput(socket.id,d.input);});
   socket.on('mystery-box-purchase',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleMysteryBox(socket.id);});
   socket.on('vending-purchase',    (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleVending(socket.id);});
-  socket.on('juggernog-purchase',  (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleJuggernog(socket.id);});
-  socket.on('pap-purchase',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handlePap(socket.id);});
   socket.on('restart-vote',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('restart-vote-remote', (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleRestartVote(socket.id);});
   socket.on('game-state-broadcast',(d)=>{const r=gameRooms.get(d.roomCode);if(r)r.broadcastLocalGameState(d.gameState);});
