@@ -554,7 +554,7 @@ class GameRoom {
       timeLeft--;this.broadcast('ready-countdown',{seconds:timeLeft});if(this.hostSocket)this.hostSocket.emit('ready-countdown',{seconds:timeLeft});
       if(timeLeft<=0){clearInterval(this._readyCountdownInterval);this._readyCountdownInterval=null;this.gameStarted=true;
         if(this.mode==='remote'){if(!this.serverGame)this.serverGame=new ServerGame(this);for(let[,p]of this.players)this.serverGame.players[p.slotNumber-1].connected=true;this.serverGame.gameStarted=true;this.serverGame.start();this.broadcast('game-starting-remote',{mode:'remote'});}
-        else{if(this.hostSocket)this.hostSocket.emit('all-ready');for(let[sid]of this.players){const s=io.sockets.sockets.get(sid);if(s)s.emit('game-starting');}}
+        else{const slots=[...this.players.values()].map(p=>p.slotNumber);if(this.hostSocket)this.hostSocket.emit('all-ready',{slots});for(let[sid]of this.players){const s=io.sockets.sockets.get(sid);if(s)s.emit('game-starting');}}
       }
     },1000);
   }
