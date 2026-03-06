@@ -36,27 +36,14 @@ const GAME_CONSTANTS = (() => {
   const HEALTH_DROP_CHANCE = 0.08;
 
   // ── Mystery Box ──────────────────────────────────────────────
-  const MYSTERY_BOX_COST = 950;
-  const BOX_USE_RANGE    = 120;  // increased from 60 — phones scale canvas down, needs bigger range
+  const MYSTERY_BOX_COST = 1500;
+  const BOX_USE_RANGE    = 120;
 
   // ── Health Vending Machine ────────────────────────────────────
-  const VENDING_BASE_COST   = 500; // starting price
-  const VENDING_COST_STEP   = 50;  // price increase per use (carries over all game)
-  const VENDING_HEAL_AMOUNT = 25;  // HP restored per use
-  const VENDING_USE_RANGE   = 120; // interact distance (matches BOX_USE_RANGE)
-
-  // ── Juggernog Perk Machine ────────────────────────────────────
-  const JUGGERNOG_COST     = 2500;
-  const JUGGERNOG_HP_BONUS = 100;  // max HP: 100 → 200
-  const JUGGERNOG_USE_RANGE = 120;
-
-  // ── Pack-a-Punch ──────────────────────────────────────────────
-  const PAP_USE_RANGE = 120;
-  const PAP_TIERS = [
-    { tier: 1, cost: 2000, damageMult: 1.5, ammoMult: 1.5,  color: '#4488ff', label: 'PaP I'   },
-    { tier: 2, cost: 4000, damageMult: 2.5, ammoMult: 2.0,  color: '#aa44ff', label: 'PaP II'  },
-    { tier: 3, cost: 7500, damageMult: 4.0, ammoMult: 2.5,  color: '#ffaa00', label: 'PaP III' },
-  ];
+  const VENDING_BASE_COST   = 500;
+  const VENDING_COST_STEP   = 50;
+  const VENDING_HEAL_AMOUNT = 25;
+  const VENDING_USE_RANGE   = 120;
 
   // ── Melee (knife) ────────────────────────────────────────────
   // Knife does 30 damage per swing. Regular zombies have 150 HP = 5 swings to kill.
@@ -118,7 +105,7 @@ const GAME_CONSTANTS = (() => {
   const ZOMBIE_TYPES = {
     regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.6,  hp: 40,  points: 60,  weight: 70 },
     runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.3,  hp: 25,  points: 80,  weight: 20 },
-    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.35, hp: 180, points: 150, weight: 10 },
+    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.35, hp: 600, points: 150, weight: 10 },
     bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 0.8,  hp: 35,  points: 100, weight: 0  }
   };
 
@@ -178,10 +165,6 @@ const GAME_CONSTANTS = (() => {
     MYSTERY_BOX_COST, BOX_USE_RANGE,
     // Vending machine
     VENDING_BASE_COST, VENDING_COST_STEP, VENDING_HEAL_AMOUNT, VENDING_USE_RANGE,
-    // Juggernog
-    JUGGERNOG_COST, JUGGERNOG_HP_BONUS, JUGGERNOG_USE_RANGE,
-    // Pack-a-Punch
-    PAP_USE_RANGE, PAP_TIERS,
     // Melee
     MELEE_DAMAGE, MELEE_RANGE, MELEE_ARC,
     // Revive
