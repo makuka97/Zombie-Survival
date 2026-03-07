@@ -37,7 +37,7 @@ const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
 const BROADCAST_RATE = 20;
 const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
-const PLAYER_SPEED   = 1.25;
+const PLAYER_SPEED   = 1.5;
 const BULLET_SPEED   = 4;
 const SERVER_ZOMBIE_SPEED = {
   regular: ZOMBIE_TYPES.regular.speed / 2,
