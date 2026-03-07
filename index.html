@@ -556,8 +556,6 @@
 
       // ── BOSS FACTORY ─────────────────────────────────────────────────
       getBossType() {
-        // TEST: wave 5 spawns octopus. Change back to 35 for production.
-        if (this.wave === 5) return 'octopus';
         // Wave 35 always spawns the Octopus
         if (this.wave === 35) return 'octopus';
         // Waves 5–30: fixed sequence. Wave 35+: random from all types.
@@ -648,13 +646,14 @@
               alive: true,
               // state: 'idle' | 'launching' | 'grabbing' | 'retracting' | 'chewing' | 'throwing'
               state: 'idle',
-              idleTimer: 60 + Math.floor(Math.random() * 120), // stagger initial launches
-              launchT: 0,       // 0→1 extension progress
-              grabT: 0,         // 0→1 chew timer
-              tipX: 0, tipY: 0, // current tip position
-              targetSlot: -1,   // which player slot is grabbed
+              idleTimer: 120 + i * 45, // stagger so they extend one-by-one after landing
+              launchT: 0,
+              grabT: 0,
+              tipX: 0, tipY: 0, // will be set to base each frame while idle
+              targetSlot: -1,
+              launchTargetX: 0, launchTargetY: 0,
             })),
-            grabCooldown: 0,    // global cooldown so not all tentacles grab at once
+            grabCooldown: 0,
           };
         } else { // fractal
           this.boss = { ...base,
@@ -783,6 +782,15 @@
         if (b.dropping) {
           b.y += 6; b.rotation += b.spinSpeed;
           if (b.y >= b.dropTarget) { b.y = b.dropTarget; b.dropping = false; }
+          // Keep tentacle tips pinned to body while dropping so they don't render at (0,0)
+          if (b.type === 'octopus' && b.tentacles) {
+            for (let i = 0; i < b.tentacles.length; i++) {
+              const t = b.tentacles[i];
+              const a = b.rotation + (i / b.tentacles.length) * Math.PI * 2;
+              t.tipX = b.x + Math.cos(a) * b.radius;
+              t.tipY = b.y + Math.sin(a) * b.radius;
+            }
+          }
           return;
         }
 
@@ -1271,7 +1279,7 @@
               // Chew damage — small ticks while held
               t.grabT++;
               if (t.grabT % 18 === 0) {
-                tp.hp -= cfg.grabDamage;
+                tp.hp -= 3; // light chew damage — the throw is the real danger
                 // Blood particles while chewing
                 for (let p = 0; p < 6; p++) {
                   const a = Math.random() * Math.PI * 2;
@@ -1305,7 +1313,7 @@
                 // Launch thrown player toward victim
                 const dx = victim.x - b.x, dy = victim.y - b.y;
                 const dist = Math.sqrt(dx*dx + dy*dy);
-                const throwSpeed = 14;
+                const throwSpeed = 22;
                 tp.thrownVx = (dx / dist) * throwSpeed;
                 tp.thrownVy = (dy / dist) * throwSpeed;
                 tp.throwVictimSlot = victim.slot; // who we're aimed at
