@@ -48,7 +48,7 @@ const GAME_CONSTANTS = (() => {
   // ── Melee (knife) ────────────────────────────────────────────
   // Knife does 30 damage per swing. Regular zombies have 150 HP = 5 swings to kill.
   // Runners are weaker (75 HP = ~3 swings). Tanks are very tanky (600 HP).
-  const MELEE_DAMAGE = 25;
+  const MELEE_DAMAGE = 50;
   const MELEE_RANGE  = 55;
   const MELEE_ARC    = Math.PI * 0.6;
 
@@ -105,7 +105,7 @@ const GAME_CONSTANTS = (() => {
   const ZOMBIE_TYPES = {
     regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.85,  hp: 25,  points: 60,  weight: 70 },
     runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.7,  hp: 15,  points: 80,  weight: 20 },
-    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 150, points: 150, weight: 10 },
+    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 380, points: 150, weight: 10 },
     bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 1.1,  hp: 22,  points: 100, weight: 0  }
   };
 
@@ -117,7 +117,7 @@ const GAME_CONSTANTS = (() => {
   // ── Boss cycle ───────────────────────────────────────────────
   // Cycles every 5 waves: wave 5→triangle, 10→octagon, 15→pentagon,
   //                        20→diamond, 25→spiral, 30+→fractal (repeats)
-  const BOSS_TYPES = ['triangle', 'octagon', 'pentagon', 'diamond', 'spiral', 'fractal'];
+  const BOSS_TYPES = ['triangle', 'octagon', 'pentagon', 'diamond', 'spiral', 'fractal', 'octopus'];
 
   // ── Boss configs ─────────────────────────────────────────────
   // Static data only — dynamic state (x, y, rotation, etc.) is created at spawn time.
@@ -148,6 +148,13 @@ const GAME_CONSTANTS = (() => {
     fractal: {
       radius: 95, color: '#ffdd00', pad: 130, label: 'FRACTAL',
       pieceHp: 180, splitThreshold: 30, splitScale: 0.55, splitCount: 3
+    },
+    octopus: {
+      radius: 55, color: '#cc44ff', pad: 80, label: 'THE OCTOPUS',
+      tentacleCount: 8, tentacleHp: 80,
+      tentacleLength: 220,  // max reach
+      grabDamage: 8,        // damage while being chewed at center
+      throwDamage: 35,      // damage to the player who gets hit by the thrown player
     }
   };
 
