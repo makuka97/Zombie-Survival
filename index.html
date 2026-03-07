@@ -556,8 +556,12 @@
 
       // ── BOSS FACTORY ─────────────────────────────────────────────────
       getBossType() {
-        // Waves 5–30: fixed sequence. Wave 35+: random from all 6 types.
-        if (this.wave > 30) {
+        // TEST: wave 5 spawns octopus. Change back to 35 for production.
+        if (this.wave === 5) return 'octopus';
+        // Wave 35 always spawns the Octopus
+        if (this.wave === 35) return 'octopus';
+        // Waves 5–30: fixed sequence. Wave 35+: random from all types.
+        if (this.wave > 35) {
           return BOSS_TYPES[Math.floor(Math.random() * BOSS_TYPES.length)];
         }
         return BOSS_TYPES[Math.floor((this.wave / 5 - 1)) % BOSS_TYPES.length];
@@ -636,6 +640,22 @@
             consumeFlash: 0,
             consumingZombies: [],   // [{x,y,color,borderColor,size,t,fromX,fromY}] — suck-in animation
           };
+        } else if (type === 'octopus') {
+          this.boss = { ...base,
+            tentacles: Array.from({length: cfg.tentacleCount}, (_, i) => ({
+              hp: cfg.tentacleHp, maxHp: cfg.tentacleHp,
+              angle: (i / cfg.tentacleCount) * Math.PI * 2,
+              alive: true,
+              // state: 'idle' | 'launching' | 'grabbing' | 'retracting' | 'chewing' | 'throwing'
+              state: 'idle',
+              idleTimer: 60 + Math.floor(Math.random() * 120), // stagger initial launches
+              launchT: 0,       // 0→1 extension progress
+              grabT: 0,         // 0→1 chew timer
+              tipX: 0, tipY: 0, // current tip position
+              targetSlot: -1,   // which player slot is grabbed
+            })),
+            grabCooldown: 0,    // global cooldown so not all tentacles grab at once
+          };
         } else { // fractal
           this.boss = { ...base,
             stage: 0,
@@ -698,6 +718,15 @@
             return acc;
           }, []);
         }
+        if (b.type === 'octopus') {
+          // Only idle/launching tentacle tips are hittable (not ones currently grabbing)
+          return b.tentacles.reduce((acc, t, i) => {
+            if (t.alive && (t.state === 'idle' || t.state === 'launching')) {
+              acc.push({ x: t.tipX, y: t.tipY, idx: i, tentacle: true });
+            }
+            return acc;
+          }, []);
+        }
         return [];
       }
 
@@ -727,6 +756,22 @@
         }
         else if (b.type==='spiral')    b.arms[pt.idx].hp     = Math.max(0, b.arms[pt.idx].hp     - amount);
         else if (b.type==='fractal')   { const alive=b.pieces.filter(p=>p.alive); if(alive[pt.idx])alive[pt.idx].hp=Math.max(0,alive[pt.idx].hp-amount); }
+        else if (b.type==='octopus')   {
+          const t = b.tentacles[pt.idx];
+          if (t && t.alive) {
+            t.hp = Math.max(0, t.hp - amount);
+            if (t.hp <= 0) {
+              t.alive = false;
+              t.state = 'idle';
+              // Release grabbed player if this tentacle had one
+              if (t.targetSlot >= 0) {
+                const gp = this.players[t.targetSlot - 1];
+                if (gp) gp.grabbed = false;
+                t.targetSlot = -1;
+              }
+            }
+          }
+        }
       }
 
       updateBoss() {
@@ -764,6 +809,7 @@
         else if (b.type === 'diamond')  this._updateDiamondBoss(b, W, H, WALL);
         else if (b.type === 'spiral')   this._updateSpiralBoss(b, W, H, WALL);
         else if (b.type === 'fractal')  this._updateFractalBoss(b, W, H, WALL);
+        else if (b.type === 'octopus')  this._updateOctopusBoss(b, W, H, WALL);
       }
 
       _bounceBox(b, W, H, WALL) {
@@ -812,7 +858,7 @@
       _bossTouchDamage(b, extraRadius=0) {
         const hs = this.PLAYER_SIZE/2;
         for (let p of this.players) {
-          if (!p.alive||!p.connected) continue;
+          if (!p.alive||!p.connected||p.invincible) continue;
           const dx=p.x-b.x, dy=p.y-b.y;
           if (Math.sqrt(dx*dx+dy*dy) < b.radius+extraRadius+hs) {
             p.hp-=1;
@@ -1113,6 +1159,229 @@
 
         // Core is always vulnerable — but killing all arms wins
         if (b.arms.every(a => a.hp <= 0) && !b.dead) this._bossKill(b);
+      }
+
+      _updateOctopusBoss(b, W, H, WALL) {
+        const cfg = BOSS_CONFIGS.octopus;
+
+        // Slowly drift around the arena
+        this._bounceBox(b, W, H, WALL);
+        b.rotation += 0.008;
+        if (b.grabCooldown > 0) b.grabCooldown--;
+
+        // Update each tentacle
+        for (let i = 0; i < b.tentacles.length; i++) {
+          const t = b.tentacles[i];
+          if (!t.alive) {
+            // Dead tentacle — tip stays at base
+            const baseAngle = b.rotation + (i / b.tentacles.length) * Math.PI * 2;
+            t.tipX = b.x + Math.cos(baseAngle) * b.radius;
+            t.tipY = b.y + Math.sin(baseAngle) * b.radius;
+            continue;
+          }
+
+          const baseAngle = b.rotation + (i / b.tentacles.length) * Math.PI * 2;
+          const baseX = b.x + Math.cos(baseAngle) * b.radius;
+          const baseY = b.y + Math.sin(baseAngle) * b.radius;
+
+          if (t.state === 'idle') {
+            // Tip rests at base
+            t.tipX = baseX;
+            t.tipY = baseY;
+            t.idleTimer--;
+            if (t.idleTimer <= 0 && b.grabCooldown <= 0) {
+              // Pick a random connected living player to target
+              const targets = this.players.filter(p => p.alive && p.connected && !p.grabbed);
+              if (targets.length > 0) {
+                const target = targets[Math.floor(Math.random() * targets.length)];
+                t.targetSlot = target.slot;
+                t.launchT = 0;
+                t.state = 'launching';
+                // Aim at player's current position
+                t.launchTargetX = target.x;
+                t.launchTargetY = target.y;
+              } else {
+                t.idleTimer = 60;
+              }
+            }
+
+          } else if (t.state === 'launching') {
+            // Extend tip toward target
+            t.launchT += 0.045;
+            const ext = Math.min(1, t.launchT);
+            const destX = t.launchTargetX, destY = t.launchTargetY;
+            t.tipX = baseX + (destX - baseX) * ext;
+            t.tipY = baseY + (destY - baseY) * ext;
+
+            if (t.launchT >= 1) {
+              // Check if we grabbed the target player
+              const tp = t.targetSlot >= 0 ? this.players[t.targetSlot - 1] : null;
+              if (tp && tp.alive && tp.connected && !tp.grabbed) {
+                const dx = tp.x - t.tipX, dy = tp.y - t.tipY;
+                if (Math.sqrt(dx*dx + dy*dy) < 28) {
+                  // GRABBED!
+                  tp.grabbed = true;
+                  tp.invincible = true; // invincible during travel + chew
+                  tp.vx = 0; tp.vy = 0;
+                  t.state = 'retracting';
+                  t.launchT = 1;
+                  b.grabCooldown = 180; // prevent all tentacles grabbing at once
+                } else {
+                  // Missed — retract empty
+                  t.targetSlot = -1;
+                  t.state = 'retracting';
+                }
+              } else {
+                t.targetSlot = -1;
+                t.state = 'retracting';
+              }
+            }
+
+          } else if (t.state === 'retracting') {
+            t.launchT -= 0.06;
+            const ext = Math.max(0, t.launchT);
+            const destX = t.launchTargetX, destY = t.launchTargetY;
+            t.tipX = baseX + (destX - baseX) * ext;
+            t.tipY = baseY + (destY - baseY) * ext;
+
+            // If carrying a player, drag them with the tip
+            const tp = t.targetSlot >= 0 ? this.players[t.targetSlot - 1] : null;
+            if (tp && tp.grabbed) {
+              tp.x = t.tipX; tp.y = t.tipY;
+            }
+
+            if (t.launchT <= 0) {
+              if (tp && tp.grabbed) {
+                // Player arrived at center — start chewing
+                tp.x = b.x; tp.y = b.y;
+                t.grabT = 0;
+                t.state = 'chewing';
+              } else {
+                t.state = 'idle';
+                t.idleTimer = 90 + Math.floor(Math.random() * 90);
+                t.targetSlot = -1;
+              }
+            }
+
+          } else if (t.state === 'chewing') {
+            // Keep player pinned at center
+            const tp = t.targetSlot >= 0 ? this.players[t.targetSlot - 1] : null;
+            if (tp && tp.grabbed) {
+              tp.x = b.x; tp.y = b.y;
+              // Chew damage — small ticks while held
+              t.grabT++;
+              if (t.grabT % 18 === 0) {
+                tp.hp -= cfg.grabDamage;
+                // Blood particles while chewing
+                for (let p = 0; p < 6; p++) {
+                  const a = Math.random() * Math.PI * 2;
+                  const s = 1.5 + Math.random() * 3;
+                  this._emitParticle(b.x, b.y, Math.cos(a)*s, Math.sin(a)*s, p < 3 ? '#ff0000' : '#cc0000', 20, 3 + Math.random()*3);
+                }
+                if (tp.hp <= 0 && tp.alive) { tp.alive = false; tp.hp = 0; this.checkGameOver(); }
+              }
+
+              // After chewing for ~2 seconds, THROW the player
+              if (t.grabT >= 120) {
+                t.state = 'throwing';
+                t.grabT = 0;
+              }
+            } else {
+              // Player died while being chewed
+              t.state = 'idle';
+              t.idleTimer = 60;
+              t.targetSlot = -1;
+            }
+
+          } else if (t.state === 'throwing') {
+            const tp = t.targetSlot >= 0 ? this.players[t.targetSlot - 1] : null;
+
+            if (tp && tp.grabbed) {
+              // Pick a throw target — another living player
+              const throwTargets = this.players.filter(p => p.alive && p.connected && p.slot !== tp.slot);
+
+              if (throwTargets.length > 0) {
+                const victim = throwTargets[Math.floor(Math.random() * throwTargets.length)];
+                // Launch thrown player toward victim
+                const dx = victim.x - b.x, dy = victim.y - b.y;
+                const dist = Math.sqrt(dx*dx + dy*dy);
+                const throwSpeed = 14;
+                tp.thrownVx = (dx / dist) * throwSpeed;
+                tp.thrownVy = (dy / dist) * throwSpeed;
+                tp.throwVictimSlot = victim.slot; // who we're aimed at
+                tp.throwTimer = 60;               // max flight frames
+                tp.throwHasHit = false;           // only one collision counts
+                tp.grabbed = false;
+                tp.invincible = false;            // NOW becomes invincible = false so impact damages
+                // Emit throw burst particles
+                for (let p = 0; p < 12; p++) {
+                  const a = Math.random() * Math.PI * 2;
+                  this._emitParticle(b.x, b.y, Math.cos(a)*5, Math.sin(a)*5, '#ff44ff', 15, 4);
+                }
+              } else {
+                // No one to throw at — just release
+                tp.grabbed = false;
+                tp.invincible = false;
+              }
+            }
+
+            t.state = 'idle';
+            t.idleTimer = 120 + Math.floor(Math.random() * 60);
+            t.targetSlot = -1;
+            // Tip snaps back
+            t.tipX = baseX; t.tipY = baseY;
+          }
+        }
+
+        // ── Update thrown players ──────────────────────────────────
+        for (let p of this.players) {
+          if (!p.thrownVx || p.throwTimer <= 0) continue;
+          p.throwTimer--;
+          p.x += p.thrownVx; p.y += p.thrownVy;
+          // Decelerate
+          p.thrownVx *= 0.88; p.thrownVy *= 0.88;
+
+          // Clamp to arena
+          const hs = this.PLAYER_SIZE / 2 + WALL;
+          p.x = Math.max(hs, Math.min(W - hs, p.x));
+          p.y = Math.max(hs, Math.min(H - hs, p.y));
+
+          // Check collision with other players — only if not yet hit
+          if (!p.throwHasHit) {
+            for (let other of this.players) {
+              if (!other.alive || !other.connected || other.slot === p.slot) continue;
+              if (other.grabbed) continue; // don't hit someone already being processed
+              const dx = other.x - p.x, dy = other.y - p.y;
+              if (Math.sqrt(dx*dx + dy*dy) < this.PLAYER_SIZE) {
+                // HIT! Only the other player takes damage from the impact
+                p.throwHasHit = true;
+                other.hp -= cfg.throwDamage;
+                if (other.hp <= 0 && other.alive) { other.alive = false; other.hp = 0; this.checkGameOver(); }
+                // Impact particles
+                for (let k = 0; k < 14; k++) {
+                  const a = Math.random() * Math.PI * 2;
+                  this._emitParticle(other.x, other.y, Math.cos(a)*4, Math.sin(a)*4, k < 7 ? '#ff4400' : '#ffffff', 18, 3 + Math.random()*3);
+                }
+                p.thrownVx = 0; p.thrownVy = 0; p.throwTimer = 0;
+                break;
+              }
+            }
+          }
+
+          if (p.throwTimer <= 0) {
+            p.thrownVx = 0; p.thrownVy = 0;
+          }
+        }
+
+        // ── Touch damage from body ──────────────────────────────────
+        this._bossTouchDamage(b);
+
+        // ── Win condition: all tentacles destroyed ──────────────────
+        if (b.tentacles.every(t => !t.alive) && !b.dead) {
+          // Release any grabbed players first
+          for (let p of this.players) { p.grabbed = false; p.invincible = false; }
+          this._bossKill(b);
+        }
       }
 
       _updateFractalBoss(b, W, H, WALL) {
@@ -1476,6 +1745,7 @@
           p.hp=100; p.maxHp=100; p.ammo=30; p.points=0;
           p.currentWeapon='pistol'; p.alive=true;
           p.firing=false; p.fireCooldown=0;
+          p.grabbed=false; p.invincible=false; p.thrownVx=0; p.thrownVy=0; p.throwTimer=0; p.throwHasHit=false;
           p.meleeing=false; p.meleeCooldown=0;
           
         }
@@ -1509,6 +1779,7 @@
 
         for (let p of this.players) {
           if (!p.connected || !p.alive) continue;
+          if (p.grabbed || p.thrownVx) continue; // octopus controls this player
           const WALL = 6;
           const clamp = hs + WALL;
           p.x = Math.max(clamp, Math.min(W-clamp, p.x+p.vx));
@@ -1580,7 +1851,7 @@
           if(dist>minDist&&dist>0){z.x+=(dx/dist)*z.speed;z.y+=(dy/dist)*z.speed;}
           else if(dist<minDist&&dist>0){z.x=nearest.x-(dx/dist)*minDist;z.y=nearest.y-(dy/dist)*minDist;}
           const zpDx=nearest.x-z.x,zpDy=nearest.y-z.y;
-          if(Math.sqrt(zpDx*zpDx+zpDy*zpDy)<minDist){nearest.hp-=0.5;if(nearest.hp<=0&&nearest.alive){nearest.alive=false;nearest.hp=0;this.checkGameOver();}}
+          if(Math.sqrt(zpDx*zpDx+zpDy*zpDy)<minDist&&!nearest.invincible){nearest.hp-=0.5;if(nearest.hp<=0&&nearest.alive){nearest.alive=false;nearest.hp=0;this.checkGameOver();}}
         }
 
         for (let i=this.ammoPacks.length-1;i>=0;i--){
@@ -1927,6 +2198,108 @@
               const bw=piece.radius*1.4;
               ctx.fillStyle='#332200'; ctx.fillRect(-bw/2,piece.radius+4,bw,4);
               ctx.fillStyle='#ffdd00'; ctx.fillRect(-bw/2,piece.radius+4,bw*hp_r,4); ctx.restore();
+            }
+          } else if (b.type === 'octopus') {
+            const cfg = BOSS_CONFIGS.octopus;
+            const aliveTentacles = b.tentacles.filter(t => t.alive).length;
+
+            // Draw tentacles first (behind body)
+            for (let i = 0; i < b.tentacles.length; i++) {
+              const t = b.tentacles[i];
+              const baseAngle = b.rotation + (i / b.tentacles.length) * Math.PI * 2;
+              const baseX = b.x + Math.cos(baseAngle) * b.radius;
+              const baseY = b.y + Math.sin(baseAngle) * b.radius;
+
+              if (!t.alive) {
+                // Dead tentacle — draw stub
+                ctx.save();
+                ctx.strokeStyle = '#440033'; ctx.lineWidth = 6; ctx.globalAlpha = 0.4;
+                ctx.beginPath(); ctx.moveTo(baseX, baseY);
+                ctx.lineTo(baseX + Math.cos(baseAngle)*20, baseY + Math.sin(baseAngle)*20);
+                ctx.stroke(); ctx.restore();
+                continue;
+              }
+
+              const hp_r = t.hp / t.maxHp;
+              const isActive = t.state !== 'idle';
+              const tentColor = flashing ? '#ffffff' : isActive ? '#ff44ff' : `hsl(${280+40*hp_r},90%,${45+20*hp_r}%)`;
+              const glowColor = isActive ? '#ff00ff' : '#aa44ff';
+
+              // Curved tentacle using quadratic bezier
+              const midX = baseX + (t.tipX - baseX) * 0.5 + Math.cos(baseAngle + Math.PI/2) * 30;
+              const midY = baseY + (t.tipY - baseY) * 0.5 + Math.sin(baseAngle + Math.PI/2) * 30;
+
+              ctx.save();
+              ctx.strokeStyle = tentColor; ctx.lineWidth = 10 - (1-hp_r)*4;
+              ctx.shadowColor = glowColor; ctx.shadowBlur = isActive ? 20 : 8;
+              ctx.lineCap = 'round';
+              ctx.beginPath(); ctx.moveTo(baseX, baseY);
+              ctx.quadraticCurveTo(midX, midY, t.tipX, t.tipY);
+              ctx.stroke();
+              // Sucker dots along tentacle
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#330022';
+              for (let s = 0.2; s < 0.9; s += 0.2) {
+                const sx = baseX + (t.tipX - baseX)*s + Math.cos(baseAngle+Math.PI/2)*15*s*(1-s)*4;
+                const sy = baseY + (t.tipY - baseY)*s + Math.sin(baseAngle+Math.PI/2)*15*s*(1-s)*4;
+                ctx.beginPath(); ctx.arc(sx, sy, 3, 0, Math.PI*2); ctx.fill();
+              }
+              // Tip circle
+              ctx.fillStyle = isActive ? '#ff44ff' : tentColor;
+              ctx.shadowColor = glowColor; ctx.shadowBlur = 12;
+              ctx.beginPath(); ctx.arc(t.tipX, t.tipY, 8, 0, Math.PI*2); ctx.fill();
+              // HP bar at tip
+              ctx.shadowBlur = 0;
+              ctx.fillStyle = '#220011'; ctx.fillRect(t.tipX-14, t.tipY+12, 28, 4);
+              ctx.fillStyle = `hsl(${120*hp_r},100%,50%)`; ctx.fillRect(t.tipX-14, t.tipY+12, 28*hp_r, 4);
+              ctx.restore();
+            }
+
+            // Main body — pulsing purple blob
+            const pulse = 0.85 + 0.15 * Math.sin(Date.now() / 180);
+            ctx.save();
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * pulse, 0, Math.PI*2);
+            ctx.fillStyle = flashing ? '#ffffff' : `hsl(280,80%,${30+15*pulse}%)`;
+            ctx.shadowColor = '#cc44ff'; ctx.shadowBlur = 30 * pulse;
+            ctx.fill();
+            // Inner eye
+            ctx.beginPath(); ctx.arc(b.x, b.y, b.radius * 0.38, 0, Math.PI*2);
+            ctx.fillStyle = flashing ? '#ffccff' : '#1a001a';
+            ctx.shadowBlur = 0; ctx.fill();
+            // Pupil that tracks the nearest player
+            let nearestP = null, nearestD = Infinity;
+            for (let p of this.players) { if (!p.alive||!p.connected) continue; const d=Math.hypot(p.x-b.x,p.y-b.y); if(d<nearestD){nearestD=d;nearestP=p;} }
+            if (nearestP) {
+              const ea = Math.atan2(nearestP.y - b.y, nearestP.x - b.x);
+              const er = b.radius * 0.18;
+              ctx.beginPath(); ctx.arc(b.x + Math.cos(ea)*er, b.y + Math.sin(ea)*er, b.radius*0.14, 0, Math.PI*2);
+              ctx.fillStyle = '#cc00ff'; ctx.fill();
+            }
+            // Tentacles alive counter
+            ctx.fillStyle = '#ffaaff'; ctx.font = 'bold 12px Courier New';
+            ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+            ctx.fillText(`${aliveTentacles}/8`, b.x, b.y + b.radius * 0.55);
+            ctx.restore();
+
+            // Draw grabbed player visual — shaking at center while chewing
+            for (let p of this.players) {
+              if (!p.grabbed) continue;
+              const shake = Math.sin(Date.now() / 40) * 6;
+              ctx.save();
+              ctx.globalAlpha = 0.85;
+              ctx.fillStyle = p.color; ctx.shadowColor = '#ff0000'; ctx.shadowBlur = 20;
+              ctx.fillRect(b.x - this.PLAYER_SIZE/2 + shake, b.y - this.PLAYER_SIZE/2, this.PLAYER_SIZE, this.PLAYER_SIZE);
+              ctx.restore();
+            }
+
+            // Draw thrown players with a motion trail color
+            for (let p of this.players) {
+              if (!p.thrownVx && !p.thrownVy) continue;
+              ctx.save();
+              ctx.globalAlpha = 0.7;
+              ctx.fillStyle = '#ff44ff'; ctx.shadowColor = '#ff00ff'; ctx.shadowBlur = 25;
+              ctx.fillRect(p.x - this.PLAYER_SIZE/2, p.y - this.PLAYER_SIZE/2, this.PLAYER_SIZE, this.PLAYER_SIZE);
+              ctx.restore();
             }
           }
 
