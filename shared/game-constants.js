@@ -103,10 +103,10 @@ const GAME_CONSTANTS = (() => {
   // Server scales them per wave: hp *= 1 + (wave-1)*0.2, speed *= 1 + (wave-1)*0.05
   // Wave 1: easy. Wave 5: ~1.8x HP. Wave 10: ~2.8x HP — gradual CoD-like curve.
   const ZOMBIE_TYPES = {
-    regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.85,  hp: 40,  points: 60,  weight: 70 },
-    runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.7,  hp: 25,  points: 80,  weight: 20 },
-    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 600, points: 150, weight: 10 },
-    bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 1.1,  hp: 35,  points: 100, weight: 0  }
+    regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.85,  hp: 25,  points: 60,  weight: 70 },
+    runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.7,  hp: 15,  points: 80,  weight: 20 },
+    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 380, points: 150, weight: 10 },
+    bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 1.1,  hp: 22,  points: 100, weight: 0  }
   };
 
   // ── Bomber explosion ─────────────────────────────────────────
