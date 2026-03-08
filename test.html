@@ -547,16 +547,35 @@
           while(da>Math.PI)da-=Math.PI*2;while(da<-Math.PI)da+=Math.PI*2;
           b.angle+=Math.sign(da)*Math.min(Math.abs(da),0.045);
         }
-        // Wall bounce steer
-        const wall=55;
-        if(b.segs[0].x<wall)b.angle+=(wall-b.segs[0].x)/wall*0.14;
-        if(b.segs[0].x>W-wall)b.angle-=(b.segs[0].x-(W-wall))/wall*0.14;
-        if(b.segs[0].y<wall)b.angle+=(wall-b.segs[0].y)/wall*0.14;
-        if(b.segs[0].y>H-wall)b.angle-=(b.segs[0].y-(H-wall))/wall*0.14;
+        // Wall avoidance — two zones:
+        // Soft zone (120px): gradually steer away
+        // Hard zone (50px): instantly redirect toward arena center
+        const hx=b.segs[0].x, hy=b.segs[0].y;
+        const softWall=120, hardWall=50;
+        let wallPushed=false;
+        if(hx<hardWall||hx>W-hardWall||hy<hardWall||hy>H-hardWall){
+          // Hard redirect — point toward center with slight random offset
+          const toCenterA=Math.atan2(H/2-hy,W/2-hx);
+          b.angle=toCenterA+(Math.random()-0.5)*0.6;
+          b.stateTimer=cfg.dirChangeInterval; // reset so it doesn't immediately randomise again
+          wallPushed=true;
+        } else if(hx<softWall||hx>W-softWall||hy<softWall||hy>H-softWall){
+          const pushX=(hx<softWall?1:hx>W-softWall?-1:0);
+          const pushY=(hy<softWall?1:hy>H-softWall?-1:0);
+          const pushA=Math.atan2(pushY,pushX||0.001);
+          let da=pushA-b.angle;
+          while(da>Math.PI)da-=Math.PI*2;while(da<-Math.PI)da+=Math.PI*2;
+          b.angle+=Math.sign(da)*0.12; // strong but smooth nudge
+          wallPushed=true;
+        }
 
         if(b.stateTimer<=0){
-          // Random sharp direction change
-          b.angle+=(Math.random()<0.5?1:-1)*(0.5+Math.random()*0.9);
+          // Random sharp direction change — but always steer away from nearest wall
+          const margin=80;
+          const awayX=(hx<margin?1:hx>W-margin?-1:0);
+          const awayY=(hy<margin?1:hy>H-margin?-1:0);
+          let baseA=(awayX||awayY)?Math.atan2(awayY,awayX||0.001):b.angle;
+          b.angle=baseA+(Math.random()-0.5)*1.4;
           b.stateTimer=cfg.dirChangeInterval+Math.floor(Math.random()*80-40);
         }
         // Move head
