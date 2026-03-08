@@ -172,8 +172,7 @@ const GAME_CONSTANTS = (() => {
       gooSpeed: 3.5,
       gooInterval: 90,     // frames between goo bursts
       dirChangeInterval: 120, // frames between direction changes
-      reverseChance: 0.25, // 25% chance to reverse on dir change
-      pauseDuration: 40,   // frames of pause before reversing
+
     }
   };
 
