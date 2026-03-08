@@ -273,7 +273,7 @@
     </div>
   </div>
 
-  <script src="/qrgen.js"></script>
+  <script src="/qrgen.js" onerror="console.error('FAILED TO LOAD /qrgen.js — check Render static files')"></script>
   <script>
     function renderQR(el, url) {
       el.innerHTML = '';
@@ -301,11 +301,32 @@
         canvas.style.display = 'block';
         el.appendChild(canvas);
       } catch(e) {
-        // Fallback to external API if local fails
-        const img = document.createElement('img');
-        img.width = 180; img.height = 180; img.style.display = 'block';
-        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=' + encodeURIComponent(url);
-        el.appendChild(img);
+        console.error('QR local render failed:', e);
+        // Fallback: draw QR manually using a simpler approach
+        try {
+          // Try with typeNumber 4 which auto-selects
+          const qr2 = new QRCode(4, QRErrorCorrectLevel.L);
+          qr2.addData(url);
+          qr2.make();
+          const n2 = qr2.getModuleCount();
+          const size2 = 180;
+          const cell2 = Math.max(1, Math.floor(size2 / (n2 + 8)));
+          const canvas2 = document.createElement('canvas');
+          canvas2.width = size2; canvas2.height = size2;
+          const ctx2 = canvas2.getContext('2d');
+          ctx2.fillStyle = '#ffffff'; ctx2.fillRect(0, 0, size2, size2);
+          ctx2.fillStyle = '#000000';
+          const off2 = Math.floor((size2 - cell2 * n2) / 2);
+          for (let r = 0; r < n2; r++)
+            for (let c = 0; c < n2; c++)
+              if (qr2.isDark(r, c)) ctx2.fillRect(off2 + c*cell2, off2 + r*cell2, cell2, cell2);
+          canvas2.style.display = 'block';
+          el.appendChild(canvas2);
+        } catch(e2) {
+          console.error('QR fallback also failed:', e2, '— is /qrgen.js loading?');
+          // Show error visually
+          el.innerHTML = '<div style="color:red;font-size:10px;padding:4px">QR ERR:<br>' + e2.message + '</div>';
+        }
       }
     }
   </script>
