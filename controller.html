@@ -426,7 +426,15 @@
       }
 
       bindSocket() {
-        this.socket.on('connect', () => { this.setStatus('CONNECTED'); const saved = localStorage.getItem('zs-room'); if (saved) this.join(saved); });
+        this.socket.on('connect', () => {
+          this.setStatus('CONNECTED');
+          // Only auto-rejoin if there's no room in the URL (i.e. this is a reconnect, not a fresh QR scan)
+          const urlRoom = new URLSearchParams(window.location.search).get('room');
+          if (!urlRoom) {
+            const saved = localStorage.getItem('zs-room');
+            if (saved) this.join(saved);
+          }
+        });
         this.socket.on('disconnect', () => { this.setStatus('DISCONNECTED'); this.stopLoop(); });
         this.socket.on('join-success',  d => this.onJoinSuccess(d));
         this.socket.on('join-failed',   d => this.showError(d.reason));
