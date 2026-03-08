@@ -87,6 +87,8 @@
       </div>
       <button class="btn octo" onclick="T.spawnBoss('octopus')">🐙 OCTOPUS (LVL 35)</button>
       <div class="octo-hint">Needs 2+ players — click "ADD DUMMY PLAYER" below first</div>
+      <button class="btn snake" onclick="T.spawnBoss('snake')">🐍 SERPENT (LVL 40)</button>
+      <div class="octo-hint" style="border-color:#002200;color:#335533">Head-only damage. Shoots green goo. Pauses &amp; reverses.</div>
       <button class="btn danger" onclick="T.killBoss()">✕ KILL BOSS</button>
     </div>
     <div class="section">
@@ -167,6 +169,12 @@
       </div>
       <button class="btn" onclick="T.resetVendingPrice()">↺ RESET PRICE TO $500</button>
       <div style="font-size:10px;color:#444;letter-spacing:1px;margin-top:6px;">Current price: <span id="vending-price" style="color:#00ff66">$500</span></div>
+    </div>
+    <div class="section">
+      <div class="section-title">Leaderboard</div>
+      <button class="btn pass" onclick="LB.show()">🏆 VIEW LEADERBOARD</button>
+      <button class="btn warn" onclick="LB.testEntry()">⚡ TEST SCORE ENTRY</button>
+      <button class="btn danger" onclick="LB.clearAll()">✕ CLEAR ALL SCORES</button>
     </div>
     <div class="section">
       <div class="section-title">Feature Test</div>
@@ -309,6 +317,29 @@
         targetSlot:-1, launchTargetX:0, launchTargetY:0,
       })),
       grabCooldown:0};
+    if (type==='snake') {
+      const cfg = BOSS_CONFIGS.snake;
+      const cx = CANVAS_W/2, cy = CANVAS_H/2;
+      const segs = Array.from({length: cfg.segmentCount + 1}, (_, i) => ({
+        x: cx - i * cfg.segmentSpacing, y: cy,
+      }));
+      const histLen = 600;
+      return {
+        type:'snake', label: cfg.label,
+        x: cx, y: cy,
+        dropping: false, dead: false, flashTimer: 0,
+        bossBullets: [],
+        radius: cfg.radius, pad: cfg.pad, color: cfg.color,
+        hp: cfg.headHp, maxHp: cfg.headHp,
+        segs,
+        angle: 0, speed: cfg.moveSpeed,
+        state: 'moving', stateTimer: cfg.dirChangeInterval,
+        pauseTimer: 0, reversed: false,
+        gooTimer: cfg.gooInterval,
+        history: Array.from({length: histLen}, () => ({x: cx, y: cy})),
+        histHead: 0,
+      };
+    }
     // fractal
     return {...base, pieces:[{x:CANVAS_W/2,y:-120,rotation:0,vx:3.5,vy:2.5,hp:cfg.pieceHp,maxHp:cfg.pieceHp,radius:cfg.radius,alive:true}]};
   }
@@ -330,6 +361,7 @@
     }
     if (b.type==='spiral') return b.arms.map((arm,i)=>{const ext=b.radius+60+Math.sin(b.breathe+i)*30,a=b.rotation+(i/5)*Math.PI*2;return{x:b.x+Math.cos(a)*ext,y:b.y+Math.sin(a)*ext,idx:i};});
     if (b.type==='fractal') return b.pieces.reduce((acc,p,ri)=>{if(p.alive)acc.push({x:p.x,y:p.y,idx:ri,piece:true,radius:p.radius});return acc;},[]);
+    if (b.type==='snake') return [{x:b.segs[0].x,y:b.segs[0].y,idx:0,head:true}];
     if (b.type==='octopus') return b.tentacles.reduce((acc,t,i)=>{
       if(t.alive&&(t.state==='idle'||t.state==='launching'))acc.push({x:t.tipX,y:t.tipY,idx:i,tentacle:true});
       return acc;},[]);
@@ -347,6 +379,16 @@
     else if(b.type==='diamond'){if(!b.split){b.coreHp=Math.max(0,b.coreHp-amount);}else{const s=b.shards[pt.idx];if(s){s.hp=Math.max(0,s.hp-amount);if(s.hp<=0)s.alive=false;}}}
     else if(b.type==='spiral') b.arms[pt.idx].hp=Math.max(0,b.arms[pt.idx].hp-amount);
     else if(b.type==='fractal'){const p=b.pieces[pt.idx];if(p)p.hp=Math.max(0,p.hp-amount);}
+    else if(b.type==='snake'){
+      b.hp=Math.max(0,b.hp-amount);
+      b.flashTimer=8;
+      spawnParticles(b.segs[0].x,b.segs[0].y,'#ff4400',8);
+      if(b.hp<=0){
+        T.log('SERPENT DEFEATED! 🐍','ok');
+        b.dead=true;
+        setTimeout(()=>{state.boss=null;},800);
+      }
+    }
     else if(b.type==='octopus'){
       const t=b.tentacles[pt.idx];
       if(t&&t.alive){
@@ -470,6 +512,90 @@
         if(b.shards.every(s=>!s.alive)&&!b.dead)bossKill();
       }
 
+    }else if(b.type==='snake'){
+      const cfg=BOSS_CONFIGS.snake;
+      if(b.flashTimer>0)b.flashTimer--;
+      const W=CANVAS_W,H=CANVAS_H;
+      const WALL=6;
+      // Move goo bullets
+      for(let i=b.bossBullets.length-1;i>=0;i--){
+        const bb=b.bossBullets[i];bb.x+=bb.vx;bb.y+=bb.vy;bb.life--;
+        if(bb.life<=0||bb.x<-20||bb.x>W+20||bb.y<-20||bb.y>H+20){b.bossBullets.splice(i,1);continue;}
+        if(!state.godMode){for(const p2 of allPlayers()){if(!p2.alive||p2.invincible)continue;const dx=p2.x-bb.x,dy=p2.y-bb.y;if(Math.sqrt(dx*dx+dy*dy)<PLAYER_SIZE/2+bb.size/2){p2.hp-=bb.damage;b.bossBullets.splice(i,1);spawnParticles(p2.x,p2.y,'#44ff44',6);if(p2.hp<=0){p2.alive=false;p2.hp=0;}break;}}}
+      }
+      // Goo shoot
+      if(--b.gooTimer<=0){
+        b.gooTimer=cfg.gooInterval;
+        let nearP=null,nearD=Infinity;
+        for(const p2 of allPlayers()){if(!p2.alive)continue;const d=Math.hypot(p2.x-b.segs[0].x,p2.y-b.segs[0].y);if(d<nearD){nearD=d;nearP=p2;}}
+        if(nearP){
+          const baseA=Math.atan2(nearP.y-b.segs[0].y,nearP.x-b.segs[0].x);
+          for(let k=0;k<cfg.gooCount;k++){
+            const spread=(k-(cfg.gooCount-1)/2)*0.28;
+            b.bossBullets.push({x:b.segs[0].x,y:b.segs[0].y,vx:Math.cos(baseA+spread)*cfg.gooSpeed,vy:Math.sin(baseA+spread)*cfg.gooSpeed,damage:cfg.gooDamage,life:140,color:'#44ff44',goo:true,size:10});
+          }
+        }
+      }
+      // State machine
+      if(b.state==='moving'){
+        b.stateTimer--;
+        // Steer toward nearest player
+        let nearP=null,nearD=Infinity;
+        for(const p2 of allPlayers()){if(!p2.alive)continue;const d=Math.hypot(p2.x-b.segs[0].x,p2.y-b.segs[0].y);if(d<nearD){nearD=d;nearP=p2;}}
+        if(nearP){
+          const targetA=Math.atan2(nearP.y-b.segs[0].y,nearP.x-b.segs[0].x);
+          let da=targetA-b.angle;
+          while(da>Math.PI)da-=Math.PI*2;while(da<-Math.PI)da+=Math.PI*2;
+          b.angle+=Math.sign(da)*Math.min(Math.abs(da),0.045);
+        }
+        // Wall bounce steer
+        const wall=55;
+        if(b.segs[0].x<wall)b.angle+=(wall-b.segs[0].x)/wall*0.14;
+        if(b.segs[0].x>W-wall)b.angle-=(b.segs[0].x-(W-wall))/wall*0.14;
+        if(b.segs[0].y<wall)b.angle+=(wall-b.segs[0].y)/wall*0.14;
+        if(b.segs[0].y>H-wall)b.angle-=(b.segs[0].y-(H-wall))/wall*0.14;
+
+        if(b.stateTimer<=0){
+          if(Math.random()<cfg.reverseChance){
+            b.state='pausing';b.pauseTimer=cfg.pauseDuration;
+            T.log('Serpent PAUSING to reverse!','warn');
+          }else{
+            b.angle+=(Math.random()<0.5?1:-1)*(0.5+Math.random()*0.8);
+            b.stateTimer=cfg.dirChangeInterval+Math.floor(Math.random()*60-30);
+          }
+        }
+        // Move head
+        const dir=b.reversed?b.angle+Math.PI:b.angle;
+        b.segs[0].x+=Math.cos(dir)*b.speed;
+        b.segs[0].y+=Math.sin(dir)*b.speed;
+        b.segs[0].x=Math.max(WALL+cfg.radius,Math.min(W-WALL-cfg.radius,b.segs[0].x));
+        b.segs[0].y=Math.max(WALL+cfg.radius,Math.min(H-WALL-cfg.radius,b.segs[0].y));
+        b.x=b.segs[0].x;b.y=b.segs[0].y;
+        // Store history
+        b.histHead=(b.histHead+1)%b.history.length;
+        b.history[b.histHead]={x:b.segs[0].x,y:b.segs[0].y};
+        // Body follows history
+        const step=Math.max(1,Math.round(cfg.segmentSpacing/b.speed));
+        for(let si=1;si<b.segs.length;si++){
+          const idx=(b.histHead - si*step + b.history.length*10)%b.history.length;
+          b.segs[si].x=b.history[idx].x;
+          b.segs[si].y=b.history[idx].y;
+        }
+      }else if(b.state==='pausing'){
+        b.pauseTimer--;
+        if(b.pauseTimer<=0){
+          b.reversed=!b.reversed;b.state='moving';b.stateTimer=cfg.dirChangeInterval;
+          T.log(`Serpent ${b.reversed?'REVERSING':'FORWARD'}!`,'fail');
+        }
+      }
+      // Contact damage
+      if(!state.godMode){
+        for(const p2 of allPlayers()){
+          if(!p2.alive||p2.invincible)continue;
+          if(Math.hypot(p2.x-b.segs[0].x,p2.y-b.segs[0].y)<cfg.radius+PLAYER_SIZE/2){p2.hp-=cfg.headDamage*0.08;if(p2.hp<=0&&p2.alive){p2.alive=false;p2.hp=0;}}
+          for(let si=1;si<b.segs.length;si++){if(Math.hypot(p2.x-b.segs[si].x,p2.y-b.segs[si].y)<cfg.radius*0.8+PLAYER_SIZE/2){p2.hp-=cfg.bodyDamage*0.04;if(p2.hp<=0&&p2.alive){p2.alive=false;p2.hp=0;}}}
+        }
+      }
     }else if(b.type==='spiral'){
       b.breathe+=0.05;b.rotation+=0.02;bounceBox(b);touchPlayer(b,10);
       if(b.consumeFlash>0)b.consumeFlash--;
@@ -841,6 +967,65 @@
         }
       }
 
+      else if(b.type==='snake'){
+        const cfg=BOSS_CONFIGS.snake;
+        const hp_r=b.hp/b.maxHp;
+        const flashing=b.flashTimer>0&&b.flashTimer%2===0;
+        // Goo blobs
+        for(const bb of b.bossBullets){
+          ctx.save();ctx.fillStyle='#33dd33';ctx.shadowColor='#00ff00';ctx.shadowBlur=16;
+          ctx.beginPath();ctx.arc(bb.x,bb.y,bb.size/2,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#aaffaa';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(bb.x-2,bb.y-2,3,0,Math.PI*2);ctx.fill();
+          ctx.restore();
+        }
+        // Body (tail → neck)
+        for(let si=b.segs.length-1;si>=1;si--){
+          const s=b.segs[si];
+          const fade=si/b.segs.length;
+          const segR=cfg.radius*(0.62+0.38*(1-fade));
+          ctx.save();
+          ctx.fillStyle=flashing?'#ffffff':`hsl(130,75%,${22+14*(1-fade)}%)`;
+          ctx.shadowColor='#00aa44';ctx.shadowBlur=6*(1-fade);
+          ctx.beginPath();ctx.arc(s.x,s.y,segR,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle=`rgba(0,60,20,${0.35*(1-fade)})`;ctx.lineWidth=1.5;
+          ctx.beginPath();ctx.arc(s.x,s.y,segR*0.58,0,Math.PI*2);ctx.stroke();
+          ctx.restore();
+        }
+        // Head
+        const head=b.segs[0];
+        const headR=cfg.radius*(b.state==='pausing'?1.18:1.0);
+        ctx.save();
+        ctx.fillStyle=flashing?'#ffffff':b.state==='pausing'?'#ffaa00':cfg.headColor;
+        ctx.shadowColor=b.state==='pausing'?'#ffaa00':'#ff2200';ctx.shadowBlur=b.state==='pausing'?32:18;
+        ctx.beginPath();ctx.arc(head.x,head.y,headR,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
+        // Eyes
+        const eyeDir=b.reversed?b.angle+Math.PI:b.angle;
+        [eyeDir-0.55,eyeDir+0.55].forEach(ea=>{
+          const ex=head.x+Math.cos(ea)*headR*0.55,ey=head.y+Math.sin(ea)*headR*0.55;
+          ctx.fillStyle='#ffff00';ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
+          ctx.fillStyle='#000';ctx.beginPath();ctx.arc(ex+1,ey+1,2,0,Math.PI*2);ctx.fill();
+        });
+        // Tongue
+        if(b.state==='moving'&&Math.floor(Date.now()/120)%3!==0){
+          const tx=head.x+Math.cos(eyeDir)*(headR+2),ty=head.y+Math.sin(eyeDir)*(headR+2);
+          ctx.strokeStyle='#ff4444';ctx.lineWidth=2;ctx.lineCap='round';
+          ctx.beginPath();ctx.moveTo(tx,ty);ctx.lineTo(tx+Math.cos(eyeDir)*14,ty+Math.sin(eyeDir)*14);ctx.stroke();
+          [-0.4,0.4].forEach(fork=>{ctx.beginPath();ctx.moveTo(tx+Math.cos(eyeDir)*14,ty+Math.sin(eyeDir)*14);ctx.lineTo(tx+Math.cos(eyeDir+fork)*22,ty+Math.sin(eyeDir+fork)*22);ctx.stroke();});
+        }
+        // HP bar
+        ctx.fillStyle='#330000';ctx.fillRect(head.x-32,head.y-headR-14,64,6);
+        ctx.fillStyle=`hsl(${120*hp_r},100%,50%)`;ctx.fillRect(head.x-32,head.y-headR-14,64*hp_r,6);
+        // Pause charge arc
+        if(b.state==='pausing'){
+          const prog=1-b.pauseTimer/cfg.pauseDuration;
+          ctx.fillStyle='rgba(255,170,0,0.18)';ctx.beginPath();ctx.arc(head.x,head.y,headR+14,0,Math.PI*2);ctx.fill();
+          ctx.strokeStyle='#ffaa00';ctx.lineWidth=3;
+          ctx.beginPath();ctx.arc(head.x,head.y,headR+14,-Math.PI/2,-Math.PI/2+Math.PI*2*prog);ctx.stroke();
+          ctx.fillStyle='#ffaa00';ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
+          ctx.fillText('REVERSING',head.x,head.y+headR+28);
+        }
+        ctx.restore();
+      }
       // Boss label
       ctx.fillStyle='#ff44ff';ctx.font='bold 16px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
       if(!b.dropping)ctx.fillText(b.label||'BOSS',b.x,b.y-(b.radius||80)-20);
@@ -937,6 +1122,108 @@
     markFail(){const bar=document.getElementById('result-bar');bar.textContent='✘ FAIL — NEEDS MORE WORK';bar.className='fail';T.log('FAILED','fail');},
   };
 
+
+  // ── LEADERBOARD ────────────────────────────────────────────────
+  // Uses persistent storage (window.storage) + localStorage fallback for test
+  const LB = {
+    STORAGE_KEY: 'zteam-leaderboard-v1',
+    MAX_ENTRIES: 10,
+
+    async load() {
+      try {
+        const result = await window.storage.get(this.STORAGE_KEY, true);
+        return result ? JSON.parse(result.value) : [];
+      } catch(e) {
+        // fallback to localStorage in test env
+        try { return JSON.parse(localStorage.getItem(this.STORAGE_KEY)||'[]'); } catch{ return []; }
+      }
+    },
+
+    async save(entries) {
+      const data = JSON.stringify(entries);
+      try {
+        await window.storage.set(this.STORAGE_KEY, data, true);
+      } catch(e) {
+        try { localStorage.setItem(this.STORAGE_KEY, data); } catch{}
+      }
+    },
+
+    async show() {
+      const entries = await this.load();
+      const list = document.getElementById('lb-list');
+      if(entries.length===0){
+        list.innerHTML='<div id="lb-empty">NO ENTRIES YET</div>';
+      } else {
+        list.innerHTML = entries.map((e,i)=>`
+          <div class="lb-row">
+            <span class="lb-rank">#${i+1}</span>
+            <span class="lb-name">${e.name}</span>
+            <span class="lb-wave">WAVE ${e.wave}</span>
+            <span class="lb-date">${e.date}</span>
+          </div>`).join('');
+      }
+      document.getElementById('lb-modal').classList.add('show');
+    },
+
+    hide() {
+      document.getElementById('lb-modal').classList.remove('show');
+    },
+
+    // Called on game over if wave is a new high or top-10 worthy
+    async promptEntry(wave) {
+      const entries = await this.load();
+      const worst = entries.length < this.MAX_ENTRIES ? 0 : entries[entries.length-1].wave;
+      if(wave <= worst && entries.length >= this.MAX_ENTRIES) return; // not good enough
+      document.getElementById('entry-wave').textContent = wave;
+      document.getElementById('team-input').value = '';
+      document.getElementById('entry-modal').classList.add('show');
+      document.getElementById('team-input').focus();
+      this._pendingWave = wave;
+    },
+
+    async submitScore() {
+      const name = (document.getElementById('team-input').value||'').trim().toUpperCase()||'ANONYMOUS';
+      const wave = this._pendingWave || 0;
+      const entries = await this.load();
+      entries.push({ name, wave, date: new Date().toLocaleDateString('en',{month:'short',day:'numeric'}) });
+      entries.sort((a,b)=>b.wave-a.wave);
+      const trimmed = entries.slice(0, this.MAX_ENTRIES);
+      await this.save(trimmed);
+      document.getElementById('entry-modal').classList.remove('show');
+      T.log(`Score saved: ${name} — Wave ${wave}`,'ok');
+      setTimeout(()=>this.show(), 300);
+    },
+
+    skipScore() {
+      document.getElementById('entry-modal').classList.remove('show');
+    },
+
+    testEntry() {
+      // Test with current wave
+      this.promptEntry(state.wave);
+      T.log('Testing score entry modal...','info');
+    },
+
+    async clearAll() {
+      await this.save([]);
+      try{ localStorage.removeItem(this.STORAGE_KEY); }catch{}
+      T.log('Leaderboard cleared','warn');
+    }
+  };
+
+  // Enter key submits score
+  document.getElementById('team-input').addEventListener('keydown', e => {
+    if(e.key==='Enter') LB.submitScore();
+  });
+
+  // Hook into T.resetGame to trigger leaderboard on game over
+  const _origReset = T.resetGame.bind(T);
+  T.resetGame = function() {
+    if(state.running && state.wave > 1) {
+      LB.promptEntry(state.wave);
+    }
+    _origReset();
+  };
   T.log('Controls: WASD=move, Mouse=aim, Click=fire, E=melee, R=respawn','info');
   T.log('To test octopus: START → ADD DUMMY PLAYER → SPAWN OCTOPUS BOSS','info');
   </script>
