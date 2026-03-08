@@ -29,6 +29,8 @@
       image-rendering: crisp-edges;
     }
 
+
+
     #room-code-display {
       position: absolute;
       top: 20px;
@@ -45,17 +47,10 @@
       align-items: center;
       gap: 30px;
     }
-    
-    body:has(#lobby-screen[style*="display: block"]) #room-code-display,
-    body:has(#lobby-screen[style*="display: flex"]) #room-code-display {
-      opacity: 0;
-      pointer-events: none;
-    }
-
+    body:has(#lobby-screen[style*="display: none"]) #room-code-display { opacity: 1; }
     #room-code-text { text-align: center; }
     #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
     #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
-    
     #qr-code {
       background: #fff;
       padding: 8px;
@@ -67,8 +62,7 @@
       min-height: 196px;
     }
     #qr-code svg { display: block; }
-
-    #lobby-screen {
+        #lobby-screen {
       position: absolute;
       top: 50%;
       left: 50%;
@@ -173,51 +167,28 @@
     #game-over-screen p { font-size: clamp(14px, 3vw, 24px); color: #fff; margin-top: 20px; }
     #vote-display { font-size: clamp(16px, 4vw, 28px); color: #00ff00; margin-top: 20px; }
 
-    /* ── LEADERBOARD ─────────────────────────────────────────── */
-    #lb-btn {
-      position: absolute; top: 12px; right: 12px;
-      background: #000; border: 1px solid #333; color: #555;
-      font-family: 'Courier New', monospace; font-size: 11px;
-      letter-spacing: 2px; padding: 6px 14px; border-radius: 4px;
-      cursor: pointer; z-index: 100; transition: all 0.15s;
-    }
-    #lb-btn:hover { border-color: #ffcc00; color: #ffcc00; }
-    #lb-modal, #entry-modal {
+
+    /* Score entry modal */
+    #entry-modal {
       display: none; position: absolute; inset: 0;
-      background: rgba(0,0,0,0.88); z-index: 300;
+      background: rgba(0,0,0,0.92); z-index: 300;
       align-items: center; justify-content: center;
     }
-    #lb-modal.show, #entry-modal.show { display: flex; }
-    #lb-box, #entry-box {
-      background: #080808; border-radius: 10px;
-      font-family: 'Courier New', monospace; padding: 28px 32px;
+    #entry-modal.show { display: flex; }
+    #entry-box {
+      background: #080808; border: 2px solid #ff0000;
+      border-radius: 10px; font-family: 'Courier New', monospace;
+      padding: 28px 32px; min-width: 320px; text-align: center;
     }
-    #lb-box { border: 2px solid #ffcc00; min-width: 440px; max-width: 580px; }
-    #lb-box h2 { color: #ffcc00; letter-spacing: 4px; font-size: 13px; margin-bottom: 18px; text-align: center; }
-    .lb-row { display: flex; gap: 12px; align-items: center; padding: 7px 0; border-bottom: 1px solid #111; font-size: 11px; }
-    .lb-rank { color: #555; width: 26px; text-align: right; }
-    .lb-name { color: #00ff00; flex: 1; letter-spacing: 2px; }
-    .lb-wave { color: #ff6600; width: 70px; text-align: right; letter-spacing: 1px; }
-    .lb-date { color: #333; width: 72px; text-align: right; font-size: 9px; }
-    #lb-empty { color: #333; text-align: center; padding: 24px; font-size: 11px; letter-spacing: 2px; }
-    #lb-close {
-      margin-top: 18px; width: 100%; padding: 9px;
-      background: #0a1200; border: 1px solid #ffcc00; color: #ffcc00;
-      font-family: 'Courier New', monospace; letter-spacing: 2px;
-      cursor: pointer; border-radius: 4px; font-size: 11px;
-    }
-    #lb-close:hover { background: #1a2200; }
-    #entry-box { border: 2px solid #ff0000; min-width: 340px; text-align: center; }
     #entry-box h2 { color: #ff0000; letter-spacing: 4px; font-size: 14px; margin-bottom: 4px; }
     #entry-wave-display { color: #00ff00; font-size: 48px; font-weight: bold; letter-spacing: 6px; margin: 12px 0; }
-    #entry-box .entry-sub { color: #444; font-size: 9px; letter-spacing: 2px; margin-bottom: 14px; }
+    .entry-sub { color: #444; font-size: 9px; letter-spacing: 2px; margin-bottom: 14px; }
     #team-input {
       width: 100%; padding: 11px; background: #000;
       border: 1px solid #444; color: #00ff00;
       font-family: 'Courier New', monospace; font-size: 16px;
       letter-spacing: 4px; text-align: center; text-transform: uppercase;
-      border-radius: 4px; margin-bottom: 10px; outline: none;
-      box-sizing: border-box;
+      border-radius: 4px; margin-bottom: 10px; outline: none; box-sizing: border-box;
     }
     #team-input:focus { border-color: #00ff00; }
     #entry-submit {
@@ -287,17 +258,6 @@
       <div id="vote-display">Waiting for restart votes...</div>
     </div>
 
-    <!-- Trophy button -->
-    <button id="lb-btn" onclick="LB.show()">🏆 LEADERBOARD</button>
-
-    <!-- Leaderboard modal -->
-    <div id="lb-modal">
-      <div id="lb-box">
-        <h2>🏆 GLOBAL LEADERBOARD</h2>
-        <div id="lb-list"><div id="lb-empty">NO ENTRIES YET</div></div>
-        <button id="lb-close" onclick="LB.hide()">CLOSE</button>
-      </div>
-    </div>
 
     <!-- Score entry modal -->
     <div id="entry-modal">
@@ -2771,9 +2731,11 @@
 
       async show() {
         const entries = await this.load();
-        const list = document.getElementById('lb-list');
+        // Render into the inline lobby leaderboard
+        const list = document.getElementById('lobby-lb-list');
+        if (!list) return;
         list.innerHTML = entries.length === 0
-          ? '<div id="lb-empty">NO ENTRIES YET</div>'
+          ? '<div class="lobby-lb-empty">NO ENTRIES YET</div>'
           : entries.map((e, i) => `
               <div class="lb-row">
                 <span class="lb-rank">#${i+1}</span>
@@ -2781,12 +2743,9 @@
                 <span class="lb-wave">WAVE ${e.wave}</span>
                 <span class="lb-date">${e.date}</span>
               </div>`).join('');
-        document.getElementById('lb-modal').classList.add('show');
       },
 
-      hide() {
-        document.getElementById('lb-modal').classList.remove('show');
-      },
+      hide() { /* inline — nothing to hide */ },
 
       async promptEntry(wave) {
         if (wave <= 1) return; // don't prompt for trivial runs
@@ -2807,7 +2766,7 @@
         entries.sort((a, b) => b.wave - a.wave);
         await this.save(entries.slice(0, this.MAX));
         document.getElementById('entry-modal').classList.remove('show');
-        setTimeout(() => this.show(), 200);
+        this.show(); // refresh inline lobby list immediately
       },
 
       skipScore() {
@@ -2820,10 +2779,7 @@
       if (e.key === 'Enter' && document.getElementById('entry-modal').classList.contains('show')) {
         LB.submitScore();
       }
-      if (e.key === 'Escape') {
-        LB.hide();
-        LB.skipScore();
-      }
+      if (e.key === 'Escape') LB.skipScore();
     });
 
   </script>
