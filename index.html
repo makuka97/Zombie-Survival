@@ -47,7 +47,6 @@
       align-items: center;
       gap: 30px;
     }
-    body:has(#lobby-screen[style*="display: none"]) #room-code-display { opacity: 1; }
     #room-code-text { text-align: center; }
     #room-code-display p { color: #00ff00; font-size: 16px; margin-bottom: 5px; }
     #room-code { font-size: 48px; font-weight: bold; letter-spacing: 6px; color: #fff; }
@@ -62,7 +61,8 @@
       min-height: 196px;
     }
     #qr-code svg { display: block; }
-        #lobby-screen {
+
+    #lobby-screen {
       position: absolute;
       top: 50%;
       left: 50%;
