@@ -117,7 +117,7 @@ const GAME_CONSTANTS = (() => {
   // ── Boss cycle ───────────────────────────────────────────────
   // Cycles every 5 waves: wave 5→triangle, 10→octagon, 15→pentagon,
   //                        20→diamond, 25→spiral, 30+→fractal (repeats)
-  const BOSS_TYPES = ['triangle', 'octagon', 'pentagon', 'diamond', 'spiral', 'fractal', 'octopus'];
+  const BOSS_TYPES = ['triangle', 'octagon', 'pentagon', 'diamond', 'spiral', 'fractal', 'octopus', 'snake'];
 
   // ── Boss configs ─────────────────────────────────────────────
   // Static data only — dynamic state (x, y, rotation, etc.) is created at spawn time.
@@ -152,9 +152,28 @@ const GAME_CONSTANTS = (() => {
     octopus: {
       radius: 55, color: '#cc44ff', pad: 80, label: 'THE OCTOPUS',
       tentacleCount: 8, tentacleHp: 80,
-      tentacleLength: 220,  // max reach
-      grabDamage: 8,        // damage while being chewed at center
-      throwDamage: 35,      // damage to the player who gets hit by the thrown player
+      tentacleLength: 220,
+      grabDamage: 8,
+      throwDamage: 35,
+    },
+    snake: {
+      radius: 22,          // head/segment radius
+      color: '#00cc44',    // body color
+      headColor: '#ff4400',// head color
+      pad: 30, label: 'THE SERPENT',
+      segmentCount: 8,     // body segments behind head
+      segmentSpacing: 38,  // px between segment centers
+      headHp: 300,         // only head takes damage
+      bodyDamage: 8,       // damage per frame touching body
+      headDamage: 25,      // damage on head contact
+      moveSpeed: 4.2,      // base movement speed
+      gooCount: 3,         // goo projectiles per burst
+      gooDamage: 12,       // damage per goo hit
+      gooSpeed: 3.5,
+      gooInterval: 90,     // frames between goo bursts
+      dirChangeInterval: 120, // frames between direction changes
+      reverseChance: 0.25, // 25% chance to reverse on dir change
+      pauseDuration: 40,   // frames of pause before reversing
     }
   };
 
