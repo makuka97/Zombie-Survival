@@ -320,9 +320,7 @@
     if (type==='snake') {
       const cfg = BOSS_CONFIGS.snake;
       const cx = CANVAS_W - 80, cy = 80;
-      const segs = Array.from({length: cfg.segmentCount + 1}, (_, i) => ({
-        x: cx, y: cy + i * cfg.segmentSpacing,
-      }));
+      const segs = Array.from({length: cfg.segmentCount + 1}, () => ({x: cx, y: cy}));
       const histLen = 600;
       return {
         type:'snake', label: cfg.label,
@@ -335,7 +333,7 @@
         angle: 0, speed: cfg.moveSpeed,
         state: 'moving', stateTimer: cfg.dirChangeInterval,
         gooTimer: cfg.gooInterval,
-        history: Array.from({length: histLen}, (_, i) => ({x: cx, y: cy + i})),
+        history: Array.from({length: histLen}, () => ({x: cx, y: cy})),
         histHead: 0,
       };
     }
