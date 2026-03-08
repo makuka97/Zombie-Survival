@@ -273,15 +273,40 @@
     </div>
   </div>
 
+  <script src="/qrgen.js"></script>
   <script>
     function renderQR(el, url) {
       el.innerHTML = '';
-      const img = document.createElement('img');
-      img.width = 180;
-      img.height = 180;
-      img.style.display = 'block';
-      img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=' + encodeURIComponent(url);
-      el.appendChild(img);
+      try {
+        const qr = new QRCode(0, QRErrorCorrectLevel.L);
+        qr.addData(url);
+        qr.make();
+        const n = qr.getModuleCount();
+        const size = 180;
+        const cell = Math.floor(size / (n + 4)); // 2-cell quiet zone each side
+        const offset = Math.floor((size - cell * n) / 2);
+        const canvas = document.createElement('canvas');
+        canvas.width = size; canvas.height = size;
+        const ctx = canvas.getContext('2d');
+        ctx.fillStyle = '#ffffff';
+        ctx.fillRect(0, 0, size, size);
+        ctx.fillStyle = '#000000';
+        for (let r = 0; r < n; r++) {
+          for (let c = 0; c < n; c++) {
+            if (qr.isDark(r, c)) {
+              ctx.fillRect(offset + c * cell, offset + r * cell, cell, cell);
+            }
+          }
+        }
+        canvas.style.display = 'block';
+        el.appendChild(canvas);
+      } catch(e) {
+        // Fallback to external API if local fails
+        const img = document.createElement('img');
+        img.width = 180; img.height = 180; img.style.display = 'block';
+        img.src = 'https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=4&data=' + encodeURIComponent(url);
+        el.appendChild(img);
+      }
     }
   </script>
   <script src="/shared/game-constants.js"></script>
