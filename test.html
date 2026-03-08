@@ -319,9 +319,9 @@
       grabCooldown:0};
     if (type==='snake') {
       const cfg = BOSS_CONFIGS.snake;
-      const cx = CANVAS_W/2, cy = CANVAS_H/2;
+      const cx = CANVAS_W - 80, cy = 80;
       const segs = Array.from({length: cfg.segmentCount + 1}, (_, i) => ({
-        x: cx - i * cfg.segmentSpacing, y: cy,
+        x: cx, y: cy + i * cfg.segmentSpacing,
       }));
       const histLen = 600;
       return {
@@ -334,9 +334,8 @@
         segs,
         angle: 0, speed: cfg.moveSpeed,
         state: 'moving', stateTimer: cfg.dirChangeInterval,
-        pauseTimer: 0, reversed: false,
         gooTimer: cfg.gooInterval,
-        history: Array.from({length: histLen}, () => ({x: cx, y: cy})),
+        history: Array.from({length: histLen}, (_, i) => ({x: cx, y: cy + i})),
         histHead: 0,
       };
     }
@@ -556,16 +555,12 @@
         if(b.segs[0].y>H-wall)b.angle-=(b.segs[0].y-(H-wall))/wall*0.14;
 
         if(b.stateTimer<=0){
-          if(Math.random()<cfg.reverseChance){
-            b.state='pausing';b.pauseTimer=cfg.pauseDuration;
-            T.log('Serpent PAUSING to reverse!','warn');
-          }else{
-            b.angle+=(Math.random()<0.5?1:-1)*(0.5+Math.random()*0.8);
-            b.stateTimer=cfg.dirChangeInterval+Math.floor(Math.random()*60-30);
-          }
+          // Random sharp direction change
+          b.angle+=(Math.random()<0.5?1:-1)*(0.5+Math.random()*0.9);
+          b.stateTimer=cfg.dirChangeInterval+Math.floor(Math.random()*80-40);
         }
         // Move head
-        const dir=b.reversed?b.angle+Math.PI:b.angle;
+        const dir=b.angle;
         b.segs[0].x+=Math.cos(dir)*b.speed;
         b.segs[0].y+=Math.sin(dir)*b.speed;
         b.segs[0].x=Math.max(WALL+cfg.radius,Math.min(W-WALL-cfg.radius,b.segs[0].x));
@@ -580,12 +575,6 @@
           const idx=(b.histHead - si*step + b.history.length*10)%b.history.length;
           b.segs[si].x=b.history[idx].x;
           b.segs[si].y=b.history[idx].y;
-        }
-      }else if(b.state==='pausing'){
-        b.pauseTimer--;
-        if(b.pauseTimer<=0){
-          b.reversed=!b.reversed;b.state='moving';b.stateTimer=cfg.dirChangeInterval;
-          T.log(`Serpent ${b.reversed?'REVERSING':'FORWARD'}!`,'fail');
         }
       }
       // Contact damage
@@ -993,13 +982,13 @@
         }
         // Head
         const head=b.segs[0];
-        const headR=cfg.radius*(b.state==='pausing'?1.18:1.0);
+        const headR=cfg.radius;
         ctx.save();
-        ctx.fillStyle=flashing?'#ffffff':b.state==='pausing'?'#ffaa00':cfg.headColor;
-        ctx.shadowColor=b.state==='pausing'?'#ffaa00':'#ff2200';ctx.shadowBlur=b.state==='pausing'?32:18;
+        ctx.fillStyle=flashing?'#ffffff':cfg.headColor;
+        ctx.shadowColor='#ff2200';ctx.shadowBlur=18;
         ctx.beginPath();ctx.arc(head.x,head.y,headR,0,Math.PI*2);ctx.fill();ctx.shadowBlur=0;
         // Eyes
-        const eyeDir=b.reversed?b.angle+Math.PI:b.angle;
+        const eyeDir=b.angle;
         [eyeDir-0.55,eyeDir+0.55].forEach(ea=>{
           const ex=head.x+Math.cos(ea)*headR*0.55,ey=head.y+Math.sin(ea)*headR*0.55;
           ctx.fillStyle='#ffff00';ctx.beginPath();ctx.arc(ex,ey,4,0,Math.PI*2);ctx.fill();
@@ -1015,15 +1004,7 @@
         // HP bar
         ctx.fillStyle='#330000';ctx.fillRect(head.x-32,head.y-headR-14,64,6);
         ctx.fillStyle=`hsl(${120*hp_r},100%,50%)`;ctx.fillRect(head.x-32,head.y-headR-14,64*hp_r,6);
-        // Pause charge arc
-        if(b.state==='pausing'){
-          const prog=1-b.pauseTimer/cfg.pauseDuration;
-          ctx.fillStyle='rgba(255,170,0,0.18)';ctx.beginPath();ctx.arc(head.x,head.y,headR+14,0,Math.PI*2);ctx.fill();
-          ctx.strokeStyle='#ffaa00';ctx.lineWidth=3;
-          ctx.beginPath();ctx.arc(head.x,head.y,headR+14,-Math.PI/2,-Math.PI/2+Math.PI*2*prog);ctx.stroke();
-          ctx.fillStyle='#ffaa00';ctx.font='bold 10px Courier New';ctx.textAlign='center';ctx.textBaseline='middle';
-          ctx.fillText('REVERSING',head.x,head.y+headR+28);
-        }
+
         ctx.restore();
       }
       // Boss label
