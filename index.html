@@ -1580,9 +1580,10 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         this.bullets    = [];
         this.ammoPacks  = [];
         this.healthPacks = [];
-        this.wave       = 1;
-        this.waveTotal  = 0;
-        this.waveKilled = 0;
+        this.wave          = 1;
+        this.waveTotal     = 0;
+        this.waveKilled    = 0;
+        this.waveAdvancing = false; // guard against double wave-advance
         this.gameOver   = false;
         this.gameStarted = false;
         this._spawnTimeouts = []; // tracked so stale wave spawns can be cancelled
@@ -1723,6 +1724,38 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         }
         p.firing   = !!input.fire;
         p.meleeing = !!input.melee;
+
+        // ── Aim assist: when firing, snap angle toward nearest zombie ──
+        // Only assists if a zombie is within 180px and within 45° of aim direction
+        if (p.firing) {
+          const AIM_ASSIST_RANGE = 180;
+          const AIM_ASSIST_CONE  = Math.PI / 4; // 45 degrees
+          let   bestDist = AIM_ASSIST_RANGE;
+          let   bestAngle = null;
+          const targets = [...this.zombies];
+          if (this.boss && !this.boss.dead) targets.push(this.boss);
+          for (const z of targets) {
+            const tx = z.x ?? z.bx, ty = z.y ?? z.by;
+            if (tx == null) continue;
+            const dx = tx - p.x, dy = ty - p.y;
+            const dist = Math.sqrt(dx*dx + dy*dy);
+            if (dist > AIM_ASSIST_RANGE) continue;
+            const angleToZ = Math.atan2(dy, dx);
+            let diff = angleToZ - p.angle;
+            while (diff >  Math.PI) diff -= 2*Math.PI;
+            while (diff < -Math.PI) diff += 2*Math.PI;
+            if (Math.abs(diff) < AIM_ASSIST_CONE && dist < bestDist) {
+              bestDist = dist; bestAngle = angleToZ;
+            }
+          }
+          if (bestAngle !== null) {
+            // Blend: 60% aim assist, 40% player's own aim
+            let diff = bestAngle - p.angle;
+            while (diff >  Math.PI) diff -= 2*Math.PI;
+            while (diff < -Math.PI) diff += 2*Math.PI;
+            p.angle += diff * 0.6;
+          }
+        }
       }
 
       handleMysteryBoxPurchase(slot) {
@@ -1828,6 +1861,15 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         p.points       -= this.vendingCost;
         p.hp            = Math.min(p.maxHp, p.hp + VENDING_HEAL_AMOUNT);
         this.vendingCost += VENDING_COST_STEP;
+      }
+
+      // Single guarded entry point for advancing to the next wave.
+      // Prevents double-advance from bomber chains, multiple bullet hits, etc.
+      _advanceWave(delay = 3000) {
+        if (this.waveAdvancing) return;
+        this.waveAdvancing = true;
+        this.wave++;
+        setTimeout(() => { this.waveAdvancing = false; this.startWave(); }, delay);
       }
 
       startWave() {
@@ -2167,15 +2209,98 @@ QRCode.createBytes = function(buffer, rsBlocks) {
 
       _bossKill(b) {
         b.dead = true;
-        const bx = b.x, by = b.y; // capture position before boss is nulled
+        const bx = b.x, by = b.y;
         for (let p of this.players) {
           if (p.alive && p.connected) { p.points += 1000; p.hp = p.maxHp; }
         }
+
+        // Wave 40 snake boss — trigger Phase 2 portal
+        if (this.wave === 40) {
+          setTimeout(() => {
+            this.boss = null; this.waveKilled = this.waveTotal;
+            this._spawnBossDrops(bx, by);
+            this._spawnPhase2Portal(bx, by);
+          }, 500);
+          return;
+        }
+
         setTimeout(() => {
-          this.boss = null; this.waveKilled = this.waveTotal; this.wave++;
-          this._spawnBossDrops(bx, by); // drops appear immediately when boss dies
-          setTimeout(() => this.startWave(), 3000);
+          this.boss = null; this.waveKilled = this.waveTotal;
+          this._spawnBossDrops(bx, by);
+          this._advanceWave(3000);
         }, 500);
+      }
+
+      _spawnPhase2Portal(bx, by) {
+        this.phase2Portal = { x: bx, y: by, smokeTimer: 120, doorOpen: false, doorTimer: 0, playersInside: new Set() };
+        this.showBanner('A PORTAL HAS OPENED...', '#ff00ff');
+        const carried = {};
+        for (const p of this.players) { if (p.connected && p.alive) carried[p.slot] = p.currentWeapon; }
+        try { localStorage.setItem('zt-carried-weapons', JSON.stringify(carried)); } catch {}
+      }
+
+      _updatePhase2Portal() {
+        if (!this.phase2Portal) return;
+        const portal = this.phase2Portal;
+        if (portal.smokeTimer > 0) {
+          portal.smokeTimer--;
+          if (portal.smokeTimer % 4 === 0) {
+            for (let i = 0; i < 5; i++) {
+              const a = Math.random()*Math.PI*2, s = 2+Math.random()*5;
+              this._emitParticle(portal.x+(Math.random()-0.5)*80, portal.y+(Math.random()-0.5)*80, Math.cos(a)*s, Math.sin(a)*s, Math.random()<0.5?'#555555':'#222222', 40+Math.random()*30|0, 8+Math.random()*12);
+            }
+          }
+          if (portal.smokeTimer === 0) portal.doorOpen = true;
+          return;
+        }
+        portal.doorTimer++;
+        if (portal.doorTimer % 3 === 0) {
+          const a = (portal.doorTimer * 0.18) % (Math.PI * 2);
+          for (let r of [30, 50]) {
+            this._emitParticle(portal.x+Math.cos(a)*r, portal.y+Math.sin(a)*r, (Math.random()-0.5)*2, (Math.random()-0.5)*2, portal.doorTimer%6<3?'#ff00ff':'#aa00ff', 20, 4+Math.random()*4);
+          }
+        }
+        for (const p of this.players) {
+          if (!p.alive || !p.connected) continue;
+          const dx = p.x-portal.x, dy = p.y-portal.y;
+          if (Math.sqrt(dx*dx+dy*dy) < 45) portal.playersInside.add(p.slot);
+          else portal.playersInside.delete(p.slot);
+        }
+        const aliveConn = this.players.filter(p => p.alive && p.connected);
+        if (aliveConn.length > 0 && aliveConn.every(p => portal.playersInside.has(p.slot))) this._transitionToPhase2();
+      }
+
+      _renderPhase2Portal() {
+        if (!this.phase2Portal || !this.phase2Portal.doorOpen) return;
+        const portal = this.phase2Portal, ctx = this.ctx;
+        const pulse = 0.6+0.4*Math.sin(Date.now()/120);
+        ctx.save();
+        ctx.shadowColor='#ff00ff'; ctx.shadowBlur=40*pulse;
+        ctx.strokeStyle=`rgba(255,0,255,${0.8*pulse})`; ctx.lineWidth=5;
+        ctx.beginPath(); ctx.arc(portal.x,portal.y,45,0,Math.PI*2); ctx.stroke();
+        const grad=ctx.createRadialGradient(portal.x,portal.y,5,portal.x,portal.y,42);
+        grad.addColorStop(0,`rgba(255,0,255,${0.6*pulse})`);
+        grad.addColorStop(0.5,`rgba(100,0,100,${0.4*pulse})`);
+        grad.addColorStop(1,'rgba(20,0,20,0.2)');
+        ctx.fillStyle=grad; ctx.beginPath(); ctx.arc(portal.x,portal.y,42,0,Math.PI*2); ctx.fill();
+        ctx.shadowBlur=0;
+        ctx.fillStyle='#ff88ff'; ctx.font='bold 13px Courier New'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        ctx.fillText('PHASE 2',portal.x,portal.y-58);
+        ctx.fillStyle='#880088'; ctx.font='10px Courier New';
+        ctx.fillText('ALL ENTER PORTAL',portal.x,portal.y+58);
+        ctx.restore();
+      }
+
+      _transitionToPhase2() {
+        if (this._phase2Transitioning) return;
+        this._phase2Transitioning = true;
+        this.showBanner('ENTERING PHASE 2...','#ff00ff');
+        const overlay = document.createElement('div');
+        overlay.style.cssText='position:absolute;inset:0;background:#000;opacity:0;z-index:999;transition:opacity 1.5s ease;pointer-events:none;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML='<div style="color:#ff00ff;font-size:48px;font-weight:bold;letter-spacing:10px;font-family:Courier New;text-shadow:0 0 40px #ff00ff;opacity:0;transition:opacity 1s ease 0.5s" id="phase2-txt">PHASE 2</div>';
+        document.getElementById('game-container').appendChild(overlay);
+        setTimeout(()=>{ overlay.style.opacity='1'; setTimeout(()=>{ const t=document.getElementById('phase2-txt'); if(t)t.style.opacity='1'; },100); },50);
+        setTimeout(()=>{ window.location.href='/platformer/'; },2500);
       }
 
       _spawnBossDrops(bx, by) {
@@ -3055,8 +3180,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
             if (!z.spiralAdd) { // spiral adds don't count toward wave total
               this.waveKilled++;
               if (this.waveKilled >= this.waveTotal && this.zombies.filter(z=>!z.spiralAdd).length === 0) {
-                this.wave++;
-                setTimeout(() => this.startWave(), 3000);
+                this._advanceWave(3000);
               }
             }
           }
@@ -3142,7 +3266,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
           this.triggerExplosion(z.x, z.y, z.borderColor);
           this.zombies.splice(idx,1);
           this.waveKilled++;
-          if (this.waveKilled>=this.waveTotal&&this.zombies.length===0){this.wave++;setTimeout(()=>this.startWave(),3000);}
+          if (this.waveKilled>=this.waveTotal&&this.zombies.length===0){this._advanceWave(3000);}
         }
         for (const pos of chainPositions) this.triggerBomberExplosion(pos.x,pos.y,depth+1);
       }
@@ -3162,6 +3286,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
                 this.reviveMap.set(reviver.slot, { targetSlot: target.slot, startTime: now });
               } else if (now - attempt.startTime >= this.REVIVE_TIME) {
                 target.alive = true; target.hp = 50;
+                target.vx = 0; target.vy = 0; target.firing = false; target.meleeing = false;
                 this.reviveMap.delete(reviver.slot);
               }
               break;
@@ -3177,7 +3302,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         for (const t of this._spawnTimeouts) clearTimeout(t);
         this._spawnTimeouts = [];
         this.gameOver=false; this.gameStarted=false;
-        this.reviveMap.clear(); this.mysteryBox=null;
+        this.reviveMap.clear(); this.mysteryBox=null; this.waveAdvancing=false;
         this.vendingMachine=null; this.vendingCost=VENDING_BASE_COST;
         this.meleeFlashes=[]; this.boss=null; this.isBossWave=false;
         // Reset pool: mark all slots inactive without reallocating
@@ -3265,7 +3390,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
                 this.zombies.splice(j,1);
                 if (!wasSpiralAdd) {
                   this.waveKilled++;
-                  if(this.waveKilled>=this.waveTotal&&this.zombies.filter(z=>!z.spiralAdd).length===0){this.wave++;setTimeout(()=>this.startWave(),3000);}
+                  if(this.waveKilled>=this.waveTotal&&this.zombies.filter(z=>!z.spiralAdd).length===0){this._advanceWave(3000);}
                 }
               }
               break;
@@ -3320,6 +3445,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
 
         this.updateRevive();
         this.updateBoss();
+        this._updatePhase2Portal();
       }
 
       checkGameOver() {
@@ -3337,6 +3463,8 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         const hs = this.PLAYER_SIZE / 2;
 
         ctx.drawImage(this._gridCanvas, 0, 0);
+
+        this._renderPhase2Portal();
 
         if (this.mysteryBox) {
           const bhs = this.BOX_SIZE / 2;
@@ -3871,8 +3999,8 @@ QRCode.createBytes = function(buffer, rsBlocks) {
             } catch(e) {
               console.error('GAME LOOP ERROR:', e);
             }
-            // Broadcast at 20hz (every 3 frames) — controllers don't need 60hz state
-            if (this.socket && this.roomCode && ++broadcastFrame % 3 === 0) {
+            // Broadcast at 10hz (every 6 frames) to reduce server/network load for 4 players
+            if (this.socket && this.roomCode && ++broadcastFrame % 6 === 0) {
               this.socket.emit('game-state-broadcast', {
                 roomCode: this.roomCode,
                 gameState: {
