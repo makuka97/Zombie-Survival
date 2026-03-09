@@ -169,42 +169,6 @@
 
 
     /* Score entry modal */
-    #entry-modal {
-      display: none; position: absolute; inset: 0;
-      background: rgba(0,0,0,0.92); z-index: 300;
-      align-items: center; justify-content: center;
-    }
-    #entry-modal.show { display: flex; }
-    #entry-box {
-      background: #080808; border: 2px solid #ff0000;
-      border-radius: 10px; font-family: 'Courier New', monospace;
-      padding: 28px 32px; min-width: 320px; text-align: center;
-    }
-    #entry-box h2 { color: #ff0000; letter-spacing: 4px; font-size: 14px; margin-bottom: 4px; }
-    #entry-wave-display { color: #00ff00; font-size: 48px; font-weight: bold; letter-spacing: 6px; margin: 12px 0; }
-    .entry-sub { color: #444; font-size: 9px; letter-spacing: 2px; margin-bottom: 14px; }
-    #team-input {
-      width: 100%; padding: 11px; background: #000;
-      border: 1px solid #444; color: #00ff00;
-      font-family: 'Courier New', monospace; font-size: 16px;
-      letter-spacing: 4px; text-align: center; text-transform: uppercase;
-      border-radius: 4px; margin-bottom: 10px; outline: none; box-sizing: border-box;
-    }
-    #team-input:focus { border-color: #00ff00; }
-    #entry-submit {
-      width: 100%; padding: 10px; background: #001500;
-      border: 1px solid #00ff00; color: #00ff00;
-      font-family: 'Courier New', monospace; letter-spacing: 2px;
-      cursor: pointer; border-radius: 4px; font-size: 12px; margin-bottom: 6px;
-    }
-    #entry-submit:hover { background: #003300; }
-    #entry-skip {
-      width: 100%; padding: 7px; background: transparent;
-      border: 1px solid #222; color: #333;
-      font-family: 'Courier New', monospace; letter-spacing: 2px;
-      cursor: pointer; border-radius: 4px; font-size: 10px;
-    }
-    #entry-skip:hover { border-color: #444; color: #555; }
   </style>
 </head>
 <body>
@@ -257,20 +221,7 @@
       <p>All players have fallen</p>
       <div id="vote-display">Waiting for restart votes...</div>
     </div>
-
-
-    <!-- Score entry modal -->
-    <div id="entry-modal">
-      <div id="entry-box">
-        <h2>GAME OVER</h2>
-        <div class="entry-sub">WAVE REACHED</div>
-        <div id="entry-wave-display">0</div>
-        <div class="entry-sub">ENTER YOUR TEAM NAME</div>
-        <input id="team-input" maxlength="12" placeholder="TEAM NAME" autocomplete="off"/>
-        <button id="entry-submit" onclick="LB.submitScore()">SUBMIT SCORE</button>
-        <button id="entry-skip" onclick="LB.skipScore()">SKIP</button>
-      </div>
-    </div>
+  </div>
   </div>
 
   <script>
@@ -3453,7 +3404,6 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         if (!anyAlive) {
           this.gameOver = true;
           document.getElementById('game-over-screen').style.display = 'block';
-          LB.promptEntry(this.wave);
         }
       }
 
@@ -4094,82 +4044,6 @@ QRCode.createBytes = function(buffer, rsBlocks) {
     scaleCanvas();
     window.addEventListener('resize', scaleCanvas);
     window.addEventListener('orientationchange', () => setTimeout(scaleCanvas, 100));
-
-  
-    // ── GLOBAL LEADERBOARD ─────────────────────────────────────────
-    const LB = {
-      KEY: 'zteam-leaderboard-v1',
-      MAX: 10,
-      _pendingWave: 0,
-
-      async load() {
-        try {
-          const r = await window.storage.get(this.KEY, true);
-          return r ? JSON.parse(r.value) : [];
-        } catch(e) {
-          try { return JSON.parse(localStorage.getItem(this.KEY)||'[]'); } catch { return []; }
-        }
-      },
-
-      async save(entries) {
-        const d = JSON.stringify(entries);
-        try { await window.storage.set(this.KEY, d, true); } catch(e) {
-          try { localStorage.setItem(this.KEY, d); } catch {}
-        }
-      },
-
-      async show() {
-        const entries = await this.load();
-        // Render into the inline lobby leaderboard
-        const list = document.getElementById('lobby-lb-list');
-        if (!list) return;
-        list.innerHTML = entries.length === 0
-          ? '<div class="lobby-lb-empty">NO ENTRIES YET</div>'
-          : entries.map((e, i) => `
-              <div class="lb-row">
-                <span class="lb-rank">#${i+1}</span>
-                <span class="lb-name">${e.name}</span>
-                <span class="lb-wave">WAVE ${e.wave}</span>
-                <span class="lb-date">${e.date}</span>
-              </div>`).join('');
-      },
-
-      hide() { /* inline — nothing to hide */ },
-
-      async promptEntry(wave) {
-        if (wave <= 1) return; // don't prompt for trivial runs
-        const entries = await this.load();
-        const worstWave = entries.length < this.MAX ? 0 : entries[entries.length-1].wave;
-        if (wave <= worstWave && entries.length >= this.MAX) return; // not top-10
-        this._pendingWave = wave;
-        document.getElementById('entry-wave-display').textContent = wave;
-        document.getElementById('team-input').value = '';
-        document.getElementById('entry-modal').classList.add('show');
-        setTimeout(() => document.getElementById('team-input').focus(), 100);
-      },
-
-      async submitScore() {
-        const name = (document.getElementById('team-input').value || '').trim().toUpperCase() || 'ANONYMOUS';
-        const entries = await this.load();
-        entries.push({ name, wave: this._pendingWave, date: new Date().toLocaleDateString('en', {month:'short', day:'numeric'}) });
-        entries.sort((a, b) => b.wave - a.wave);
-        await this.save(entries.slice(0, this.MAX));
-        document.getElementById('entry-modal').classList.remove('show');
-        this.show(); // refresh inline lobby list immediately
-      },
-
-      skipScore() {
-        document.getElementById('entry-modal').classList.remove('show');
-      }
-    };
-
-    // Enter key submits
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Enter' && document.getElementById('entry-modal').classList.contains('show')) {
-        LB.submitScore();
-      }
-      if (e.key === 'Escape') LB.skipScore();
-    });
 
   </script>
 </body>
