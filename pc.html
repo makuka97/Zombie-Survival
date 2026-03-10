@@ -323,6 +323,10 @@ const {
 let socket, roomCode, mySlot, myColor;
 let isReady = false;
 let gameState = null;
+let prevState = null;
+let stateTimestamp = 0;
+let prevTimestamp = 0;
+const STATE_INTERVAL = 100; // server sends at 10hz = 100ms
 let myMuted = false;
 let keys = {};
 let mouse = { x: CANVAS_W/2, y: CANVAS_H/2, down: false };
@@ -419,7 +423,10 @@ socket.on('ready-countdown-cancelled', () => {
 socket.on('game-starting-remote', () => startGame());
 
 socket.on('remote-game-state', d => {
+  prevState = gameState;
+  prevTimestamp = stateTimestamp;
   gameState = d;
+  stateTimestamp = Date.now();
   updateHUD();
 });
 
@@ -660,6 +667,46 @@ function showGameOver() {
   document.getElementById('game-over-screen').style.display = 'flex';
 }
 
+// ── Interpolation ─────────────────────────────────────────────────
+function lerp(a, b, t) { return a + (b - a) * t; }
+
+function getInterpolatedState() {
+  if (!gameState) return null;
+  if (!prevState) return gameState;
+  const now = Date.now();
+  const t = Math.min(1, (now - stateTimestamp) / STATE_INTERVAL);
+
+  // Interpolate player positions
+  const players = gameState.players.map((p, i) => {
+    const pp = prevState.players[i];
+    if (!pp || !p.alive || !p.connected) return p;
+    return { ...p, x: lerp(pp.x, p.x, t), y: lerp(pp.y, p.y, t) };
+  });
+
+  // Interpolate zombie positions
+  const zombies = gameState.zombies.map((z, i) => {
+    const pz = prevState.zombies[i];
+    if (!pz) return z;
+    return { ...z, x: lerp(pz.x, z.x, t), y: lerp(pz.y, z.y, t) };
+  });
+
+  // Interpolate boss position
+  let boss = gameState.boss;
+  if (boss && prevState.boss && !boss.dead) {
+    boss = { ...boss, x: lerp(prevState.boss.x, boss.x, t), y: lerp(prevState.boss.y, boss.y, t) };
+  }
+
+  // Extrapolate bullet positions using velocity (they move too fast to lerp to prev state)
+  const bullets = gameState.bullets.map(b => {
+    const now = Date.now();
+    const dt = (now - stateTimestamp) / 1000 * 60; // frames elapsed since last state
+    if (!b.vx && !b.vy) return b;
+    return { ...b, x: b.x + b.vx * dt, y: b.y + b.vy * dt };
+  });
+
+  return { ...gameState, players, zombies, boss, bullets };
+}
+
 // ── CONSTANTS matching index.html ────────────────────────────────
 const PC_PLAYER_SIZE = 28;
 const PC_AMMO_SIZE   = 20;
@@ -668,7 +715,7 @@ const PC_BULLET_SIZE = 8;
 
 // ── RENDER ────────────────────────────────────────────────────────
 function renderGame() {
-  const gs = gameState;
+  const gs = getInterpolatedState();
   const W = CANVAS_W, H = CANVAS_H;
   const hs = PC_PLAYER_SIZE / 2;
 
@@ -785,11 +832,14 @@ function renderGame() {
   // Boss
   if (gs.boss && !gs.boss.dead) renderBoss(gs.boss);
 
-  // Melee flashes
-  for (let f of meleeFlashes) {
-    const alpha=f.timer/8;
+  // Melee flashes — render + tick down
+  for (let i = meleeFlashes.length - 1; i >= 0; i--) {
+    const f = meleeFlashes[i];
+    const alpha = f.timer / 8;
     ctx.save(); ctx.globalAlpha=alpha*0.55; ctx.fillStyle=f.color; ctx.shadowColor=f.color; ctx.shadowBlur=20;
     ctx.beginPath(); ctx.moveTo(f.x,f.y); ctx.arc(f.x,f.y,MELEE_RANGE,f.angle-MELEE_ARC/2,f.angle+MELEE_ARC/2); ctx.closePath(); ctx.fill(); ctx.restore();
+    f.timer--;
+    if (f.timer <= 0) meleeFlashes.splice(i, 1);
   }
 
   // Border — drawn ON TOP like index.html
