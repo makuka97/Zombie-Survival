@@ -46,9 +46,8 @@ const GAME_CONSTANTS = (() => {
   const VENDING_USE_RANGE   = 120;
 
   // ── Melee (knife) ────────────────────────────────────────────
-  // Knife does 30 damage per swing. Regular zombies have 150 HP = 5 swings to kill.
-  // Runners are weaker (75 HP = ~3 swings). Tanks are very tanky (600 HP).
-  const MELEE_DAMAGE = 50;
+  // Knife: 15 damage per swing. Regular (25 HP) = 2 swings, Runner (15 HP) = 1 swing, Tank (150 HP) = 10 swings.
+  const MELEE_DAMAGE = 15;
   const MELEE_RANGE  = 55;
   const MELEE_ARC    = Math.PI * 0.6;
 
@@ -105,7 +104,7 @@ const GAME_CONSTANTS = (() => {
   const ZOMBIE_TYPES = {
     regular: { size: 28, color: '#00cc00', borderColor: '#00ff00', speed: 0.85,  hp: 25,  points: 60,  weight: 70 },
     runner:  { size: 20, color: '#cccc00', borderColor: '#ffff00', speed: 1.7,  hp: 15,  points: 80,  weight: 20 },
-    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 380, points: 150, weight: 10 },
+    tank:    { size: 40, color: '#cc0000', borderColor: '#ff0000', speed: 0.5, hp: 120, points: 150, weight: 10 },
     bomber:  { size: 26, color: '#0055ff', borderColor: '#4499ff', speed: 1.1,  hp: 22,  points: 100, weight: 0  }
   };
 
