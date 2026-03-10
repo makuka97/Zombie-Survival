@@ -36,7 +36,7 @@
       top: 20px;
       left: 50%;
       transform: translateX(-50%);
-      background: #00004a;
+      background: #000000;
       padding: 12px 24px;
       border: 2px solid #7869c4;
       text-align: center;
@@ -1564,7 +1564,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         this._gridCanvas.height = H;
         const g = this._gridCanvas.getContext('2d');
         // C64 navy background
-        g.fillStyle = '#00004a';
+        g.fillStyle = '#000000';
         g.fillRect(0, 0, W, H);
         // Subtle pixel grid — dark blue lines
         g.strokeStyle = 'rgba(80,80,160,0.18)'; g.lineWidth = 1;
@@ -4034,4 +4034,3 @@ QRCode.createBytes = function(buffer, rsBlocks) {
   </script>
 </body>
 </html>
-
