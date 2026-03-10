@@ -1490,6 +1490,8 @@ QRCode.createBytes = function(buffer, rsBlocks) {
   <script src="/shared/game-constants.js"></script>
   <script src="/socket.io/socket.io.js"></script>
   <script>
+  (function() {
+    'use strict';
     // ── Pull shared constants (defined in /shared/game-constants.js) ──
     const {
       WEAPONS, ZOMBIE_TYPES,
@@ -4031,6 +4033,44 @@ QRCode.createBytes = function(buffer, rsBlocks) {
     window.addEventListener('resize', scaleCanvas);
     window.addEventListener('orientationchange', () => setTimeout(scaleCanvas, 100));
 
+  // ── Anti-tamper ──────────────────────────────────────────────────
+  // Block right-click
+  document.addEventListener('contextmenu', e => e.preventDefault());
+
+  // Kill common shortcut keys for devtools
+  document.addEventListener('keydown', e => {
+    if (
+      e.key === 'F12' ||
+      (e.ctrlKey && e.shiftKey && ['I','J','C','K'].includes(e.key)) ||
+      (e.metaKey && e.altKey && ['I','J','C'].includes(e.key)) ||
+      (e.ctrlKey && e.key === 'U')
+    ) { e.preventDefault(); e.stopPropagation(); }
+  }, true);
+
+  // Silence console so values can't be read
+  (function() {
+    const noop = () => {};
+    ['log','warn','error','info','debug','dir','table','trace','group','groupEnd'].forEach(m => {
+      try { console[m] = noop; } catch(_) {}
+    });
+  })();
+
+  // Devtools size detection — pause game loop if open
+  let _devOpen = false;
+  setInterval(() => {
+    const threshold = 160;
+    const open = (window.outerWidth - window.innerWidth > threshold) ||
+                 (window.outerHeight - window.innerHeight > threshold);
+    if (open && !_devOpen) {
+      _devOpen = true;
+      document.body.style.filter = 'blur(8px)';
+    } else if (!open && _devOpen) {
+      _devOpen = false;
+      document.body.style.filter = '';
+    }
+  }, 1000);
+
+  })(); // end IIFE
   </script>
 </body>
 </html>
