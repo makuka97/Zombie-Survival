@@ -103,12 +103,14 @@
 
     /* ── GAME CONTAINER ── */
     #game-container {
-      display:none; position:fixed; inset:0;
+      display:none; position:fixed;
+      top:44px; left:0; right:0; bottom:0;
       align-items:center; justify-content:center;
-      background:#0a0a0a;
+      background:#000;
     }
     #canvas {
-      display:block; image-rendering:pixelated;
+      display:block;
+      background:#111;
     }
 
     /* ── HUD ── */
@@ -341,15 +343,33 @@ const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
-  const container = document.getElementById('game-container');
-  const scale = Math.min(container.clientWidth / CANVAS_W, container.clientHeight / CANVAS_H) * 0.97;
+  const W = window.innerWidth;
+  const H = window.innerHeight - 44; // subtract HUD height
+  const scale = Math.min(W / CANVAS_W, H / CANVAS_H) * 0.98;
   canvas.width  = CANVAS_W;
   canvas.height = CANVAS_H;
   canvas.style.width  = Math.floor(CANVAS_W * scale) + 'px';
   canvas.style.height = Math.floor(CANVAS_H * scale) + 'px';
+  drawIdleFrame();
 }
 window.addEventListener('resize', resizeCanvas);
-resizeCanvas();
+
+function drawIdleFrame() {
+  // Draw the arena even before game state arrives
+  ctx.fillStyle = '#111';
+  ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+  // Grid
+  ctx.strokeStyle = 'rgba(0,255,0,0.04)'; ctx.lineWidth = 1;
+  for (let x = 0; x < CANVAS_W; x += 60) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CANVAS_H); ctx.stroke(); }
+  for (let y = 0; y < CANVAS_H; y += 60) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(CANVAS_W,y); ctx.stroke(); }
+  // Border
+  ctx.strokeStyle='#00ff00'; ctx.lineWidth=4; ctx.shadowColor='#00ff00'; ctx.shadowBlur=12;
+  ctx.strokeRect(2,2,CANVAS_W-4,CANVAS_H-4); ctx.shadowBlur=0;
+  // Waiting text
+  ctx.fillStyle='rgba(0,255,0,0.15)'; ctx.font='bold 18px Courier New';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText('WAITING FOR FIRST GAME STATE...', CANVAS_W/2, CANVAS_H/2);
+}
 
 // ── Socket ────────────────────────────────────────────────────────
 socket = io({ transports: ['websocket'] });
@@ -400,7 +420,6 @@ socket.on('game-starting-remote', () => startGame());
 
 socket.on('remote-game-state', d => {
   gameState = d;
-  renderGame();
   updateHUD();
 });
 
@@ -518,6 +537,9 @@ function startGame() {
   document.getElementById('controls-hint').style.display  = 'flex';
   document.getElementById('voice-panel').style.display    = 'flex';
   document.getElementById('mic-status').style.display     = 'flex';
+
+  // Size canvas now that container is visible
+  resizeCanvas();
 
   bindInputs();
   startInputLoop();
@@ -965,6 +987,15 @@ setInterval(() => {
     }
   }
 }, 80);
+
+// ── Render loop ───────────────────────────────────────────────────
+function loop() {
+  requestAnimationFrame(loop);
+  if (document.getElementById('game-container').style.display !== 'none') {
+    renderGame();
+  }
+}
+requestAnimationFrame(loop);
 
 // URL room code auto-join
 const urlRoom = new URLSearchParams(window.location.search).get('room');
