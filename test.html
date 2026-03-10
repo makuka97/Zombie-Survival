@@ -757,41 +757,17 @@
   }
 
   // ── FIRE ────────────────────────────────────────────────────────
-  // Weapon visual config
-  const WEAPON_VFX = {
-    pistol:     { color:'#ffff88', glow:'#ffee00', size:4,  speed:1.0, trail:false },
-    smg:        { color:'#88ffff', glow:'#00ffff', size:3,  speed:1.1, trail:false },
-    shotgun:    { color:'#ff8800', glow:'#ff6600', size:5,  speed:0.9, trail:false },
-    ar:         { color:'#44ff44', glow:'#00ff00', size:4,  speed:1.1, trail:true  },
-    lmg:        { color:'#ff4444', glow:'#ff0000', size:5,  speed:1.0, trail:true  },
-    minigun:    { color:'#ffaaff', glow:'#ff44ff', size:3,  speed:1.3, trail:false },
-    raygun:     { color:'#00ffff', glow:'#00aaff', size:7,  speed:0.9, trail:true  },
-    thundergun: { color:'#ffffff', glow:'#8888ff', size:14, speed:0.7, trail:true  },
-    plasma:     { color:'#ff00ff', glow:'#cc00ff', size:8,  speed:1.0, trail:true  },
-  };
-
   function fireBullet(){
     const p=state.player;if(!p||!p.alive||p.grabbed)return;
     if(p.ammo<=0&&!state.infiniteAmmo&&p.ammo!==Infinity)return;
     const weapon=WEAPONS[p.currentWeapon];
-    const vfx=WEAPON_VFX[p.currentWeapon]||{color:p.color,glow:p.color,size:4,speed:1.0};
     const bx=p.x+Math.cos(p.angle)*PLAYER_SIZE,by=p.y+Math.sin(p.angle)*PLAYER_SIZE;
-    const spd=BULLET_SPEED*vfx.speed;
     if(p.currentWeapon==='shotgun'){
-      for(let i=0;i<6;i++){
-        const spread=(Math.random()-0.5)*0.55,a=p.angle+spread;
-        state.bullets.push({x:bx,y:by,vx:Math.cos(a)*spd*(0.8+Math.random()*0.4),vy:Math.sin(a)*spd*(0.8+Math.random()*0.4),damage:weapon.damage,color:vfx.color,glow:vfx.glow,size:vfx.size,weapon:'shotgun',life:18+Math.floor(Math.random()*8)});
-      }
-    } else if(p.currentWeapon==='thundergun'){
-      // big slow knockback ball
-      state.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*spd,vy:Math.sin(p.angle)*spd,damage:weapon.damage,color:vfx.color,glow:vfx.glow,size:vfx.size,weapon:p.currentWeapon,life:35});
-    } else if(p.currentWeapon==='plasma'){
-      // plasma orb with wobble
-      state.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*spd,vy:Math.sin(p.angle)*spd,damage:weapon.damage,color:vfx.color,glow:vfx.glow,size:vfx.size,weapon:p.currentWeapon,life:45,wobble:0});
+      for(let i=0;i<6;i++){const spread=(Math.random()-0.5)*0.55,a=p.angle+spread;state.bullets.push({x:bx,y:by,vx:Math.cos(a)*BULLET_SPEED*(0.8+Math.random()*0.4),vy:Math.sin(a)*BULLET_SPEED*(0.8+Math.random()*0.4),damage:weapon.damage,color:p.color,weapon:'shotgun',life:18+Math.floor(Math.random()*8)});}
     } else {
-      state.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*spd,vy:Math.sin(p.angle)*spd,damage:weapon.damage,color:vfx.color,glow:vfx.glow,size:vfx.size,weapon:p.currentWeapon});
+      state.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color,weapon:p.currentWeapon});
     }
-    spawnParticles(bx,by,vfx.glow,4);
+    spawnParticles(bx,by,p.color,4);
     if(!state.infiniteAmmo&&p.ammo!==Infinity)p.ammo--;
   }
 
@@ -897,16 +873,20 @@
       ctx.fillStyle='#00ff00';ctx.fillRect(z.x-hs,z.y-hs-8,z.size*(z.hp/z.maxHp),4);
     }
 
-    // Bullets — weapon-specific visuals
+    // Bullets — match real game rendering exactly
     for(const b of state.bullets){
       ctx.save();
-      const r = b.size ? b.size/2 : BULLET_SIZE/2;
-      ctx.fillStyle=b.color||'#ffff88';
-      ctx.shadowColor=b.glow||b.color||'#ffff00';
-      ctx.shadowBlur=b.weapon==='thundergun'?30:b.weapon==='plasma'?22:b.weapon==='raygun'?18:10;
-      ctx.beginPath();ctx.arc(b.x,b.y,r,0,Math.PI*2);ctx.fill();
-      // inner bright core for big bullets
-      if(r>5){ctx.fillStyle='#ffffff';ctx.shadowBlur=0;ctx.beginPath();ctx.arc(b.x,b.y,r*0.35,0,Math.PI*2);ctx.fill();}
+      switch(b.weapon){
+        case 'shotgun': ctx.fillStyle='#ffcc66'; ctx.shadowColor='#ffaa00'; ctx.shadowBlur=4; ctx.beginPath(); ctx.arc(b.x,b.y,2,0,Math.PI*2); ctx.fill(); break;
+        case 'smg': { const a=Math.atan2(b.vy,b.vx); ctx.fillStyle='#ffee44'; ctx.shadowColor='#ffee44'; ctx.shadowBlur=6; ctx.translate(b.x,b.y); ctx.rotate(a); ctx.fillRect(-5,-1.5,10,3); break; }
+        case 'lmg': { const a=Math.atan2(b.vy,b.vx); ctx.fillStyle='#ff8800'; ctx.shadowColor='#ffaa00'; ctx.shadowBlur=8; ctx.translate(b.x,b.y); ctx.rotate(a); ctx.fillRect(-7,-2,14,4); break; }
+        case 'ar': { const a=Math.atan2(b.vy,b.vx); ctx.fillStyle='#44ff44'; ctx.shadowColor='#00ff00'; ctx.shadowBlur=6; ctx.translate(b.x,b.y); ctx.rotate(a); ctx.fillRect(-6,-1.5,12,3); break; }
+        case 'minigun': ctx.fillStyle='#ffaaff'; ctx.shadowColor='#ff44ff'; ctx.shadowBlur=6; ctx.beginPath(); ctx.arc(b.x,b.y,2,0,Math.PI*2); ctx.fill(); break;
+        case 'raygun': ctx.fillStyle='#00ccff'; ctx.shadowColor='#00ffff'; ctx.shadowBlur=20; ctx.beginPath(); ctx.arc(b.x,b.y,4,0,Math.PI*2); ctx.fill(); ctx.strokeStyle='#aaeeff'; ctx.lineWidth=1; ctx.globalAlpha=0.5; ctx.beginPath(); ctx.arc(b.x,b.y,7,0,Math.PI*2); ctx.stroke(); break;
+        case 'thundergun': ctx.fillStyle='#ff2200'; ctx.shadowColor='#ff4400'; ctx.shadowBlur=30; ctx.beginPath(); ctx.arc(b.x,b.y,7,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#ffffff'; ctx.shadowBlur=10; ctx.beginPath(); ctx.arc(b.x,b.y,3,0,Math.PI*2); ctx.fill(); break;
+        case 'plasma': ctx.fillStyle='#ff00ff'; ctx.shadowColor='#cc00ff'; ctx.shadowBlur=22; ctx.beginPath(); ctx.arc(b.x,b.y,5,0,Math.PI*2); ctx.fill(); ctx.fillStyle='#ffffff'; ctx.shadowBlur=0; ctx.beginPath(); ctx.arc(b.x,b.y,2,0,Math.PI*2); ctx.fill(); break;
+        default: ctx.fillStyle=b.color||'#ffffff'; ctx.shadowColor=b.color||'#ffffff'; ctx.shadowBlur=8; ctx.beginPath(); ctx.arc(b.x,b.y,BULLET_SIZE/2,0,Math.PI*2); ctx.fill();
+      }
       ctx.restore();
     }
 
