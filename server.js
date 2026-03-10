@@ -334,7 +334,7 @@ class ServerGame {
 
   fireBullet(p) {
     const weapon=WEAPONS[p.currentWeapon];
-    this.bullets.push({x:p.x+Math.cos(p.angle)*PLAYER_SIZE,y:p.y+Math.sin(p.angle)*PLAYER_SIZE,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color});
+    this.bullets.push({x:p.x+Math.cos(p.angle)*PLAYER_SIZE,y:p.y+Math.sin(p.angle)*PLAYER_SIZE,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color,weapon:p.currentWeapon});
     if(p.ammo!==Infinity)p.ammo--;
   }
 
@@ -448,7 +448,7 @@ class ServerGame {
     return {
       players: this.players.map(p=>({slot:p.slot,x:p.x,y:p.y,angle:p.angle,color:p.color,hp:p.hp,maxHp:p.maxHp,ammo:p.ammo===Infinity?-1:p.ammo,points:p.points,weapon:p.currentWeapon,alive:p.alive,connected:p.connected,canUseMysteryBox:this.canUseMysteryBox(p),canUseVending:this.canUseVending(p),vendingCost:this.vendingCost})),
       zombies: this.zombies.map(z=>({x:z.x,y:z.y,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor})),
-      bullets: this.bullets.map(b=>({x:b.x,y:b.y,color:b.color})),
+      bullets: this.bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,color:b.color,weapon:b.weapon})),
       ammoPacks: this.ammoPacks.map(a=>({x:a.x,y:a.y})),
       healthPacks: this.healthPacks.map(h=>({x:h.x,y:h.y})),
       mysteryBox: this.mysteryBox?{x:this.mysteryBox.x,y:this.mysteryBox.y}:null,
@@ -588,10 +588,46 @@ const gameRooms=new Map();
 io.on('connection',(socket)=>{
   console.log(`[SERVER] Connected: ${socket.id}`);
   socket.on('create-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'local');gameRooms.set(c,r);r.setHost(socket);socket.join(c);});
+  socket.on('create-pc-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'remote');gameRooms.set(c,r);socket.emit('room-created',{roomCode:c,mode:'remote'});socket.join(c);console.log(`[PC ROOM ${c}] Created`);});
+
+  // ── WebRTC Signaling ──────────────────────────────────────────
+  socket.on('rtc-offer',  d=>{const r=gameRooms.get(d.roomCode);if(!r)return;for(const[sid,p]of r.players){if(p.slotNumber===d.to){const s=io.sockets.sockets.get(sid);if(s)s.emit('rtc-offer',d);break;}}});
+  socket.on('rtc-answer', d=>{const r=gameRooms.get(d.roomCode);if(!r)return;for(const[sid,p]of r.players){if(p.slotNumber===d.to){const s=io.sockets.sockets.get(sid);if(s)s.emit('rtc-answer',d);break;}}});
+  socket.on('rtc-ice',    d=>{const r=gameRooms.get(d.roomCode);if(!r)return;for(const[sid,p]of r.players){if(p.slotNumber===d.to){const s=io.sockets.sockets.get(sid);if(s)s.emit('rtc-ice',d);break;}}});
+
+  // PC input (separate from phone input — uses aimAngle separately)
+  socket.on('pc-input', d=>{
+    const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
+    const player=r.players.get(socket.id); if(!player) return;
+    const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
+    const inp=d.input;
+    // Movement from WASD
+    if(inp.moveX!==0||inp.moveY!==0){const a=Math.atan2(inp.moveY,inp.moveX);p.vx=Math.cos(a)*1.5;p.vy=Math.sin(a)*1.5;}else{p.vx=0;p.vy=0;}
+    // Aiming from mouse (separate from movement)
+    if(inp.aimAngle!=null)p.angle=inp.aimAngle;
+    p.firing=!!inp.fire;
+  });
+  socket.on('pc-melee', d=>{
+    const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
+    const player=r.players.get(socket.id); if(!player) return;
+    r.serverGame.performMelee(r.serverGame.players[player.slotNumber-1]);
+  });
   socket.on('join-room',(data)=>{
     const r=gameRooms.get(data.roomCode);if(!r){socket.emit('join-failed',{reason:'Room not found'});return;}
     const pd=r.addPlayer(socket,data.deviceFingerprint);if(!pd)return;
     socket.join(data.roomCode);socket.emit('join-success',{slotNumber:pd.slotNumber,color:pd.color,deviceFingerprint:pd.deviceFingerprint,roomCode:data.roomCode,mode:r.mode});
+    // For PC rooms: tell existing players to initiate WebRTC calls with the new player
+    if(r.mode==='remote'){
+      for(const[sid,p]of r.players){
+        if(sid===socket.id)continue;
+        // higher slot# offers to lower slot#
+        const offerer=Math.max(p.slotNumber,pd.slotNumber);
+        const answerer=Math.min(p.slotNumber,pd.slotNumber);
+        const offererSid=[...r.players.entries()].find(([,pl])=>pl.slotNumber===offerer)?.[0];
+        const s=io.sockets.sockets.get(offererSid);
+        if(s)s.emit('rtc-initiate',{offerer,answerer});
+      }
+    }
   });
   socket.on('player-ready',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.handleReady(socket.id);});
   socket.on('player-input',        (d)=>{const r=gameRooms.get(d.roomCode);if(r)r.relayPlayerInput(socket.id,d.input);});
