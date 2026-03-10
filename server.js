@@ -61,6 +61,7 @@ class ServerGame {
     this._waveTimers = [];
     this._waveAdvancing = false;
     this._broadcastTick = 0;
+    this._nextZombieId = 0;
 
     for (let i = 0; i < MAX_PLAYERS; i++) {
       this.players[i] = {
@@ -323,7 +324,7 @@ class ServerGame {
     const speedMult = 1 + (this.wave - 1) * 0.05;
     const scaledHp    = Math.round(td.hp * hpMult);
     const scaledSpeed = SERVER_ZOMBIE_SPEED[type] * speedMult;
-    this.zombies.push({x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
+    this.zombies.push({id: this._nextZombieId++, x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
   }
 
   rollZombieType() {
@@ -447,7 +448,7 @@ class ServerGame {
   getState() {
     return {
       players: this.players.map(p=>({slot:p.slot,x:p.x,y:p.y,angle:p.angle,color:p.color,hp:p.hp,maxHp:p.maxHp,ammo:p.ammo===Infinity?-1:p.ammo,points:p.points,weapon:p.currentWeapon,alive:p.alive,connected:p.connected,canUseMysteryBox:this.canUseMysteryBox(p),canUseVending:this.canUseVending(p),vendingCost:this.vendingCost})),
-      zombies: this.zombies.map(z=>({x:z.x,y:z.y,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor})),
+      zombies: this.zombies.map(z=>({id:z.id,x:z.x,y:z.y,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor,speed:z.speed})),
       bullets: this.bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,color:b.color,weapon:b.weapon})),
       ammoPacks: this.ammoPacks.map(a=>({x:a.x,y:a.y})),
       healthPacks: this.healthPacks.map(h=>({x:h.x,y:h.y})),
