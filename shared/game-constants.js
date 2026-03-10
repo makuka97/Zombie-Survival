@@ -207,4 +207,12 @@ const GAME_CONSTANTS = (() => {
 // ── Node.js export (server.js uses require()) ─────────────────
 if (typeof module !== 'undefined' && module.exports) {
   module.exports = GAME_CONSTANTS;
+} else {
+  // Browser: deep-freeze so console can't mutate values
+  Object.freeze(GAME_CONSTANTS);
+  Object.keys(GAME_CONSTANTS).forEach(k => {
+    if (typeof GAME_CONSTANTS[k] === 'object' && GAME_CONSTANTS[k] !== null) {
+      Object.freeze(GAME_CONSTANTS[k]);
+    }
+  });
 }
