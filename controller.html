@@ -3,37 +3,29 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-  <title>Zombie Survival - Controller</title>
+  <title>Z-TEAM · Controller</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
 
     html, body {
-      width: 100%;
-      height: 100%;
-      overflow: hidden;
+      width: 100%; height: 100%; overflow: hidden;
       touch-action: none;
-      font-family: 'Courier New', monospace;
+      font-family: 'Press Start 2P', monospace;
       color: #fff;
-      background: #111;
+      background: #000000;
     }
 
     #rotate-warning {
-      display: none;
-      position: fixed;
-      inset: 0;
-      background: #000;
-      z-index: 9999;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-size: 22px;
-      color: #00ff00;
-      letter-spacing: 2px;
-      text-align: center;
-      gap: 20px;
+      display: none; position: fixed; inset: 0;
+      background: #000000; z-index: 9999;
+      flex-direction: column; align-items: center; justify-content: center;
+      font-size: 14px; color: #7869c4; letter-spacing: 3px;
+      text-align: center; gap: 20px;
     }
-    #rotate-warning .arrow { font-size: 60px; animation: spin 2s linear infinite; }
-    @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+    #rotate-warning .arrow { font-size: 48px; animation: spin 2s linear infinite; }
+    @keyframes spin { 0%{transform:rotate(0deg)} 100%{transform:rotate(360deg)} }
 
     body.joined-portrait #rotate-warning  { display: flex; }
     body.joined-portrait #lobby-screen    { display: none !important; }
@@ -45,245 +37,225 @@
     }
 
     #join-screen {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100vw;
-      height: 100vh;
-      gap: 16px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 100vw; height: 100vh; gap: 16px;
     }
-    #join-screen h1 { font-size: 26px; color: #00ff00; letter-spacing: 6px; }
-    #join-screen h2 { font-size: 13px; color: #555; letter-spacing: 3px; font-weight: normal; }
+    #join-screen h1 { font-size: 20px; color: #883232; letter-spacing: 6px;
+      text-shadow: 2px 2px 0 #3d0000, -1px -1px 0 #5a1a1a; }
+    #join-screen h2 { font-size: 8px; color: #7869c4; letter-spacing: 4px; font-weight: normal; margin-top: 4px; }
     #room-code-input {
-      width: 200px; height: 56px; font-size: 30px;
-      text-align: center; background: #000;
-      border: 3px solid #00ff00; border-radius: 10px;
-      color: #00ff00; letter-spacing: 10px;
-      font-family: 'Courier New', monospace;
+      width: 200px; height: 52px; font-size: 28px;
+      text-align: center; background: #000000;
+      border: 2px solid #7869c4;
+      color: #ffffff; letter-spacing: 10px;
+      font-family: 'Press Start 2P', monospace; outline: none;
     }
+    #room-code-input:focus { border-color: #ffffff; }
     #join-btn {
-      width: 200px; height: 50px; font-size: 20px;
-      font-weight: bold; background: #00ff00; color: #000;
-      border: none; border-radius: 10px; letter-spacing: 3px;
-      cursor: pointer; font-family: 'Courier New', monospace;
+      width: 200px; height: 48px; font-size: 11px;
+      background: transparent; color: #ffffff;
+      border: 2px solid #ffffff; letter-spacing: 3px;
+      cursor: pointer; font-family: 'Press Start 2P', monospace;
+      transition: all 0.08s;
     }
-    #join-btn:active { transform: scale(0.95); }
-    #join-error { color: #ff4444; font-size: 14px; min-height: 18px; }
+    #join-btn:active { background: #883232; border-color: #883232; transform: scale(0.96); }
+    #join-error { color: #883232; font-size: 7px; min-height: 18px; letter-spacing: 2px; }
 
     #lobby-screen {
-      display: none;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      width: 100vw;
-      height: 100vh;
-      gap: 24px;
-      background: #111;
+      display: none; flex-direction: column;
+      align-items: center; justify-content: center;
+      width: 100vw; height: 100vh; gap: 20px;
+      background: #000000;
     }
-    #lobby-screen h1 { font-size: 22px; color: #00ff00; letter-spacing: 4px; }
+    #lobby-screen h1 { font-size: 16px; color: #883232; letter-spacing: 4px;
+      text-shadow: 2px 2px 0 #3d0000; }
     #player-badge {
-      font-size: 28px; font-weight: bold;
-      padding: 14px 30px; border-radius: 12px; border: 3px solid;
+      font-size: 20px; padding: 12px 28px; border: 2px solid;
       letter-spacing: 3px;
     }
-    #lobby-screen p { font-size: 14px; color: #555; letter-spacing: 2px; text-align: center; }
+    #lobby-screen p { font-size: 7px; color: #40318d; letter-spacing: 2px; text-align: center; }
 
     #ready-btn {
-      width: 260px; height: 80px; font-size: 28px;
-      font-weight: bold; background: #00ff00; color: #000;
-      border: none; border-radius: 16px; letter-spacing: 4px;
-      cursor: pointer; font-family: 'Courier New', monospace;
-      box-shadow: 0 0 30px rgba(0,255,0,0.5); transition: all 0.1s;
+      width: 240px; height: 72px; font-size: 16px;
+      background: transparent; color: #55a049;
+      border: 2px solid #55a049; letter-spacing: 4px;
+      cursor: pointer; font-family: 'Press Start 2P', monospace;
+      transition: all 0.1s;
     }
-    #ready-btn:active { transform: scale(0.95); }
+    #ready-btn:active { background: #55a049; color: #000000; transform: scale(0.95); }
     #ready-btn.voted {
-      background: #333; color: #00ff00;
-      border: 3px solid #00ff00; box-shadow: none; font-size: 22px;
+      background: transparent; color: #40318d;
+      border-color: #40318d; font-size: 11px;
     }
     #waiting-text {
-      font-size: 14px; color: #00ff00; letter-spacing: 2px;
+      font-size: 7px; color: #7869c4; letter-spacing: 2px;
       min-height: 20px; animation: pulse 1.5s infinite;
     }
-    @keyframes pulse { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
+    @keyframes pulse { 0%{opacity:1} 50%{opacity:0.2} 100%{opacity:1} }
 
     #ctrl-screen {
       display: none; flex-direction: column;
       width: 100vw; height: 100vh; position: relative;
+      background: #000000;
     }
     #hud {
       position: absolute; top: 10px; left: 0; right: 0;
       display: flex; justify-content: space-between;
       padding: 0 16px; z-index: 10;
     }
-    #weapon-display { font-size: 16px; font-weight: bold; color: #fff; letter-spacing: 2px; }
-    #weapon-display span { font-size: 12px; color: #888; }
-    #ammo-display { font-size: 20px; font-weight: bold; color: #ffff00; letter-spacing: 2px; }
-    #ammo-display span { font-size: 13px; color: #555; letter-spacing: 1px; }
-    #ammo-display.low { color: #ff3333; animation: flash 0.5s infinite; }
-    #ammo-display.empty { color: #888; }
-    @keyframes flash { 0% { opacity:1; } 50% { opacity:0.2; } 100% { opacity:1; } }
-    #points-display { font-size: 18px; font-weight: bold; color: #00ff00; letter-spacing: 2px; }
-    #points-display span { font-size: 12px; color: #555; }
+    #weapon-display { font-size: 9px; color: #fff; letter-spacing: 1px; }
+    #weapon-display span { font-size: 6px; color: #40318d; }
+    #ammo-display { font-size: 11px; color: #bfce72; letter-spacing: 1px; }
+    #ammo-display span { font-size: 6px; color: #40318d; letter-spacing: 1px; }
+    #ammo-display.low { color: #883232; animation: flash 0.5s infinite; }
+    #ammo-display.empty { color: #333355; }
+    @keyframes flash { 0%{opacity:1} 50%{opacity:0.2} 100%{opacity:1} }
+    #points-display { font-size: 10px; color: #bfce72; letter-spacing: 1px; }
+    #points-display span { font-size: 6px; color: #40318d; }
 
     #tier-display {
-      font-size: 13px; font-weight: bold; letter-spacing: 2px;
-      color: #ffffff; transition: color 0.4s, text-shadow 0.4s;
+      font-size: 8px; letter-spacing: 2px; color: #ffffff;
+      transition: color 0.4s;
     }
-    #tier-display span { font-size: 10px; color: #444; letter-spacing: 1px; }
+    #tier-display span { font-size: 6px; color: #40318d; letter-spacing: 1px; }
 
     #controls {
       display: flex; flex: 1; align-items: center;
       justify-content: space-around; padding: 20px 40px;
       width: 100%; height: 100%;
     }
+
+    /* Joystick — C64 square pixel style */
     #joystick-zone {
-      width: 190px; height: 190px; border-radius: 50%;
-      background: rgba(0,255,0,0.04); border: 3px solid #00ff00;
+      width: 190px; height: 190px;
+      background: rgba(120,105,196,0.05);
+      border: 2px solid #40318d;
       position: relative; touch-action: none; flex-shrink: 0;
     }
     #joystick-zone::before, #joystick-zone::after {
-      content: ''; position: absolute; background: rgba(0,255,0,0.15);
+      content: ''; position: absolute; background: rgba(64,49,141,0.3);
     }
-    #joystick-zone::before { width:2px; height:100%; top:0; left:50%; transform:translateX(-50%); }
-    #joystick-zone::after  { height:2px; width:100%; left:0; top:50%; transform:translateY(-50%); }
+    #joystick-zone::before { width:1px; height:100%; top:0; left:50%; transform:translateX(-50%); }
+    #joystick-zone::after  { height:1px; width:100%; left:0; top:50%; transform:translateY(-50%); }
     #joystick-knob {
-      width: 70px; height: 70px; border-radius: 50%; background: #00ff00;
+      width: 64px; height: 64px;
+      background: #7869c4;
       position: absolute; top:50%; left:50%;
       transform: translate(-50%,-50%); pointer-events: none;
-      box-shadow: 0 0 20px rgba(0,255,0,0.8);
     }
+
+    /* Fire button — C64 square */
     #fire-btn {
-      width: 165px; height: 165px; border-radius: 50%;
-      background: rgba(255,40,40,0.12); border: 4px solid #ff3333;
-      color: #ff3333; font-size: 22px; font-weight: bold;
-      font-family: 'Courier New', monospace; letter-spacing: 3px;
+      width: 160px; height: 160px;
+      background: rgba(136,50,50,0.1); border: 3px solid #883232;
+      color: #883232; font-size: 14px;
+      font-family: 'Press Start 2P', monospace; letter-spacing: 2px;
       display: flex; align-items: center; justify-content: center;
       touch-action: none; user-select: none; flex-shrink: 0;
-      transition: all 0.15s; box-shadow: 0 0 20px rgba(255,50,50,0.2);
+      transition: all 0.08s;
       flex-direction: column; gap: 4px;
     }
-    #fire-btn.active { background: #ff3333; color: #000; transform: scale(0.92); box-shadow: 0 0 40px rgba(255,50,50,0.9); }
-    #fire-btn.melee-mode { background: rgba(0,255,100,0.08); border-color: #00ff66; color: #00ff66; box-shadow: 0 0 20px rgba(0,255,100,0.25); }
-    #fire-btn.melee-mode.active { background: #00ff66; color: #000; transform: scale(0.92); box-shadow: 0 0 50px rgba(0,255,100,1); }
-    #fire-btn .btn-label { font-size: 14px; letter-spacing: 3px; }
+    #fire-btn.active { background: #883232; color: #000000; transform: scale(0.93); }
+    #fire-btn.melee-mode { background: rgba(85,160,73,0.08); border-color: #55a049; color: #55a049; }
+    #fire-btn.melee-mode.active { background: #55a049; color: #000000; transform: scale(0.93); }
+    #fire-btn .btn-label { font-size: 10px; letter-spacing: 2px; }
 
     #melee-banner {
       position: absolute; top: 48px; left: 50%; transform: translateX(-50%);
-      background: rgba(0,0,0,0.85); border: 2px solid #00ff66;
-      border-radius: 8px; padding: 4px 14px; font-size: 12px;
-      color: #00ff66; letter-spacing: 2px; display: none; z-index: 20;
+      background: #000000; border: 2px solid #55a049;
+      padding: 4px 14px; font-size: 8px;
+      color: #55a049; letter-spacing: 2px; display: none; z-index: 20;
       animation: pulse 1.2s infinite;
     }
-    #mystery-box-btn {
-      position: absolute; top: 50%; left: 50%;
-      transform: translate(-50%, -50%);
-      width: 120px; height: 120px; font-size: 12px; font-weight: bold;
-      background: #1a001a; color: #666; border: 3px solid #444;
-      border-radius: 50%; letter-spacing: 1px;
-      font-family: 'Courier New', monospace; transition: all 0.2s;
-      z-index: 20; line-height: 1.3; cursor: pointer;
-    }
-    #mystery-box-btn:active { transform: translate(-50%, -50%) scale(0.95); }
-    #mystery-box-btn:disabled { background: #1a001a; color: #444; border-color: #333; cursor: default; }
-    #mystery-box-btn.pulse {
-      background: #2a0044; color: #ff00ff; border-color: #bb00ff;
-      box-shadow: 0 0 20px rgba(187,0,255,0.6); animation: pulse-box 1s infinite;
-    }
 
-    /* Universal context action button — replaces mystery-box + vending */
+    /* Action / mystery box button */
     #action-btn {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      width: 120px; height: 120px;
-      font-size: 11px; font-weight: bold; line-height: 1.4;
-      font-family: 'Courier New', monospace; letter-spacing: 1px;
-      border-radius: 50%; border: 3px solid #222;
-      background: #0a0a0a; color: #333;
-      transition: all 0.2s; cursor: default;
+      width: 110px; height: 110px;
+      font-size: 8px; line-height: 1.6;
+      font-family: 'Press Start 2P', monospace; letter-spacing: 1px;
+      border: 2px solid #1a1a3a;
+      background: #000000; color: #222244;
+      transition: all 0.15s; cursor: default;
       z-index: 20; pointer-events: none;
     }
     #action-btn:active { transform: translate(-50%, -50%) scale(0.95); }
-    /* Mystery box mode */
     #action-btn.mode-box {
-      background: #1a0030; color: #cc88ff; border-color: #8833cc;
+      background: #000000; color: #8b3f96; border-color: #8b3f96;
       pointer-events: auto; cursor: pointer;
-      box-shadow: 0 0 18px rgba(150,50,255,0.5);
       animation: pulse-box 1s infinite;
     }
-    /* Vending machine mode */
     #action-btn.mode-vend {
-      background: #001a08; color: #00ff66; border-color: #00cc44;
+      background: #000000; color: #55a049; border-color: #55a049;
       pointer-events: auto; cursor: pointer;
-      box-shadow: 0 0 18px rgba(0,255,100,0.5);
       animation: pulse-vend 1s infinite;
     }
-    /* Can't afford — in range but broke */
     #action-btn.mode-broke {
-      background: #1a0a0a; color: #663333; border-color: #331111;
-      pointer-events: none; cursor: default;
-      animation: none;
+      background: #000000; color: #331111; border-color: #1a0000;
+      pointer-events: none; cursor: default; animation: none;
     }
-    /* Knife toggle button */
+
+    /* Knife button */
     #knife-btn {
       position: absolute; bottom: 18px; right: 18px;
-      width: 72px; height: 72px; border-radius: 50%;
-      border: 2px solid #333; background: #0a0a0a; color: #444;
-      font-size: 10px; font-weight: bold; font-family: 'Courier New', monospace;
+      width: 68px; height: 68px;
+      border: 2px solid #222244; background: #000000; color: #333355;
+      font-size: 8px; font-family: 'Press Start 2P', monospace;
       letter-spacing: 1px; cursor: pointer; z-index: 20;
-      transition: all 0.15s;
+      transition: all 0.12s;
     }
     #knife-btn.active {
-      background: #002210; color: #00ff66; border-color: #00ff66;
-      box-shadow: 0 0 16px rgba(0,255,100,0.7);
+      background: #000000; color: #55a049; border-color: #55a049;
     }
     #knife-btn:active { transform: scale(0.93); }
-    /* FIX: removed extra ) that was breaking this animation */
+
     @keyframes pulse-box {
-      0%   { box-shadow: 0 0 18px rgba(150,50,255,0.5); }
-      50%  { box-shadow: 0 0 35px rgba(187,0,255,1); }
-      100% { box-shadow: 0 0 18px rgba(150,50,255,0.5); }
+      0%,100% { border-color: #8b3f96; } 50% { border-color: #d14da0; }
     }
     @keyframes pulse-vend {
-      0%,100% { box-shadow: 0 0 15px rgba(0,255,100,0.4); }
-      50%      { box-shadow: 0 0 30px rgba(0,255,100,0.9); }
+      0%,100% { border-color: #55a049; } 50% { border-color: #94e089; }
     }
 
     #gameover-screen {
       display: none; flex-direction: column; align-items: center;
       justify-content: center; width: 100vw; height: 100vh;
-      gap: 20px; background: #000;
+      gap: 20px; background: #000000;
     }
-    #gameover-screen h1 { font-size: 48px; color: #ff0000; letter-spacing: 6px; text-shadow: 0 0 20px #ff0000; }
-    #gameover-screen p  { font-size: 16px; color: #888; letter-spacing: 2px; }
+    #gameover-screen h1 { font-size: 32px; color: #883232; letter-spacing: 6px;
+      text-shadow: 2px 2px 0 #3d0000; }
+    #gameover-screen p  { font-size: 8px; color: #40318d; letter-spacing: 2px; }
     #restart-btn {
-      width: 240px; height: 70px; font-size: 24px; font-weight: bold;
-      background: #00ff00; color: #000; border: none; border-radius: 14px;
-      letter-spacing: 3px; cursor: pointer; font-family: 'Courier New', monospace;
-      box-shadow: 0 0 20px rgba(0,255,0,0.5);
+      width: 240px; height: 64px; font-size: 14px;
+      background: transparent; color: #ffffff; border: 2px solid #ffffff;
+      letter-spacing: 3px; cursor: pointer; font-family: 'Press Start 2P', monospace;
+      transition: all 0.08s;
     }
-    #restart-btn:active { transform: scale(0.95); }
-    #restart-btn.voted { background: #444; color: #888; box-shadow: none; }
-    #vote-status { font-size: 18px; color: #00ff00; letter-spacing: 2px; min-height: 24px; }
+    #restart-btn:active { background: #883232; border-color: #883232; transform: scale(0.95); }
+    #restart-btn.voted { background: transparent; color: #40318d; border-color: #40318d; }
+    #vote-status { font-size: 9px; color: #55a049; letter-spacing: 2px; min-height: 24px; }
 
     #status-bar {
       position: fixed; bottom: 4px; left: 50%;
-      transform: translateX(-50%); font-size: 10px; color: #333; letter-spacing: 1px;
+      transform: translateX(-50%); font-size: 6px; color: #222244; letter-spacing: 1px;
     }
     #weapon-popup {
       position: fixed; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
-      background: rgba(0,0,0,0.95); padding: 30px 50px;
-      border-radius: 15px; border: 3px solid #bb00ff;
+      background: #000000; padding: 24px 40px;
+      border: 2px solid #8b3f96;
       text-align: center; display: none; z-index: 100;
       animation: popup-appear 0.3s ease;
     }
     @keyframes popup-appear {
-      0%   { transform: translate(-50%, -50%) scale(0.8); opacity: 0; }
-      100% { transform: translate(-50%, -50%) scale(1);   opacity: 1; }
+      0%   { transform: translate(-50%,-50%) scale(0.8); opacity:0; }
+      100% { transform: translate(-50%,-50%) scale(1);   opacity:1; }
     }
-    #weapon-popup h2 { font-size: 32px; color: #bb00ff; margin-bottom: 10px; }
-    #weapon-popup p  { font-size: 18px; color: #fff; }
+    #weapon-popup h2 { font-size: 20px; color: #8b3f96; margin-bottom: 10px; }
+    #weapon-popup p  { font-size: 10px; color: #fff; letter-spacing: 2px; }
+
+    #mystery-box-btn { display: none; }
   </style>
 </head>
 <body>
@@ -291,11 +263,11 @@
   <div id="rotate-warning">
     <div class="arrow">↻</div>
     <div>ROTATE YOUR PHONE</div>
-    <div style="font-size:13px;color:#444;letter-spacing:1px;">Landscape mode required</div>
+    <div style="font-size:7px;color:#40318d;letter-spacing:2px;margin-top:8px;">LANDSCAPE MODE REQUIRED</div>
   </div>
 
   <div id="join-screen">
-    <h1>ZOMBIE SURVIVAL</h1>
+    <h1>Z-TEAM</h1>
     <h2>ENTER ROOM CODE</h2>
     <input id="room-code-input" type="text" maxlength="4" placeholder="CODE" autocomplete="off">
     <button id="join-btn">JOIN GAME</button>
@@ -303,9 +275,9 @@
   </div>
 
   <div id="lobby-screen">
-    <h1>ZOMBIE SURVIVAL</h1>
+    <h1>Z-TEAM</h1>
     <div id="player-badge">PLAYER ?</div>
-    <p>Waiting for all players to ready up...</p>
+    <p>WAITING FOR ALL PLAYERS...</p>
     <button id="ready-btn">READY UP</button>
     <div id="waiting-text"></div>
   </div>
