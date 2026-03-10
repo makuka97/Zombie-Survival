@@ -602,11 +602,33 @@ io.on('connection',(socket)=>{
     const player=r.players.get(socket.id); if(!player) return;
     const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
     const inp=d.input;
-    // Movement from WASD
-    if(inp.moveX!==0||inp.moveY!==0){const a=Math.atan2(inp.moveY,inp.moveX);p.vx=Math.cos(a)*1.5;p.vy=Math.sin(a)*1.5;}else{p.vx=0;p.vy=0;}
-    // Aiming from mouse (separate from movement)
+    // Movement from WASD — match local PLAYER_SPEED
+    if(inp.moveX!==0||inp.moveY!==0){const a=Math.atan2(inp.moveY,inp.moveX);p.vx=Math.cos(a)*PLAYER_SPEED;p.vy=Math.sin(a)*PLAYER_SPEED;}else{p.vx=0;p.vy=0;}
+    // Aiming from mouse
     if(inp.aimAngle!=null)p.angle=inp.aimAngle;
     p.firing=!!inp.fire;
+    // ── Aim assist: same as local mode ──
+    if(p.firing){
+      const AIM_ASSIST_RANGE=180, AIM_ASSIST_CONE=Math.PI/4;
+      let bestDist=AIM_ASSIST_RANGE, bestAngle=null;
+      const sg=r.serverGame;
+      const targets=[...sg.zombies];
+      if(sg.boss&&!sg.boss.dead)targets.push(sg.boss);
+      for(const z of targets){
+        const tx=z.x??z.bx, ty=z.y??z.by; if(tx==null)continue;
+        const dx=tx-p.x, dy=ty-p.y, dist=Math.sqrt(dx*dx+dy*dy);
+        if(dist>AIM_ASSIST_RANGE)continue;
+        const angleToZ=Math.atan2(dy,dx);
+        let diff=angleToZ-p.angle;
+        while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
+        if(Math.abs(diff)<AIM_ASSIST_CONE&&dist<bestDist){bestDist=dist;bestAngle=angleToZ;}
+      }
+      if(bestAngle!==null){
+        let diff=bestAngle-p.angle;
+        while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
+        p.angle+=diff*0.6;
+      }
+    }
   });
   socket.on('pc-melee', d=>{
     const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
