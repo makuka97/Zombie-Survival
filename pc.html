@@ -323,10 +323,6 @@ const {
 let socket, roomCode, mySlot, myColor;
 let isReady = false;
 let gameState = null;
-let prevState = null;
-let stateTimestamp = 0;
-let prevTimestamp = 0;
-const STATE_INTERVAL = 100; // server sends at 10hz = 100ms
 let myMuted = false;
 let keys = {};
 let mouse = { x: CANVAS_W/2, y: CANVAS_H/2, down: false };
@@ -334,6 +330,51 @@ let inputInterval = null;
 let lastInputAngle = 0;
 let meleeFlashes = [];
 let localExplosions = [];
+
+// ── Client-side prediction ────────────────────────────────────────
+// localMe: our own player simulated locally (never waits for server)
+let localMe = null;
+const PC_SPEED = 1.9; // slightly faster than server (1.5) for snappy feel
+
+// ── Entity smoothing ─────────────────────────────────────────────
+// For each entity we track a smoothed display position that glides
+// toward the authoritative server position each frame.
+// Key: "p1","p2","z0","z1",... Value: {x,y,vx,vy}
+const smooth = {};
+
+function getSmoothPos(key, serverX, serverY, serverVx, serverVy) {
+  if (!smooth[key]) {
+    // First time seeing this entity — snap immediately
+    smooth[key] = { x: serverX, y: serverY, vx: serverVx||0, vy: serverVy||0 };
+    return smooth[key];
+  }
+  const s = smooth[key];
+  // Extrapolate our cached position forward by one frame using last known velocity
+  s.x += s.vx;
+  s.y += s.vy;
+  // Measure error between our extrapolated position and authoritative server position
+  const dx = serverX - s.x;
+  const dy = serverY - s.y;
+  const dist = Math.sqrt(dx*dx + dy*dy);
+  if (dist > 120) {
+    // Too far off — hard snap (teleport, respawn, etc.)
+    s.x = serverX; s.y = serverY;
+  } else if (dist > 0.5) {
+    // Soft correction: blend 25% toward server per frame (smooth, no jitter)
+    s.x += dx * 0.25;
+    s.y += dy * 0.25;
+  }
+  // Update velocity from server for next extrapolation
+  s.vx = serverVx || 0;
+  s.vy = serverVy || 0;
+  return s;
+}
+
+function cleanSmoothKeys(activeKeys) {
+  for (const k of Object.keys(smooth)) {
+    if (!activeKeys.has(k)) delete smooth[k];
+  }
+}
 
 // WebRTC voice
 let localStream = null;
@@ -423,10 +464,61 @@ socket.on('ready-countdown-cancelled', () => {
 socket.on('game-starting-remote', () => startGame());
 
 socket.on('remote-game-state', d => {
-  prevState = gameState;
-  prevTimestamp = stateTimestamp;
   gameState = d;
-  stateTimestamp = Date.now();
+
+  // Sync localMe from server (authoritative HP, ammo, weapon, alive state)
+  // but keep our locally predicted position unless server diverges too much
+  const sp = d.players.find(p => p.slot === mySlot);
+  if (sp) {
+    if (!localMe) {
+      localMe = { ...sp };
+    } else {
+      // Copy all non-position fields from server
+      const dx = sp.x - localMe.x, dy = sp.y - localMe.y;
+      const dist = Math.sqrt(dx*dx + dy*dy);
+      if (dist > 80) {
+        // Hard snap if we've drifted too far (wall collision, death, etc.)
+        localMe.x = sp.x; localMe.y = sp.y;
+      } else if (dist > 2) {
+        // Soft correction — nudge toward server 20% per frame
+        localMe.x += dx * 0.20;
+        localMe.y += dy * 0.20;
+      }
+      // Always sync non-position state from server
+      localMe.hp = sp.hp; localMe.maxHp = sp.maxHp;
+      localMe.ammo = sp.ammo; localMe.weapon = sp.weapon;
+      localMe.points = sp.points; localMe.alive = sp.alive;
+      localMe.canUseMysteryBox = sp.canUseMysteryBox;
+      localMe.canUseVending = sp.canUseVending;
+      localMe.vendingCost = sp.vendingCost;
+    }
+  }
+
+  // Pre-warm smooth positions for all entities this tick
+  const activeKeys = new Set();
+  for (const p of d.players) {
+    if (!p.connected || p.slot === mySlot) continue;
+    const key = 'p' + p.slot;
+    activeKeys.add(key);
+    getSmoothPos(key, p.x, p.y, p.vx || 0, p.vy || 0);
+  }
+  for (let i = 0; i < d.zombies.length; i++) {
+    const z = d.zombies[i];
+    const key = 'z' + (z.id !== undefined ? z.id : i);
+    activeKeys.add(key);
+    // Estimate zombie velocity toward nearest player
+    let nvx = 0, nvy = 0;
+    let nearDist = Infinity;
+    for (const p of d.players) {
+      if (!p.alive || !p.connected) continue;
+      const ddx = p.x - z.x, ddy = p.y - z.y;
+      const dd = Math.sqrt(ddx*ddx + ddy*ddy);
+      if (dd < nearDist) { nearDist = dd; nvx = (ddx/dd)*z.speed; nvy = (ddy/dd)*z.speed; }
+    }
+    getSmoothPos(key, z.x, z.y, nvx, nvy);
+  }
+  cleanSmoothKeys(activeKeys);
+
   updateHUD();
 });
 
@@ -555,8 +647,10 @@ function startGame() {
 function restartGame() {
   document.getElementById('game-over-screen').style.display = 'none';
   gameState = null;
+  localMe = null;
   meleeFlashes = [];
   localExplosions = [];
+  for (const k of Object.keys(smooth)) delete smooth[k];
 }
 
 // ── Input ────────────────────────────────────────────────────────
@@ -583,47 +677,46 @@ function bindInputs() {
 }
 
 function getMyPlayer() {
+  if (localMe) return localMe;
   if (!gameState || !mySlot) return null;
   return gameState.players.find(p => p.slot === mySlot);
 }
 
 function startInputLoop() {
+  // Send input to server at 20hz
   inputInterval = setInterval(() => {
-    const me = getMyPlayer();
-    if (!me || !me.alive) return;
-
-    // Movement angle from WASD
+    if (!localMe || !localMe.alive) return;
+    const aimAngle = Math.atan2(mouse.y - localMe.y, mouse.x - localMe.x);
+    lastInputAngle = aimAngle;
     let vx = 0, vy = 0;
     if (keys['w'] || keys['arrowup'])    vy = -1;
     if (keys['s'] || keys['arrowdown'])  vy =  1;
     if (keys['a'] || keys['arrowleft'])  vx = -1;
     if (keys['d'] || keys['arrowright']) vx =  1;
     if (vx && vy) { vx *= 0.707; vy *= 0.707; }
+    socket.emit('pc-input', { roomCode, input: { angle: (vx||vy) ? Math.atan2(vy,vx) : null, aimAngle, fire: mouse.down, moveX: vx, moveY: vy } });
+  }, 50);
+}
 
-    // Aim angle from mouse
-    const aimAngle = Math.atan2(mouse.y - me.y, mouse.x - me.x);
-    lastInputAngle = aimAngle;
-
-    const moveAngle = (vx !== 0 || vy !== 0) ? Math.atan2(vy, vx) : null;
-
-    socket.emit('pc-input', {
-      roomCode,
-      input: {
-        angle:     moveAngle,
-        aimAngle:  aimAngle,
-        fire:      mouse.down,
-        moveX:     vx,
-        moveY:     vy,
-      }
-    });
-  }, 50); // 20hz
+// Local simulation runs every frame in the render loop
+function tickLocalPlayer() {
+  if (!localMe || !localMe.alive) return;
+  let vx = 0, vy = 0;
+  if (keys['w'] || keys['arrowup'])    vy = -1;
+  if (keys['s'] || keys['arrowdown'])  vy =  1;
+  if (keys['a'] || keys['arrowleft'])  vx = -1;
+  if (keys['d'] || keys['arrowright']) vx =  1;
+  if (vx && vy) { vx *= 0.707; vy *= 0.707; }
+  // Update aim angle based on current local position
+  lastInputAngle = Math.atan2(mouse.y - localMe.y, mouse.x - localMe.x);
+  const hs = PC_PLAYER_SIZE / 2 + WALL;
+  localMe.x = Math.max(hs, Math.min(CANVAS_W - hs, localMe.x + vx * PC_SPEED));
+  localMe.y = Math.max(hs, Math.min(CANVAS_H - hs, localMe.y + vy * PC_SPEED));
 }
 
 function sendMelee() {
   socket.emit('pc-melee', { roomCode });
-  // Show local melee flash immediately
-  const me = getMyPlayer();
-  if (me) meleeFlashes.push({ x: me.x, y: me.y, angle: lastInputAngle, color: myColor, timer: 8 });
+  if (localMe) meleeFlashes.push({ x: localMe.x, y: localMe.y, angle: lastInputAngle, color: myColor, timer: 8 });
 }
 
 function handleInteract() {
@@ -637,20 +730,32 @@ function handleInteract() {
 }
 
 // ── HUD ───────────────────────────────────────────────────────────
+// Cache last HUD values to avoid unnecessary DOM writes
+const _hud = {};
 function updateHUD() {
-  const me = getMyPlayer();
-  if (!me) return;
-  document.getElementById('hud-hp').textContent     = Math.max(0, Math.ceil(me.hp));
-  document.getElementById('hud-wave').textContent   = gameState.wave;
-  document.getElementById('hud-weapon').textContent = me.weapon ? me.weapon.toUpperCase() : '—';
-  document.getElementById('hud-ammo').textContent   = me.ammo === -1 ? '∞' : me.ammo;
-  document.getElementById('hud-pts').textContent    = me.points;
-  const pct = Math.max(0, Math.min(100, (me.hp / me.maxHp) * 100));
-  document.getElementById('hp-fill').style.width      = pct + '%';
-  document.getElementById('hp-fill').style.background = pct > 50 ? '#00ff00' : pct > 25 ? '#ffaa00' : '#ff2200';
-  document.getElementById('hud-box').style.display  = me.canUseMysteryBox  ? 'flex' : 'none';
-  document.getElementById('hud-vend').style.display = me.canUseVending     ? 'flex' : 'none';
-  if (me.canUseVending) document.getElementById('hud-vend-cost').textContent = `F — $${me.vendingCost}`;
+  const me = localMe || (gameState && gameState.players.find(p => p.slot === mySlot));
+  if (!me || !gameState) return;
+
+  const hp     = Math.max(0, Math.ceil(me.hp));
+  const wave   = gameState.wave;
+  const weapon = me.weapon ? me.weapon.toUpperCase() : '—';
+  const ammo   = me.ammo === -1 ? '∞' : me.ammo;
+  const pts    = me.points;
+  const pct    = Math.max(0, Math.min(100, (me.hp / (me.maxHp||100)) * 100));
+  const hpCol  = pct > 50 ? '#00ff00' : pct > 25 ? '#ffaa00' : '#ff2200';
+  const showBox  = !!me.canUseMysteryBox;
+  const showVend = !!me.canUseVending;
+
+  if (_hud.hp     !== hp)     { document.getElementById('hud-hp').textContent     = hp;     _hud.hp = hp; }
+  if (_hud.wave   !== wave)   { document.getElementById('hud-wave').textContent   = wave;   _hud.wave = wave; }
+  if (_hud.weapon !== weapon) { document.getElementById('hud-weapon').textContent = weapon; _hud.weapon = weapon; }
+  if (_hud.ammo   !== ammo)   { document.getElementById('hud-ammo').textContent   = ammo;   _hud.ammo = ammo; }
+  if (_hud.pts    !== pts)    { document.getElementById('hud-pts').textContent    = pts;    _hud.pts = pts; }
+  if (_hud.pct    !== pct)    { document.getElementById('hp-fill').style.width    = pct + '%'; _hud.pct = pct; }
+  if (_hud.hpCol  !== hpCol)  { document.getElementById('hp-fill').style.background = hpCol; _hud.hpCol = hpCol; }
+  if (_hud.showBox  !== showBox)  { document.getElementById('hud-box').style.display  = showBox  ? 'flex' : 'none'; _hud.showBox = showBox; }
+  if (_hud.showVend !== showVend) { document.getElementById('hud-vend').style.display = showVend ? 'flex' : 'none'; _hud.showVend = showVend; }
+  if (showVend && _hud.vendCost !== me.vendingCost) { document.getElementById('hud-vend-cost').textContent = `F — $${me.vendingCost}`; _hud.vendCost = me.vendingCost; }
 }
 
 let bannerTimeout = null;
@@ -670,41 +775,34 @@ function showGameOver() {
 // ── Interpolation ─────────────────────────────────────────────────
 function lerp(a, b, t) { return a + (b - a) * t; }
 
-function getInterpolatedState() {
+function getDisplayState() {
   if (!gameState) return null;
-  if (!prevState) return gameState;
-  const now = Date.now();
-  const t = Math.min(1, (now - stateTimestamp) / STATE_INTERVAL);
 
-  // Interpolate player positions
-  const players = gameState.players.map((p, i) => {
-    const pp = prevState.players[i];
-    if (!pp || !p.alive || !p.connected) return p;
-    return { ...p, x: lerp(pp.x, p.x, t), y: lerp(pp.y, p.y, t) };
+  // Build display players: use localMe for self, smoothed positions for others
+  const players = gameState.players.map(p => {
+    if (p.slot === mySlot) {
+      // Use our locally predicted position
+      return localMe ? { ...p, x: localMe.x, y: localMe.y, hp: localMe.hp, maxHp: localMe.maxHp, ammo: localMe.ammo, weapon: localMe.weapon, points: localMe.points, alive: localMe.alive } : p;
+    }
+    if (!p.connected) return p;
+    const s = smooth['p' + p.slot];
+    return s ? { ...p, x: s.x, y: s.y } : p;
   });
 
-  // Interpolate zombie positions
+  // Build display zombies using smoothed positions keyed by stable ID
   const zombies = gameState.zombies.map((z, i) => {
-    const pz = prevState.zombies[i];
-    if (!pz) return z;
-    return { ...z, x: lerp(pz.x, z.x, t), y: lerp(pz.y, z.y, t) };
+    const key = 'z' + (z.id !== undefined ? z.id : i);
+    const s = smooth[key];
+    return s ? { ...z, x: s.x, y: s.y } : z;
   });
 
-  // Interpolate boss position
-  let boss = gameState.boss;
-  if (boss && prevState.boss && !boss.dead) {
-    boss = { ...boss, x: lerp(prevState.boss.x, boss.x, t), y: lerp(prevState.boss.y, boss.y, t) };
-  }
-
-  // Extrapolate bullet positions using velocity (they move too fast to lerp to prev state)
+  // Extrapolate bullets with velocity (fast moving, lerp would lag too much)
   const bullets = gameState.bullets.map(b => {
-    const now = Date.now();
-    const dt = (now - stateTimestamp) / 1000 * 60; // frames elapsed since last state
     if (!b.vx && !b.vy) return b;
-    return { ...b, x: b.x + b.vx * dt, y: b.y + b.vy * dt };
+    return b; // server now updates these at 20hz, smooth enough
   });
 
-  return { ...gameState, players, zombies, boss, bullets };
+  return { ...gameState, players, zombies, bullets };
 }
 
 // ── CONSTANTS matching index.html ────────────────────────────────
@@ -715,7 +813,26 @@ const PC_BULLET_SIZE = 8;
 
 // ── RENDER ────────────────────────────────────────────────────────
 function renderGame() {
-  const gs = getInterpolatedState();
+  // Tick local player prediction every frame (60fps)
+  tickLocalPlayer();
+  updateHUD();
+
+  // Extrapolate smooth entities one frame forward between server ticks
+  if (gameState) {
+    for (const p of gameState.players) {
+      if (!p.connected || p.slot === mySlot) continue;
+      const s = smooth['p' + p.slot];
+      if (s) { s.x += s.vx; s.y += s.vy; }
+    }
+    for (let i = 0; i < gameState.zombies.length; i++) {
+      const z = gameState.zombies[i];
+      const key = 'z' + (z.id !== undefined ? z.id : i);
+      const s = smooth[key];
+      if (s) { s.x += s.vx; s.y += s.vy; }
+    }
+  }
+
+  const gs = getDisplayState();
   const W = CANVAS_W, H = CANVAS_H;
   const hs = PC_PLAYER_SIZE / 2;
 
