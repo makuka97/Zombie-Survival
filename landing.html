@@ -4,252 +4,188 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Z-TEAM</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
 
     body {
-      background: #000;
-      width: 100vw;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      font-family: 'Courier New', monospace;
+      background: #000000;
+      width: 100vw; height: 100vh;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      font-family: 'Press Start 2P', monospace;
       overflow: hidden;
-      gap: 60px;
+      gap: 0;
     }
 
+    /* Scanlines */
     body::after {
-      content: '';
-      position: fixed;
-      inset: 0;
+      content: ''; position: fixed; inset: 0;
       background: repeating-linear-gradient(
-        0deg,
-        transparent,
-        transparent 2px,
-        rgba(0,0,0,0.08) 2px,
-        rgba(0,0,0,0.08) 4px
+        0deg, transparent, transparent 2px,
+        rgba(0,0,0,0.25) 2px, rgba(0,0,0,0.25) 4px
       );
-      pointer-events: none;
-      z-index: 10;
+      pointer-events: none; z-index: 100;
     }
 
-    #title-block { text-align: center; animation: fadein 1s ease forwards; }
+    #screen {
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 0;
+      width: 100%; max-width: 860px;
+      padding: 0 20px;
+    }
+
+    /* ── Attribution above title ── */
+    #attribution {
+      color: #8b3f96;
+      font-size: clamp(8px, 1.4vw, 11px);
+      letter-spacing: 4px;
+      margin-bottom: 18px;
+      text-align: center;
+    }
+
+    /* ── Big pixel title ── */
+    #title-wrap {
+      position: relative;
+      margin-bottom: 20px;
+    }
 
     #title {
-      font-size: clamp(64px, 14vw, 120px);
-      font-weight: bold;
-      color: #00ff00;
-      letter-spacing: 16px;
-      text-shadow:
-        0 0 20px rgba(0,255,0,0.8),
-        0 0 60px rgba(0,255,0,0.4),
-        0 0 120px rgba(0,255,0,0.2);
+      font-size: clamp(72px, 16vw, 130px);
+      color: #883232;
+      letter-spacing: clamp(8px, 2vw, 20px);
       line-height: 1;
-      animation: flicker 6s infinite;
+      text-align: center;
+      /* C64 chunky pixel feel — slight roughness via text-shadow offset */
+      text-shadow:
+        3px 3px 0 #3d0000,
+        -1px -1px 0 #5a1a1a,
+        2px 0 0 #3d0000;
     }
 
+    /* ── Subtitle under title ── */
     #subtitle {
-      font-size: clamp(11px, 2vw, 14px);
-      color: #333;
+      color: #8b3f96;
+      font-size: clamp(8px, 1.4vw, 11px);
       letter-spacing: 6px;
-      margin-top: 12px;
+      text-align: center;
+      margin-bottom: 48px;
     }
 
-    #menu {
-      display: flex;
-      flex-direction: row;
-      gap: 40px;
-      align-items: flex-start;
-      animation: fadein 1.2s ease forwards;
+    /* ── Author line ── */
+    #author {
+      color: #7869c4;
+      font-size: clamp(7px, 1.2vw, 9px);
+      letter-spacing: 3px;
+      text-align: center;
+      margin-bottom: 52px;
     }
 
-    #menu-left {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
-      align-items: center;
-    }
+    /* ── Menu buttons ── */
+    #menu { display: flex; flex-direction: row; gap: 28px; margin-bottom: 40px; }
 
     .menu-btn {
-      width: clamp(260px, 40vw, 380px);
-      height: 70px;
-      font-size: clamp(16px, 2.5vw, 20px);
-      font-weight: bold;
-      font-family: 'Courier New', monospace;
-      letter-spacing: 3px;
-      border-radius: 14px;
+      width: clamp(200px, 28vw, 280px);
+      height: 52px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(8px, 1.5vw, 11px);
+      letter-spacing: 2px;
       cursor: pointer;
-      transition: all 0.15s;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: 4px;
+      display: flex; flex-direction: column;
+      align-items: center; justify-content: center;
+      gap: 7px;
       text-decoration: none;
+      border: 2px solid;
+      background: transparent;
+      transition: background 0.08s, color 0.08s;
     }
-
     .menu-btn .btn-sub {
-      font-size: clamp(9px, 1.2vw, 11px);
-      letter-spacing: 2px;
-      font-weight: normal;
-      opacity: 0.7;
+      font-size: clamp(5px, 0.8vw, 7px);
+      letter-spacing: 1px; opacity: 0.55;
     }
 
-    #local-btn {
-      background: #00ff00;
-      color: #000;
-      border: none;
-      box-shadow: 0 0 30px rgba(0,255,0,0.5);
-    }
-    #local-btn:hover  { box-shadow: 0 0 50px rgba(0,255,0,0.8); transform: scale(1.03); }
-    #local-btn:active { transform: scale(0.97); }
+    #local-btn  { color: #ffffff; border-color: #ffffff; }
+    #local-btn:hover  { background: #883232; border-color: #883232; }
 
-    #pc-btn {
-      background: transparent;
-      color: #00ff00;
-      border: 2px solid #00ff00;
-      box-shadow: 0 0 16px rgba(0,255,0,0.15);
-    }
-    #pc-btn:hover  { background: rgba(0,255,0,0.08); box-shadow: 0 0 35px rgba(0,255,0,0.4); transform: scale(1.03); }
-    #pc-btn:active { transform: scale(0.97); }
+    #pc-btn     { color: #7869c4; border-color: #7869c4; }
+    #pc-btn:hover     { background: rgba(120,105,196,0.2); color: #ffffff; border-color: #ffffff; }
 
-    /* Disabled remote button */
-    #remote-btn {
-      background: transparent;
-      color: #333;
-      border: 2px solid #222;
-      box-shadow: none;
-      cursor: not-allowed;
-      position: relative;
-      pointer-events: none;
-      opacity: 0.6;
-    }
+    #remote-btn { color: #222244; border-color: #222244; cursor: not-allowed; pointer-events: none; }
 
-    /* Under construction badge */
-    .badge-construction {
-      font-size: 10px;
-      background: #ff6600;
-      color: #000;
-      padding: 2px 7px;
-      border-radius: 4px;
-      letter-spacing: 1px;
-      vertical-align: middle;
-      margin-left: 6px;
-      font-weight: bold;
-    }
+    .badge { font-size: 5px; background: #883232; color: #fff; padding: 2px 5px; letter-spacing: 1px; margin-left: 6px; vertical-align: middle; }
 
+    /* ── Patch notes ── */
     #patch-notes {
-      width: 240px;
-      border: 1px solid #1a1a1a;
-      border-radius: 8px;
-      padding: 12px 14px;
-      background: rgba(0,0,0,0.6);
-      animation: fadein 1.5s ease forwards;
+      border: 1px solid #40318d;
+      padding: 12px 16px;
+      background: transparent;
+      width: clamp(260px, 46vw, 520px);
     }
-
     #patch-notes h3 {
-      font-size: 10px;
-      letter-spacing: 3px;
-      color: #00ff00;
-      margin-bottom: 8px;
-      opacity: 0.9;
+      font-size: 7px; letter-spacing: 3px; color: #40318d;
+      margin-bottom: 8px; padding-bottom: 7px;
+      border-bottom: 1px solid #40318d;
     }
-
-    #patch-notes ul {
-      list-style: none;
-      padding: 0;
-      margin: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 5px;
-    }
-
+    #patch-notes ul { list-style: none; display: flex; flex-wrap: wrap; gap: 4px 24px; }
     #patch-notes ul li {
-      font-size: 11px;
-      letter-spacing: 1px;
-      color: #aaaaaa;
-      padding-left: 12px;
-      position: relative;
-      line-height: 1.4;
+      font-size: 6px; letter-spacing: 1px; color: #40318d;
+      padding-left: 10px; position: relative; line-height: 1.8;
     }
+    #patch-notes ul li::before { content: '›'; position: absolute; left: 0; color: #7869c4; }
 
-    #patch-notes ul li::before {
-      content: '›';
-      position: absolute;
-      left: 0;
-      color: #00ff00;
-      opacity: 0.7;
-    }
-
+    /* ── Version ── */
     #version {
-      position: fixed;
-      bottom: 12px;
-      right: 16px;
-      font-size: 10px;
-      color: #222;
-      letter-spacing: 2px;
+      position: fixed; bottom: 10px; right: 14px;
+      font-size: 6px; color: #1a1a3a; letter-spacing: 2px; z-index: 1;
     }
 
-    @keyframes fadein {
-      0%   { opacity: 0; transform: translateY(10px); }
-      100% { opacity: 1; transform: translateY(0); }
+    /* Blinking insert-coin text */
+    #insert-coin {
+      color: #7869c4;
+      font-size: clamp(7px, 1.2vw, 9px);
+      letter-spacing: 4px;
+      margin-top: 6px;
+      animation: blink 1.2s step-end infinite;
     }
-
-    @keyframes flicker {
-      0%, 95%, 100% { opacity: 1; }
-      96%            { opacity: 0.6; }
-      97%            { opacity: 1; }
-      98%            { opacity: 0.4; }
-      99%            { opacity: 1; }
-    }
+    @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
   </style>
 </head>
 <body>
 
-  <div id="title-block">
+<div id="screen">
+  <div id="title-wrap">
     <div id="title">Z-TEAM</div>
-    <div id="subtitle">ZOMBIE WAVE SURVIVAL</div>
   </div>
+
+  <div id="author">WRITTEN BY MICAJAH NORDYKE</div>
 
   <div id="menu">
-    <div id="menu-left">
-      <a id="local-btn" class="menu-btn" href="/index.html">
-        LOCAL PARTY MODE
-        <span class="btn-sub">ONE SCREEN / PHONES AS CONTROLLERS</span>
-      </a>
-
-      <a id="pc-btn" class="menu-btn" href="/pc.html">
-        PC MULTIPLAYER
-        <span class="btn-sub">BROWSER · MOUSE + KEYBOARD · VOICE CHAT</span>
-      </a>
-
-      <div id="remote-btn" class="menu-btn">
-        REMOTE MULTIPLAYER
-        <span class="badge-construction">🚧 UNDER CONSTRUCTION</span>
-        <span class="btn-sub">A new server is on its way!</span>
-      </div>
-
-      <div id="patch-notes">
-        <h3>PATCH NOTES · v2.1</h3>
-        <ul>
-          <li>6 unique geometric bosses every 5 waves</li>
-          <li>Weapon visual effects for all 7 guns</li>
-          <li>5 second ready-up countdown</li>
-          <li>Rejoin game after leaving browser</li>
-          <li>Pentagon boss speed increased</li>
-          <li>Zombies no longer overlap players</li>
-          <li>Boss fight banner simplified</li>
-        </ul>
-      </div>
-    </div>
-    </div>
+    <a id="local-btn" class="menu-btn" href="/index.html">
+      LOCAL PARTY
+    </a>
+    <a id="pc-btn" class="menu-btn" href="/pc.html">
+      PC MULTIPLAYER
+    </a>
   </div>
 
-  <div id="version">PHASE 2a · BUILD 2.1</div>
+  <div id="patch-notes">
+    <h3>PATCH NOTES · V2.2</h3>
+    <ul>
+      <li>C64 visual overhaul</li>
+      <li>Pixel stab replaces arc flash</li>
+      <li>PC mode client prediction</li>
+      <li>Zombie death glitch fixed</li>
+      <li>8 unique bosses every 5 waves</li>
+      <li>20hz PC broadcast rate</li>
+    </ul>
+  </div>
 
+  <div id="insert-coin">— SELECT MODE —</div>
+</div>
 
+<div id="version">PHASE 2B · BUILD 2.2</div>
 
 </body>
 </html>
