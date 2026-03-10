@@ -8,16 +8,17 @@
   <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet">
   <style>
     * { margin:0; padding:0; box-sizing:border-box; }
-    body { background:#00004a; font-family:'Press Start 2P',monospace; overflow:hidden; width:100vw; height:100vh; }
+    body { background:#000000; font-family:'Press Start 2P',monospace; overflow:hidden; width:100vw; height:100vh; }
 
     /* ── LOBBY SCREEN ── */
     #lobby-screen {
-      position:fixed; inset:0; background:#00004a;
+      position:fixed; inset:0; background:#000000;
       display:flex; flex-direction:column; align-items:center; justify-content:center;
       gap:32px; z-index:100;
     }
     #lobby-title {
-      font-size:clamp(32px,8vw,72px); color:#ffffff; letter-spacing:12px;
+      font-size:clamp(48px,12vw,96px); color:#883232; letter-spacing:12px;
+      text-shadow: 3px 3px 0 #3d0000, -1px -1px 0 #5a1a1a, 2px 0 0 #3d0000;
     }
     #lobby-sub { color:#7869c4; font-size:9px; letter-spacing:4px; margin-top:14px; }
 
@@ -27,18 +28,18 @@
       letter-spacing:2px; cursor:pointer; border:2px solid #7869c4;
       background:transparent; color:#ffffff; transition:all 0.1s;
     }
-    .mode-btn:hover { background:#7869c4; color:#00004a; }
+    .mode-btn:hover { background:#883232; border-color:#883232; color:#ffffff; }
 
     #join-form { display:none; flex-direction:column; align-items:center; gap:12px; }
     #room-input {
-      background:#000020; border:2px solid #7869c4; color:#ffffff;
+      background:#000000; border:2px solid #7869c4; color:#ffffff;
       font-family:'Press Start 2P'; font-size:32px; letter-spacing:12px;
       text-align:center; padding:12px 20px; width:240px;
       text-transform:uppercase; outline:none;
     }
     #room-input:focus { border-color:#ffffff; }
     #btn-join-confirm {
-      width:240px; height:48px; background:#000020; border:2px solid #55a049;
+      width:240px; height:48px; background:#000000; border:2px solid #55a049;
       color:#55a049; font-family:'Press Start 2P'; font-size:10px; letter-spacing:3px;
       cursor:pointer;
     }
@@ -53,7 +54,7 @@
 
     /* ── WAITING ROOM ── */
     #waiting-room {
-      position:fixed; inset:0; background:#00004a;
+      position:fixed; inset:0; background:#000000;
       display:none; flex-direction:column; align-items:center; justify-content:center;
       gap:24px; z-index:100;
     }
@@ -76,7 +77,7 @@
     .slot-ready.yes { color:#55a049; }
 
     #btn-ready {
-      width:260px; height:52px; background:#000020; border:2px solid #55a049;
+      width:260px; height:52px; background:#000000; border:2px solid #55a049;
       color:#55a049; font-family:'Press Start 2P'; font-size:12px;
       letter-spacing:4px; cursor:pointer; transition:all 0.1s;
     }
@@ -92,14 +93,14 @@
       display:none; position:fixed;
       top:44px; left:0; right:0; bottom:0;
       align-items:center; justify-content:center;
-      background:#00004a;
+      background:#000000;
     }
     #canvas { display:block; image-rendering:pixelated; image-rendering:crisp-edges; }
 
     /* ── HUD ── */
     #hud {
       position:fixed; top:0; left:0; right:0; height:44px;
-      background:#000020; border-bottom:2px solid #40318d;
+      background:#000000; border-bottom:2px solid #40318d;
       display:none; align-items:center; justify-content:space-between;
       padding:0 16px; z-index:50; pointer-events:none;
     }
@@ -118,7 +119,7 @@
     }
     .voice-player {
       display:flex; align-items:center; gap:7px;
-      background:#000020; border:1px solid #1a1a3a;
+      background:#000000; border:1px solid #1a1a3a;
       padding:4px 10px 4px 6px;
       font-size:7px; letter-spacing:2px; transition:all 0.1s;
     }
@@ -132,7 +133,7 @@
     #mic-status {
       position:fixed; bottom:12px; left:14px;
       display:none; align-items:center; gap:7px;
-      background:#000020; border:1px solid #1a1a3a;
+      background:#000000; border:1px solid #1a1a3a;
       padding:5px 12px; font-size:7px; letter-spacing:2px; color:#333355; z-index:50;
     }
     #mic-status.active { color:#55a049; border-color:#55a049; }
@@ -303,7 +304,7 @@ let localExplosions = [];
 // ── Client-side prediction ────────────────────────────────────────
 // localMe: our own player simulated locally (never waits for server)
 let localMe = null;
-const PC_SPEED = 1.9; // slightly faster than server (1.5) for snappy feel
+const PC_SPEED = 3.2; // match local PLAYER_SPEED feel (server now uses PLAYER_SPEED=1.5, client predicts at 2x)
 
 // ── Entity smoothing ─────────────────────────────────────────────
 // For each entity we track a smoothed display position that glides
@@ -369,7 +370,7 @@ function resizeCanvas() {
 window.addEventListener('resize', resizeCanvas);
 
 function drawIdleFrame() {
-  ctx.fillStyle = '#00004a';
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
   ctx.strokeStyle = 'rgba(80,80,160,0.18)'; ctx.lineWidth = 1;
   for (let x = 0; x < CANVAS_W; x += 16) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,CANVAS_H); ctx.stroke(); }
@@ -808,7 +809,7 @@ function renderGame() {
   ctx.fillRect(0, 0, W, H);
 
   // C64 navy background
-  ctx.fillStyle = '#00004a';
+  ctx.fillStyle = '#000000';
   ctx.fillRect(0, 0, W, H);
 
   // Pixel grid
