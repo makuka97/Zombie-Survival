@@ -170,12 +170,22 @@
     /* Mic status */
     #mic-btn {
       position:absolute; top:8px; right:12px;
+      display:flex; align-items:center; gap:6px;
       font-size:6px; color:rgba(64,49,141,0.7); letter-spacing:1px;
-      background:rgba(0,0,10,0.4); border:1px solid rgba(64,49,141,0.4);
-      padding:4px 8px; pointer-events:all; cursor:pointer;
+      background:rgba(0,0,10,0.5); border:1px solid rgba(64,49,141,0.4);
+      padding:5px 10px; pointer-events:all; cursor:pointer;
+      font-family:'Press Start 2P',monospace;
+    }
+    #mic-dot {
+      width:8px; height:8px;
+      background:#333355; border-radius:50%;
+      flex-shrink:0; transition:all 0.1s;
     }
     #mic-btn.active { color:#55a049; border-color:#55a049; }
+    #mic-btn.active #mic-dot { background:#55a049; box-shadow:0 0 6px #55a049, 0 0 12px #55a049; }
+    #mic-btn.speaking #mic-dot { background:#94e089; box-shadow:0 0 8px #94e089, 0 0 16px #55a049; }
     #mic-btn.denied { color:#883232; border-color:#883232; }
+    #mic-btn.denied #mic-dot { background:#883232; }
 
     /* Wave banner */
     #wave-banner {
@@ -263,7 +273,7 @@
       <div class="hud-val" id="hud-pts">0</div>
     </div>
   </div>
-  <button id="mic-btn" onclick="toggleMute()">🎤 MIC</button>
+  <button id="mic-btn" onclick="toggleMute()"><div id="mic-dot"></div><span id="mic-label">MIC</span></button>
   <div id="joystick-zone"><div id="joystick-knob"></div></div>
   <div id="fire-btn">FIRE</div>
   <div id="action-btn" onclick="handleAction()">—</div>
@@ -325,8 +335,6 @@ const canvas = document.getElementById('game-canvas');
 const ctx = canvas.getContext('2d');
 
 function resizeCanvas() {
-  const wrap = document.getElementById('game-wrap');
-  if (wrap.style.display === 'none') return;
   const scale = Math.min(window.innerWidth / CANVAS_W, window.innerHeight / CANVAS_H);
   canvas.width  = CANVAS_W;
   canvas.height = CANVAS_H;
@@ -795,11 +803,13 @@ async function initVoiceChat() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
     const btn = document.getElementById('mic-btn');
-    btn.textContent = '🎤 ON'; btn.classList.add('active');
+    btn.classList.add('active');
+    document.getElementById('mic-label').textContent = 'MIC ON';
     setupVoiceAnalyser(mySlot, localStream);
   } catch(e) {
     const btn = document.getElementById('mic-btn');
-    btn.textContent = '🚫 MIC'; btn.classList.add('denied');
+    btn.classList.add('denied');
+    document.getElementById('mic-label').textContent = 'NO MIC';
   }
 }
 
@@ -807,9 +817,27 @@ function toggleMute() {
   myMuted = !myMuted;
   if (localStream) localStream.getAudioTracks().forEach(t => t.enabled = !myMuted);
   const btn = document.getElementById('mic-btn');
-  btn.textContent = myMuted ? '🔇 OFF' : '🎤 ON';
-  btn.className = myMuted ? 'denied' : 'active';
+  const label = document.getElementById('mic-label');
+  if (myMuted) {
+    btn.className = 'denied';
+    label.textContent = 'MUTED';
+  } else {
+    btn.className = 'active';
+    label.textContent = 'MIC ON';
+  }
 }
+
+// Speaking detection — poll voice levels and light up the dot
+setInterval(() => {
+  if (!audioCtx || !analyserNodes[mySlot]) return;
+  const data = new Uint8Array(32);
+  analyserNodes[mySlot].getByteFrequencyData(data);
+  const vol = data.reduce((s,v) => s+v, 0) / data.length;
+  const speaking = vol > 12 && !myMuted;
+  const btn = document.getElementById('mic-btn');
+  if (speaking) btn.classList.add('speaking');
+  else btn.classList.remove('speaking');
+}, 80);
 
 function getOrCreatePeer(remoteSlot) {
   if (rtcPeers[remoteSlot]) return rtcPeers[remoteSlot];
@@ -880,10 +908,13 @@ socket.on('ready-countdown-cancelled', () => {
 
 socket.on('game-starting-remote', () => {
   document.getElementById('waiting-screen').style.display = 'none';
+  document.getElementById('lobby-screen').style.display = 'none';
   const wrap = document.getElementById('game-wrap');
   wrap.style.display = 'flex';
-  document.getElementById('controls-overlay').style.display = 'block';
-  resizeCanvas();
+  const overlay = document.getElementById('controls-overlay');
+  overlay.style.display = 'block';
+  // Force resize after both are visible
+  setTimeout(resizeCanvas, 50);
   startInputLoop();
 });
 
