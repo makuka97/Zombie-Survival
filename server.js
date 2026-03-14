@@ -429,9 +429,9 @@ class ServerGame {
     for(let z of this.zombies){
       let near=null,nd=Infinity;
       for(let p of this.players){if(!p.alive||!p.connected)continue;const d=Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2);if(d<nd){nd=d;near=p;}}
-      if(!near)continue;
+      if(!near){z.vx=0;z.vy=0;continue;}
       const dx=near.x-z.x,dy=near.y-z.y,dist=Math.sqrt(dx*dx+dy*dy);
-      if(dist>0){z.x+=(dx/dist)*z.speed;z.y+=(dy/dist)*z.speed;}
+      if(dist>0){z.vx=(dx/dist)*z.speed;z.vy=(dy/dist)*z.speed;z.x+=z.vx;z.y+=z.vy;}else{z.vx=0;z.vy=0;}
       if(Math.sqrt((near.x-z.x)**2+(near.y-z.y)**2)<z.size/2+PLAYER_SIZE/2){near.hp-=0.5;if(near.hp<=0&&near.alive){near.alive=false;near.hp=0;this.checkGameOver();}}
     }
     for(let i=this.ammoPacks.length-1;i>=0;i--){const a=this.ammoPacks[i];for(let p of this.players){if(!p.alive)continue;if(Math.sqrt((p.x-a.x)**2+(p.y-a.y)**2)<PLAYER_SIZE/2+10){if(p.ammo!==Infinity)p.ammo+=Math.floor(WEAPONS[p.currentWeapon].ammoCapacity*0.5);this.ammoPacks.splice(i,1);break;}}}
@@ -448,7 +448,7 @@ class ServerGame {
   getState() {
     return {
       players: this.players.map(p=>({slot:p.slot,x:p.x,y:p.y,angle:p.angle,color:p.color,hp:p.hp,maxHp:p.maxHp,ammo:p.ammo===Infinity?-1:p.ammo,points:p.points,weapon:p.currentWeapon,alive:p.alive,connected:p.connected,canUseMysteryBox:this.canUseMysteryBox(p),canUseVending:this.canUseVending(p),vendingCost:this.vendingCost})),
-      zombies: this.zombies.map(z=>({id:z.id,x:z.x,y:z.y,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor,speed:z.speed})),
+      zombies: this.zombies.map(z=>({id:z.id,x:z.x,y:z.y,vx:z.vx||0,vy:z.vy||0,type:z.type,hp:z.hp,maxHp:z.maxHp,size:z.size,color:z.color,borderColor:z.borderColor,speed:z.speed})),
       bullets: this.bullets.map(b=>({x:b.x,y:b.y,vx:b.vx,vy:b.vy,color:b.color,weapon:b.weapon})),
       ammoPacks: this.ammoPacks.map(a=>({x:a.x,y:a.y})),
       healthPacks: this.healthPacks.map(h=>({x:h.x,y:h.y})),
