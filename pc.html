@@ -1261,9 +1261,17 @@ function getOrCreatePeer(remoteSlot) {
 
   pc.ontrack = e => {
     const remoteStream = e.streams[0];
-    const audio = new Audio();
-    audio.srcObject = remoteStream;
-    audio.play().catch(()=>{});
+    // Store audio element at window level to prevent garbage collection
+    if (!window._remoteAudios) window._remoteAudios = {};
+    if (!window._remoteAudios[remoteSlot]) {
+      const audio = new Audio();
+      audio.srcObject = remoteStream;
+      audio.autoplay = true;
+      window._remoteAudios[remoteSlot] = audio;
+    } else {
+      window._remoteAudios[remoteSlot].srcObject = remoteStream;
+    }
+    window._remoteAudios[remoteSlot].play().catch(()=>{});
     setupVoiceAnalyser(remoteSlot, remoteStream);
   };
 
