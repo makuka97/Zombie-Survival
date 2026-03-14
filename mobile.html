@@ -332,7 +332,7 @@ let myMuted = false;
 let meleeFlashes = [];
 let bannerTimeout = null;
 
-const MOBILE_SPEED = 3.2;
+const MOBILE_SPEED = 2.5;
 let localMe = null;
 const smooth = {};
 
@@ -701,6 +701,15 @@ socket.on('game-starting-remote',()=>{
 });
 socket.on('remote-game-state',state=>{
   gameState=state;
+
+  // Convert server explosions → melee flash animations
+  if (state.explosions && state.explosions.length > 0) {
+    for (const ex of state.explosions) {
+      if (ex.melee) {
+        meleeFlashes.push({ x:ex.x, y:ex.y, angle:ex.angle||0, color:ex.color, timer:8 });
+      }
+    }
+  }
   const me=state.players.find(p=>p.slot===mySlot);
   if(me){
     if(!localMe){localMe={...me};}
