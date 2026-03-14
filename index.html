@@ -3962,7 +3962,7 @@ QRCode.createBytes = function(buffer, rsBlocks) {
     socket.on('room-created', (data) => {
       game.roomCode = data.roomCode;
       document.getElementById('room-code').textContent = data.roomCode;
-      const qrUrl = `https://zombie-survival-s1wd.onrender.com/controller.html?room=${data.roomCode}`;
+      const qrUrl = `https://zombie-survival-zteam.fly.dev/controller.html?room=${data.roomCode}`;
       renderQR(document.getElementById('qr-code'), qrUrl);
       game.start();
     });
