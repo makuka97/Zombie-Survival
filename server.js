@@ -15,7 +15,7 @@ const io = socketIo(server, {
 app.get('/', (req, res) => res.sendFile(path.resolve(__dirname, 'landing.html')));
 app.get('/ping', (req, res) => res.json({ status: 'ok', uptime: process.uptime(), ts: Date.now() }));
 app.use(express.static(path.join(__dirname)));
-app.get('/join/:roomCode', (req, res) => res.redirect(`/remote.html?room=${req.params.roomCode.toUpperCase()}`));
+app.get('/join/:roomCode', (req, res) => res.redirect(`/mobile.html?room=${req.params.roomCode.toUpperCase()}`));
 
 const C = require('./shared/game-constants');
 const {
@@ -586,6 +586,29 @@ class GameRoom {
 
 const gameRooms=new Map();
 
+// Shared aim assist — used by both PC and mobile input handlers
+function _applyAimAssist(p, sg) {
+  if(!p.firing) return;
+  const AIM_ASSIST_RANGE=180, AIM_ASSIST_CONE=Math.PI/4;
+  let bestDist=AIM_ASSIST_RANGE, bestAngle=null;
+  const targets=[...sg.zombies];
+  if(sg.boss&&!sg.boss.dead)targets.push(sg.boss);
+  for(const z of targets){
+    const tx=z.x??z.bx, ty=z.y??z.by; if(tx==null)continue;
+    const dx=tx-p.x, dy=ty-p.y, dist=Math.sqrt(dx*dx+dy*dy);
+    if(dist>AIM_ASSIST_RANGE)continue;
+    const angleToZ=Math.atan2(dy,dx);
+    let diff=angleToZ-p.angle;
+    while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
+    if(Math.abs(diff)<AIM_ASSIST_CONE&&dist<bestDist){bestDist=dist;bestAngle=angleToZ;}
+  }
+  if(bestAngle!==null){
+    let diff=bestAngle-p.angle;
+    while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
+    p.angle+=diff*0.6;
+  }
+}
+
 io.on('connection',(socket)=>{
   console.log(`[SERVER] Connected: ${socket.id}`);
   socket.on('create-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'local');gameRooms.set(c,r);r.setHost(socket);socket.join(c);});
@@ -602,35 +625,29 @@ io.on('connection',(socket)=>{
     const player=r.players.get(socket.id); if(!player) return;
     const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
     const inp=d.input;
-    // Movement from WASD — match local PLAYER_SPEED
     if(inp.moveX!==0||inp.moveY!==0){const a=Math.atan2(inp.moveY,inp.moveX);p.vx=Math.cos(a)*PLAYER_SPEED;p.vy=Math.sin(a)*PLAYER_SPEED;}else{p.vx=0;p.vy=0;}
-    // Aiming from mouse
     if(inp.aimAngle!=null)p.angle=inp.aimAngle;
     p.firing=!!inp.fire;
-    // ── Aim assist: same as local mode ──
-    if(p.firing){
-      const AIM_ASSIST_RANGE=180, AIM_ASSIST_CONE=Math.PI/4;
-      let bestDist=AIM_ASSIST_RANGE, bestAngle=null;
-      const sg=r.serverGame;
-      const targets=[...sg.zombies];
-      if(sg.boss&&!sg.boss.dead)targets.push(sg.boss);
-      for(const z of targets){
-        const tx=z.x??z.bx, ty=z.y??z.by; if(tx==null)continue;
-        const dx=tx-p.x, dy=ty-p.y, dist=Math.sqrt(dx*dx+dy*dy);
-        if(dist>AIM_ASSIST_RANGE)continue;
-        const angleToZ=Math.atan2(dy,dx);
-        let diff=angleToZ-p.angle;
-        while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
-        if(Math.abs(diff)<AIM_ASSIST_CONE&&dist<bestDist){bestDist=dist;bestAngle=angleToZ;}
-      }
-      if(bestAngle!==null){
-        let diff=bestAngle-p.angle;
-        while(diff>Math.PI)diff-=2*Math.PI; while(diff<-Math.PI)diff+=2*Math.PI;
-        p.angle+=diff*0.6;
-      }
-    }
+    _applyAimAssist(p, r.serverGame);
+  });
+
+  // Mobile input — identical to PC input (same aim assist, same speed)
+  socket.on('mobile-input', d=>{
+    const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
+    const player=r.players.get(socket.id); if(!player) return;
+    const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
+    const inp=d.input;
+    if(inp.moveX!==0||inp.moveY!==0){const a=Math.atan2(inp.moveY,inp.moveX);p.vx=Math.cos(a)*PLAYER_SPEED;p.vy=Math.sin(a)*PLAYER_SPEED;}else{p.vx=0;p.vy=0;}
+    if(inp.aimAngle!=null)p.angle=inp.aimAngle;
+    p.firing=!!inp.fire;
+    _applyAimAssist(p, r.serverGame);
   });
   socket.on('pc-melee', d=>{
+    const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
+    const player=r.players.get(socket.id); if(!player) return;
+    r.serverGame.performMelee(r.serverGame.players[player.slotNumber-1]);
+  });
+  socket.on('mobile-melee', d=>{
     const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
     const player=r.players.get(socket.id); if(!player) return;
     r.serverGame.performMelee(r.serverGame.players[player.slotNumber-1]);
@@ -670,7 +687,7 @@ io.on('connection',(socket)=>{
   });
 });
 
-const PORT=process.env.PORT||3000;
+const PORT=process.env.PORT||8080;
 server.listen(PORT,'0.0.0.0',()=>{
   console.log(`Z-TEAM Server running on port ${PORT}`);
 });
