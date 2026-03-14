@@ -15,6 +15,7 @@ const io = socketIo(server, {
 app.get('/', (req, res) => res.sendFile(path.resolve(__dirname, 'landing.html')));
 app.get('/ping', (req, res) => res.json({ status: 'ok', uptime: process.uptime(), ts: Date.now() }));
 app.use(express.static(path.join(__dirname)));
+app.get('/shared/game-constants.js', (req, res) => res.sendFile(path.resolve(__dirname, 'shared/game-constants.js')));
 app.get('/join/:roomCode', (req, res) => res.redirect(`/mobile.html?room=${req.params.roomCode.toUpperCase()}`));
 
 const C = require('./shared/game-constants');
