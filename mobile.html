@@ -329,13 +329,11 @@ const smooth = {};
 function getSmoothPos(key, sx, sy, svx, svy) {
   if (!smooth[key]) { smooth[key]={x:sx,y:sy,vx:svx||0,vy:svy||0}; return smooth[key]; }
   const s=smooth[key];
-  // Extrapolate forward using velocity
-  s.x+=s.vx; s.y+=s.vy;
-  // Measure error vs server
+  // At 60hz broadcast, just blend directly - minimal lag
   const dx=sx-s.x, dy=sy-s.y;
   const dist=Math.sqrt(dx*dx+dy*dy);
-  if (dist>150) { s.x=sx; s.y=sy; } // hard snap only for big jumps
-  else if (dist>0.5) { s.x+=dx*0.2; s.y+=dy*0.2; } // soft correction
+  if (dist>100) { s.x=sx; s.y=sy; } // hard snap for big jumps only
+  else { s.x+=dx*0.4; s.y+=dy*0.4; } // fast blend - 60hz means less lag needed
   s.vx=svx||0; s.vy=svy||0;
   return s;
 }
@@ -433,7 +431,7 @@ function startInputLoop() {
       localMe.y=Math.max(hs,Math.min(CANVAS_H-hs,localMe.y+vy*MOBILE_SPEED));
       localMe.angle=Math.atan2(vy,vx);
     }
-  }, 33);
+  }, 16); // 60hz input matching server tick rate
 }
 
 // ── Action button ─────────────────────────────────────────────────
@@ -628,6 +626,12 @@ async function initVoiceChat(){
     document.getElementById('mic-btn').classList.add('active');
     document.getElementById('mic-label').textContent='MIC ON';
     setupVoiceAnalyser(mySlot,localStream);
+    // Add local tracks to any peer connections already created
+    for(const pc of Object.values(rtcPeers)){
+      localStream.getTracks().forEach(t=>{
+        try{ pc.addTrack(t,localStream); }catch(e){}
+      });
+    }
   }catch(e){
     document.getElementById('mic-btn').classList.add('denied');
     document.getElementById('mic-label').textContent='NO MIC';
