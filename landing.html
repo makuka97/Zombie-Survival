@@ -185,7 +185,7 @@
         ONLINE<span style="letter-spacing:8px"> </span>MULTIPLAYER<span class="new-badge">NEW!</span>
       </a>
     </div>
-    <div id="cross-platform">MOBILE & PC · CROSS PLATFORM · VOICE CHAT</div>
+    <div id="cross-platform">PC MULTIPLAYER · UP TO 4 PLAYERS · VOICE CHAT</div>
   </div>
 
   <div id="patch-notes">
@@ -207,9 +207,7 @@
 
 <script>
   function goMultiplayer() {
-    const ua = navigator.userAgent;
-    const isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|BlackBerry|webOS|Windows Phone/i.test(ua);
-    window.location.href = isMobile ? '/mobile.html' : '/pc.html';
+    window.location.href = '/pc.html';
   }
 </script>
 
