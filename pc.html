@@ -195,7 +195,7 @@
 <div id="waiting-room">
   <div id="waiting-title">WAITING ROOM</div>
   <div id="room-code-display">----</div>
-  <div id="room-code-hint">SHARE THIS CODE · MOBILE: zombie-survival-zteam.fly.dev/mobile.html</div>
+  <div id="room-code-hint">SHARE CODE · FRIENDS GO TO zombie-survival-zteam.fly.dev</div>
   <div id="player-slots">
     <div class="player-slot" id="slot-1"><div class="slot-num">P1</div><div class="slot-name" style="color:#00ffff">EMPTY</div><div class="slot-ready">—</div></div>
     <div class="player-slot" id="slot-2"><div class="slot-num">P2</div><div class="slot-name" style="color:#ff44ff">EMPTY</div><div class="slot-ready">—</div></div>
@@ -475,15 +475,7 @@ socket.on('remote-game-state', d => {
     const key = 'z' + (z.id !== undefined ? z.id : i);
     activeKeys.add(key);
     // Estimate zombie velocity toward nearest player
-    let nvx = 0, nvy = 0;
-    let nearDist = Infinity;
-    for (const p of d.players) {
-      if (!p.alive || !p.connected) continue;
-      const ddx = p.x - z.x, ddy = p.y - z.y;
-      const dd = Math.sqrt(ddx*ddx + ddy*ddy);
-      if (dd < nearDist) { nearDist = dd; nvx = (ddx/dd)*z.speed; nvy = (ddy/dd)*z.speed; }
-    }
-    getSmoothPos(key, z.x, z.y, nvx, nvy);
+    getSmoothPos(key, z.x, z.y, z.vx||0, z.vy||0);
   }
   cleanSmoothKeys(activeKeys);
 
