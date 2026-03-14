@@ -181,21 +181,12 @@
       <a id="local-btn" class="menu-btn" href="/index.html">
         LOCAL PARTY
       </a>
-      <a id="pc-btn" class="menu-btn" id="multi-btn" href="#" onclick="goMultiplayer(); return false;">
+      <a id="pc-btn" class="menu-btn" href="#" onclick="goMultiplayer(); return false;">
         ONLINE<span style="letter-spacing:8px"> </span>MULTIPLAYER<span class="new-badge">NEW!</span>
       </a>
     </div>
     <div id="cross-platform">MOBILE & PC · CROSS PLATFORM · VOICE CHAT</div>
   </div>
-
-  <script>
-    function goMultiplayer() {
-      const ua = navigator.userAgent;
-      const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini|webOS|Windows Phone/i.test(ua)
-        || (navigator.maxTouchPoints > 1 && !/Macintosh/i.test(ua));
-      window.location.href = isMobile ? '/mobile.html' : '/pc.html';
-    }
-  </script>
 
   <div id="patch-notes">
     <h3>PATCH NOTES · V2.2</h3>
@@ -213,6 +204,15 @@
 </div>
 
 <div id="version">PHASE 2B · BUILD 2.2</div>
+
+<script>
+  function goMultiplayer() {
+    const ua = navigator.userAgent;
+    const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini|webOS|Windows Phone/i.test(ua)
+      || (navigator.maxTouchPoints > 1 && !/Macintosh/i.test(ua));
+    window.location.href = isMobile ? '/mobile.html' : '/pc.html';
+  }
+</script>
 
 </body>
 </html>
