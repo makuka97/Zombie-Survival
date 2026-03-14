@@ -37,13 +37,13 @@ const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
 const BROADCAST_RATE = 30;
 const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
-const PLAYER_SPEED   = 2.1;  // local runs at 4.2 @ 60fps, server at 60hz = 4.2/2
-const BULLET_SPEED   = 8;    // match local BULLET_SPEED directly
+const PLAYER_SPEED   = 4.2;  // EXACT match to local index.html PLAYER_SPEED — server ticks at 60hz same as local
+const BULLET_SPEED   = 8;    // EXACT match to local index.html BULLET_SPEED
 const SERVER_ZOMBIE_SPEED = {
-  regular: ZOMBIE_TYPES.regular.speed / 2,
-  runner:  ZOMBIE_TYPES.runner.speed  / 2,
-  tank:    ZOMBIE_TYPES.tank.speed    / 2,
-  bomber:  ZOMBIE_TYPES.bomber.speed  / 2,
+  regular: ZOMBIE_TYPES.regular.speed,  // exact match to local
+  runner:  ZOMBIE_TYPES.runner.speed,
+  tank:    ZOMBIE_TYPES.tank.speed,
+  bomber:  ZOMBIE_TYPES.bomber.speed,
 };
 
 class ServerGame {
@@ -324,7 +324,8 @@ class ServerGame {
     const speedMult = 1 + (this.wave - 1) * 0.05;
     const scaledHp    = Math.round(td.hp * hpMult);
     const scaledSpeed = SERVER_ZOMBIE_SPEED[type] * speedMult;
-    this.zombies.push({id: this._nextZombieId++, x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points});
+    const hitRadius = type === 'runner' ? td.size * 0.875 : td.size / 2; // match local
+    this.zombies.push({id: this._nextZombieId++, x,y,type,hp:scaledHp,maxHp:scaledHp,speed:scaledSpeed,size:td.size,color:td.color,borderColor:td.borderColor,points:td.points,hitRadius});
   }
 
   rollZombieType() {
@@ -335,12 +336,23 @@ class ServerGame {
 
   fireBullet(p) {
     const weapon=WEAPONS[p.currentWeapon];
-    this.bullets.push({x:p.x+Math.cos(p.angle)*PLAYER_SIZE,y:p.y+Math.sin(p.angle)*PLAYER_SIZE,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color,weapon:p.currentWeapon});
+    const bx=p.x+Math.cos(p.angle)*PLAYER_SIZE;
+    const by=p.y+Math.sin(p.angle)*PLAYER_SIZE;
+    const w=p.currentWeapon;
+    if(w==='shotgun'){
+      for(let i=0;i<6;i++){
+        const spread=(Math.random()-0.5)*0.55;
+        const a=p.angle+spread;
+        this.bullets.push({x:bx,y:by,vx:Math.cos(a)*BULLET_SPEED*(0.8+Math.random()*0.4),vy:Math.sin(a)*BULLET_SPEED*(0.8+Math.random()*0.4),damage:weapon.damage,color:p.color,weapon:w,life:18+Math.floor(Math.random()*8)});
+      }
+    } else {
+      this.bullets.push({x:bx,y:by,vx:Math.cos(p.angle)*BULLET_SPEED,vy:Math.sin(p.angle)*BULLET_SPEED,damage:weapon.damage,color:p.color,weapon:w});
+    }
     if(p.ammo!==Infinity)p.ammo--;
   }
 
   performMelee(p) {
-    this.explosions.push({x:p.x+Math.cos(p.angle)*MELEE_RANGE*0.5,y:p.y+Math.sin(p.angle)*MELEE_RANGE*0.5,color:p.color,melee:true,angle:p.angle});
+    this.explosions.push({x:p.x,y:p.y,color:p.color,melee:true,angle:p.angle}); // origin at player, matches local
     for (let j=this.zombies.length-1;j>=0;j--) {
       const z=this.zombies[j],dx=z.x-p.x,dy=z.y-p.y;
       if(Math.sqrt(dx*dx+dy*dy)>MELEE_RANGE+z.size/2)continue;
@@ -406,11 +418,13 @@ class ServerGame {
     }
     for(let i=this.bullets.length-1;i>=0;i--){
       const b=this.bullets[i]; b.x+=b.vx; b.y+=b.vy;
+      if(b.life!==undefined){b.life--;if(b.life<=0){this.bullets.splice(i,1);continue;}}
       if(b.x<0||b.x>CANVAS_W||b.y<0||b.y>CANVAS_H){this.bullets.splice(i,1);continue;}
       let hit=false;
       for(let j=this.zombies.length-1;j>=0;j--){
         const z=this.zombies[j],dx=b.x-z.x,dy=b.y-z.y;
-        if(Math.sqrt(dx*dx+dy*dy)<z.size/2+BULLET_SIZE/2){
+        const hitR=(z.hitRadius??z.size/2)+BULLET_SIZE/2; // match local hitRadius
+        if(Math.sqrt(dx*dx+dy*dy)<hitR){
           z.hp-=b.damage;hit=true;
           if(z.hp<=0){let near=null,nd=Infinity;for(let p of this.players){if(!p.alive||!p.connected)continue;const d=Math.sqrt((p.x-z.x)**2+(p.y-z.y)**2);if(d<nd){nd=d;near=p;}}if(near)near.points+=z.points;if(Math.random()<AMMO_DROP_CHANCE)this.ammoPacks.push({x:z.x,y:z.y});if(Math.random()<HEALTH_DROP_CHANCE)this.healthPacks.push({x:z.x,y:z.y});this.explosions.push({x:z.x,y:z.y,color:z.borderColor});if(z.type==='bomber')this.triggerBomberExplosion(z.x,z.y);this.zombies.splice(j,1);this.waveKilled++;if(this.waveKilled>=this.waveTotal&&this.zombies.length===0&&!this.boss) this._advanceWave();}
           break;
@@ -612,7 +626,7 @@ function _applyAimAssist(p, sg) {
 io.on('connection',(socket)=>{
   console.log(`[SERVER] Connected: ${socket.id}`);
   socket.on('create-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'local');gameRooms.set(c,r);r.setHost(socket);socket.join(c);});
-  socket.on('create-pc-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'remote');gameRooms.set(c,r);socket.emit('room-created',{roomCode:c,mode:'remote'});socket.join(c);console.log(`[PC ROOM ${c}] Created`);});
+  socket.on('create-pc-room',()=>{const c=GameRoom.generateRoomCode();const r=new GameRoom(c,'remote');gameRooms.set(c,r);socket.emit('room-created',{roomCode:c,mode:'remote'});console.log(`[PC ROOM ${c}] Created`);});
 
   // ── WebRTC Signaling ──────────────────────────────────────────
   socket.on('rtc-offer',  d=>{const r=gameRooms.get(d.roomCode);if(!r)return;for(const[sid,p]of r.players){if(p.slotNumber===d.to){const s=io.sockets.sockets.get(sid);if(s)s.emit('rtc-offer',d);break;}}});
@@ -645,12 +659,16 @@ io.on('connection',(socket)=>{
   socket.on('pc-melee', d=>{
     const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
     const player=r.players.get(socket.id); if(!player) return;
-    r.serverGame.performMelee(r.serverGame.players[player.slotNumber-1]);
+    const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
+    // Only allow melee when out of ammo — matches local mode exactly
+    if(p.ammo===0&&p.ammo!==Infinity&&p.meleeCooldown<=0){r.serverGame.performMelee(p);p.meleeCooldown=1;}
   });
   socket.on('mobile-melee', d=>{
     const r=gameRooms.get(d.roomCode); if(!r||!r.serverGame) return;
     const player=r.players.get(socket.id); if(!player) return;
-    r.serverGame.performMelee(r.serverGame.players[player.slotNumber-1]);
+    const p=r.serverGame.players[player.slotNumber-1]; if(!p||!p.alive) return;
+    // Only allow melee when out of ammo — matches local mode exactly
+    if(p.ammo===0&&p.ammo!==Infinity&&p.meleeCooldown<=0){r.serverGame.performMelee(p);p.meleeCooldown=1;}
   });
   socket.on('join-room',(data)=>{
     const r=gameRooms.get(data.roomCode);if(!r){socket.emit('join-failed',{reason:'Room not found'});return;}
