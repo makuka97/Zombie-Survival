@@ -300,9 +300,9 @@ const smooth = {};
 function getSmoothPos(key, sx, sy, svx, svy) {
   if (!smooth[key]) { smooth[key] = {x:sx,y:sy,vx:svx||0,vy:svy||0}; return smooth[key]; }
   const s = smooth[key];
-  const LERP = 0.22;
-  s.vx = svx || (sx - s.x) * 0.3;
-  s.vy = svy || (sy - s.y) * 0.3;
+  const LERP = 0.15; // gentler glide — reduces teleport feel
+  s.vx = svx || (sx - s.x) * 0.2;
+  s.vy = svy || (sy - s.y) * 0.2;
   s.x += (sx - s.x) * LERP;
   s.y += (sy - s.y) * LERP;
   return s;
@@ -427,7 +427,7 @@ function startInputLoop() {
       localMe.y = Math.max(hs, Math.min(CANVAS_H-hs, localMe.y + vy * MOBILE_SPEED));
       localMe.angle = Math.atan2(vy, vx);
     }
-  }, 50);
+  }, 33); // 30hz
 }
 
 // ── Action button ─────────────────────────────────────────────────
@@ -876,7 +876,7 @@ socket.on('remote-game-state', state => {
     } else {
       // Reconcile: server is authoritative for everything except position during prediction
       const dx = me.x - localMe.x, dy = me.y - localMe.y;
-      if (Math.sqrt(dx*dx+dy*dy) > 80) { localMe.x=me.x; localMe.y=me.y; } // hard snap if too far off
+      if (Math.sqrt(dx*dx+dy*dy) > 160) { localMe.x=me.x; localMe.y=me.y; } // hard snap if too far off
       localMe.hp=me.hp; localMe.maxHp=me.maxHp; localMe.ammo=me.ammo===(-1)?Infinity:me.ammo;
       localMe.weapon=me.weapon; localMe.points=me.points; localMe.alive=me.alive;
       localMe.canUseMysteryBox=me.canUseMysteryBox; localMe.canUseVending=me.canUseVending;
