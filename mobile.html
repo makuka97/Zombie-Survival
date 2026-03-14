@@ -113,7 +113,12 @@
       display:none;
       position:fixed; inset:0;
       z-index:50;
-      pointer-events:none;
+      pointer-events:none; /* overlay itself passes touches through */
+    }
+
+    /* Only these elements receive touches */
+    #joystick-zone, #fire-btn, #action-btn, #mic-btn {
+      pointer-events:all;
     }
 
     /* Mini HUD */
@@ -151,51 +156,55 @@
     #mic-btn.denied { color:#883232; border-color:#883232; }
     #mic-btn.denied #mic-dot { background:#883232; }
 
-    /* Joystick zone — bottom left, large touch target */
+    /* Joystick zone — bottom left, large circular touch target */
     #joystick-zone {
       position:absolute;
       bottom:20px; left:20px;
-      width:140px; height:140px;
-      border:2px solid rgba(120,105,196,0.4);
-      background:rgba(0,0,20,0.3);
+      width:150px; height:150px;
+      border:2px solid rgba(120,105,196,0.5);
+      background:rgba(0,0,20,0.25);
+      border-radius:50%;
       pointer-events:all; touch-action:none;
     }
     #joystick-zone::before, #joystick-zone::after {
-      content:''; position:absolute; background:rgba(64,49,141,0.3);
+      content:''; position:absolute; background:rgba(64,49,141,0.25);
     }
     #joystick-zone::before { width:1px; height:100%; top:0; left:50%; }
     #joystick-zone::after  { height:1px; width:100%; left:0; top:50%; }
     #joystick-knob {
-      width:52px; height:52px;
-      background:rgba(120,105,196,0.65);
-      border:2px solid rgba(120,105,196,0.9);
+      width:54px; height:54px;
+      background:rgba(120,105,196,0.55);
+      border:2px solid rgba(120,105,196,0.85);
+      border-radius:50%;
       position:absolute; top:50%; left:50%;
       transform:translate(-50%,-50%);
       pointer-events:none;
     }
 
-    /* Fire button — bottom right */
+    /* Fire button — bottom right, circular */
     #fire-btn {
       position:absolute;
       bottom:20px; right:20px;
-      width:120px; height:120px;
+      width:130px; height:130px;
       background:rgba(136,50,50,0.2);
       border:2px solid rgba(136,50,50,0.6);
-      color:rgba(180,80,80,0.9);
+      border-radius:50%;
+      color:rgba(200,80,80,0.9);
       font-family:'Press Start 2P'; font-size:11px; letter-spacing:1px;
       display:flex; align-items:center; justify-content:center;
       pointer-events:all; touch-action:none; user-select:none;
     }
-    #fire-btn.active { background:rgba(136,50,50,0.6); border-color:#cc4444; color:#fff; }
+    #fire-btn.active { background:rgba(136,50,50,0.55); border-color:#cc4444; color:#fff; }
     #fire-btn.knife  { background:rgba(85,160,73,0.2); border-color:rgba(85,160,73,0.6); color:rgba(120,200,100,0.9); }
-    #fire-btn.knife.active { background:rgba(85,160,73,0.6); color:#fff; }
+    #fire-btn.knife.active { background:rgba(85,160,73,0.55); color:#fff; }
 
-    /* Action button — center bottom */
+    /* Action button — center bottom, circular */
     #action-btn {
       position:absolute;
       bottom:30px; left:50%; transform:translateX(-50%);
       width:90px; height:90px;
-      background:rgba(0,0,20,0.35);
+      border-radius:50%;
+      background:rgba(0,0,20,0.3);
       border:2px solid rgba(61,12,105,0.7);
       color:rgba(209,77,160,0.8);
       font-family:'Press Start 2P'; font-size:7px; letter-spacing:1px;
@@ -205,7 +214,7 @@
     }
     #action-btn.box  { display:flex; border-color:rgba(209,77,160,0.8); color:#d14da0; }
     #action-btn.vend { display:flex; border-color:rgba(85,160,73,0.8); color:#55a049; }
-    #action-btn:active { background:rgba(40,0,60,0.7); }
+    #action-btn:active { background:rgba(40,0,60,0.6); }
 
     /* Wave banner */
     #wave-banner {
@@ -524,7 +533,9 @@ function toggleReady() {
 }
 
 window.addEventListener('resize', () => { resizeCanvas(); checkOrientation(); });
-window.addEventListener('orientationchange', () => { setTimeout(() => { resizeCanvas(); checkOrientation(); }, 200); });function voteRestart() { socket.emit('restart-vote-remote',{roomCode}); }
+window.addEventListener('orientationchange', () => { setTimeout(() => { resizeCanvas(); checkOrientation(); }, 200); });
+
+function voteRestart() { socket.emit('restart-vote-remote',{roomCode}); }
 
 function getFingerprint() {
   const k='zt_fp'; let fp=localStorage.getItem(k);
