@@ -320,6 +320,9 @@ let meleeFlashes = [];
 let bannerTimeout = null;
 
 const MOBILE_SPEED = 4.2; // match local PLAYER_SPEED exactly
+
+// Initialize socket immediately — must be defined before any button can be tapped
+socket = io();
 let localMe = null;
 const smooth = {};
 
@@ -655,7 +658,7 @@ async function initiateCall(rs){const pc=getOrCreatePeer(rs);const offer=await p
 function setupVoiceAnalyser(slot,stream){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const src=audioCtx.createMediaStreamSource(stream);const an=audioCtx.createAnalyser();an.fftSize=512;src.connect(an);analyserNodes[slot]=an;}catch(e){}}
 
 // ── Socket ────────────────────────────────────────────────────────
-socket=io(); // allow polling fallback for mobile networks
+// ── Socket handlers ───────────────────────────────────────────────
 
 socket.on('connect',()=>{
   const el=document.getElementById('conn-status');
