@@ -76,21 +76,21 @@
     #wait-status { color:#333355; font-size:6px; letter-spacing:2px; }
     #countdown-disp { color:#883232; font-size:40px; letter-spacing:6px; display:none; }
 
-    /* ── ROTATE WARNING — shows in portrait during game ── */
+    /* ── ROTATE WARNING — blocks portrait on ALL screens ── */
     #rotate-warn {
       display:none;
       position:fixed; inset:0; background:#000;
       flex-direction:column; align-items:center; justify-content:center;
-      gap:16px; z-index:999;
+      gap:20px; z-index:9999;
       color:#7869c4; font-size:9px; letter-spacing:3px; text-align:center;
     }
-    #rotate-arrow { font-size:48px; animation:spin 2s linear infinite; }
-    @keyframes spin { from{transform:rotate(0deg)} to{transform:rotate(360deg)} }
-
-    /* Show rotate warning when in portrait AND game is active */
-    body.game-active #rotate-warn { display:flex; }
-    @media (orientation:landscape) {
-      body.game-active #rotate-warn { display:none; }
+    #rotate-warn.visible { display:flex; }
+    #rotate-arrow { font-size:56px; display:inline-block; animation:rotateit 2s ease-in-out infinite; }
+    @keyframes rotateit {
+      0%   { transform:rotate(0deg); }
+      40%  { transform:rotate(-90deg); }
+      60%  { transform:rotate(-90deg); }
+      100% { transform:rotate(-90deg) translateX(0); }
     }
 
     /* ── GAME WRAP — fills entire screen ── */
@@ -347,8 +347,6 @@ function resizeCanvas() {
   canvas.style.width  = Math.floor(CANVAS_W * scale) + 'px';
   canvas.style.height = Math.floor(CANVAS_H * scale) + 'px';
 }
-window.addEventListener('resize', resizeCanvas);
-window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
 
 // ── Joystick ──────────────────────────────────────────────────────
 const jZone = document.getElementById('joystick-zone');
@@ -494,15 +492,39 @@ function joinRoom() {
   socket.emit('join-room',{roomCode:code,deviceFingerprint:getFingerprint(),mode:'mobile'});
 }
 
+function isPortrait() {
+  return window.innerHeight > window.innerWidth;
+}
+
+function checkOrientation() {
+  const warn = document.getElementById('rotate-warn');
+  if (needsRotatePrompt && isPortrait()) {
+    warn.classList.add('visible');
+  } else {
+    warn.classList.remove('visible');
+  }
+}
+
+let needsRotatePrompt = false;
+
 function toggleReady() {
   isReady=!isReady;
   const btn=document.getElementById('btn-ready');
   btn.textContent=isReady?'CANCEL':'READY UP';
   btn.classList.toggle('ready',isReady);
   socket.emit('player-ready',{roomCode});
+  // Show rotate prompt if they just readied up and are in portrait
+  if (isReady) {
+    needsRotatePrompt = true;
+    checkOrientation();
+  } else {
+    needsRotatePrompt = false;
+    document.getElementById('rotate-warn').classList.remove('visible');
+  }
 }
 
-function voteRestart() { socket.emit('restart-vote-remote',{roomCode}); }
+window.addEventListener('resize', () => { resizeCanvas(); checkOrientation(); });
+window.addEventListener('orientationchange', () => { setTimeout(() => { resizeCanvas(); checkOrientation(); }, 200); });function voteRestart() { socket.emit('restart-vote-remote',{roomCode}); }
 
 function getFingerprint() {
   const k='zt_fp'; let fp=localStorage.getItem(k);
@@ -653,12 +675,13 @@ socket.on('lobby-update',d=>updateLobbySlots(d.players));
 socket.on('ready-countdown',d=>{const el=document.getElementById('countdown-disp');el.style.display='block';el.textContent=d.seconds;});
 socket.on('ready-countdown-cancelled',()=>{document.getElementById('countdown-disp').style.display='none';});
 socket.on('game-starting-remote',()=>{
+  needsRotatePrompt = false;
+  document.getElementById('rotate-warn').classList.remove('visible');
   document.getElementById('waiting-screen').style.display='none';
   document.getElementById('lobby-screen').style.display='none';
   document.getElementById('game-wrap').style.display='block';
   document.getElementById('controls-overlay').style.display='block';
   document.body.classList.add('game-active');
-  // Try to lock landscape on supported browsers
   if (screen.orientation && screen.orientation.lock) {
     screen.orientation.lock('landscape').catch(()=>{});
   }
