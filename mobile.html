@@ -234,36 +234,38 @@
 <!-- GAME -->
 <div id="game-wrap">
   <canvas id="game-canvas"></canvas>
-  <div id="controls-overlay">
-    <div id="mini-hud">
-      <div class="hud-item">
-        <div class="hud-lbl">WAVE</div>
-        <div class="hud-val" id="hud-wave">1</div>
-      </div>
-      <div class="hud-item" id="hp-bar-wrap">
-        <div class="hud-lbl">HP</div>
-        <div class="hud-val" id="hud-hp">100</div>
-        <div id="hp-bar-track"><div id="hp-bar-fill"></div></div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-lbl">WEAPON</div>
-        <div class="hud-val" id="hud-weapon">PISTOL</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-lbl">AMMO</div>
-        <div class="hud-val" id="hud-ammo">30</div>
-      </div>
-      <div class="hud-item">
-        <div class="hud-lbl">$</div>
-        <div class="hud-val" id="hud-pts">0</div>
-      </div>
+</div>
+
+<!-- Controls overlay — outside game-wrap so display:none doesn't hide it -->
+<div id="controls-overlay" style="display:none;">
+  <div id="mini-hud">
+    <div class="hud-item">
+      <div class="hud-lbl">WAVE</div>
+      <div class="hud-val" id="hud-wave">1</div>
     </div>
-    <button id="mic-btn" onclick="toggleMute()">🎤 MIC</button>
-    <div id="joystick-zone"><div id="joystick-knob"></div></div>
-    <div id="fire-btn">FIRE</div>
-    <div id="action-btn" onclick="handleAction()">—</div>
-    <div id="wave-banner"></div>
+    <div class="hud-item" id="hp-bar-wrap">
+      <div class="hud-lbl">HP</div>
+      <div class="hud-val" id="hud-hp">100</div>
+      <div id="hp-bar-track"><div id="hp-bar-fill"></div></div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-lbl">WEAPON</div>
+      <div class="hud-val" id="hud-weapon">PISTOL</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-lbl">AMMO</div>
+      <div class="hud-val" id="hud-ammo">30</div>
+    </div>
+    <div class="hud-item">
+      <div class="hud-lbl">$</div>
+      <div class="hud-val" id="hud-pts">0</div>
+    </div>
   </div>
+  <button id="mic-btn" onclick="toggleMute()">🎤 MIC</button>
+  <div id="joystick-zone"><div id="joystick-knob"></div></div>
+  <div id="fire-btn">FIRE</div>
+  <div id="action-btn" onclick="handleAction()">—</div>
+  <div id="wave-banner"></div>
 </div>
 
 <!-- GAME OVER -->
@@ -878,6 +880,7 @@ socket.on('game-starting-remote', () => {
   document.getElementById('waiting-screen').style.display = 'none';
   const wrap = document.getElementById('game-wrap');
   wrap.style.display = 'flex';
+  document.getElementById('controls-overlay').style.display = 'block';
   resizeCanvas();
   startInputLoop();
 });
