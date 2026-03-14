@@ -84,22 +84,23 @@
     }
 
     /* ── Menu buttons ── */
-    #menu { display: flex; flex-direction: row; gap: 28px; margin-bottom: 40px; }
+    #menu { display: flex; flex-direction: column; gap: 16px; align-items: center; z-index:1; animation:fadein 0.9s ease forwards; }
 
     .menu-btn {
-      width: clamp(200px, 28vw, 280px);
       height: 52px;
       font-family: 'Press Start 2P', monospace;
       font-size: clamp(8px, 1.5vw, 11px);
       letter-spacing: 2px;
       cursor: pointer;
-      display: flex; flex-direction: column;
+      display: flex; flex-direction: row;
       align-items: center; justify-content: center;
       gap: 7px;
       text-decoration: none;
       border: 2px solid;
       background: transparent;
       transition: background 0.08s, color 0.08s;
+      white-space: nowrap;
+      padding: 0 20px;
     }
     .menu-btn .btn-sub {
       font-size: clamp(5px, 0.8vw, 7px);
@@ -111,6 +112,20 @@
 
     #pc-btn     { color: #7869c4; border-color: #7869c4; }
     #pc-btn:hover     { background: rgba(120,105,196,0.2); color: #ffffff; border-color: #ffffff; }
+    .new-badge {
+      display: inline-block; font-size: 5px; background: #883232;
+      color: #ffffff; padding: 2px 5px; letter-spacing: 1px;
+      vertical-align: middle; margin-left: 6px; position: relative; top: -1px;
+    }
+    .btn-sub { font-size: 6px; letter-spacing: 1px; opacity: 0.6; margin-top: 4px; }
+    #cross-platform {
+      color: #7869c4;
+      font-size: clamp(7px, 1.4vw, 9px);
+      letter-spacing: 3px;
+      text-align: center;
+      margin-top: 10px;
+      margin-bottom: 32px;
+    }
 
     #remote-btn { color: #222244; border-color: #222244; cursor: not-allowed; pointer-events: none; }
 
@@ -162,13 +177,23 @@
   <div id="author">WRITTEN BY MICAJAH NORDYKE</div>
 
   <div id="menu">
-    <a id="local-btn" class="menu-btn" href="/index.html">
-      LOCAL PARTY
-    </a>
-    <a id="pc-btn" class="menu-btn" href="/pc.html">
-      PC MULTIPLAYER
-    </a>
+    <div style="display:flex; flex-direction:row; gap:28px;">
+      <a id="local-btn" class="menu-btn" href="/index.html">
+        LOCAL PARTY
+      </a>
+      <a id="pc-btn" class="menu-btn" id="multi-btn" href="#" onclick="goMultiplayer(); return false;">
+        ONLINE<span style="letter-spacing:8px"> </span>MULTIPLAYER<span class="new-badge">NEW!</span>
+      </a>
+    </div>
+    <div id="cross-platform">MOBILE & PC · CROSS PLATFORM · VOICE CHAT</div>
   </div>
+
+  <script>
+    function goMultiplayer() {
+      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+      window.location.href = isMobile ? '/mobile.html' : '/pc.html';
+    }
+  </script>
 
   <div id="patch-notes">
     <h3>PATCH NOTES · V2.2</h3>
