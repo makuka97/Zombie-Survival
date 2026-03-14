@@ -208,8 +208,7 @@
 <script>
   function goMultiplayer() {
     const ua = navigator.userAgent;
-    const isMobile = /Android|iPhone|iPad|iPod|Mobile|BlackBerry|IEMobile|Opera Mini|webOS|Windows Phone/i.test(ua)
-      || (navigator.maxTouchPoints > 1 && !/Macintosh/i.test(ua));
+    const isMobile = /Android|iPhone|iPad|iPod|IEMobile|Opera Mini|BlackBerry|webOS|Windows Phone/i.test(ua);
     window.location.href = isMobile ? '/mobile.html' : '/pc.html';
   }
 </script>
