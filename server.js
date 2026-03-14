@@ -37,8 +37,8 @@ const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
 const BROADCAST_RATE = 30;
 const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
-const PLAYER_SPEED   = 1.25;
-const BULLET_SPEED   = 4;
+const PLAYER_SPEED   = 2.1;  // local runs at 4.2 @ 60fps, server at 60hz = 4.2/2
+const BULLET_SPEED   = 8;    // match local BULLET_SPEED directly
 const SERVER_ZOMBIE_SPEED = {
   regular: ZOMBIE_TYPES.regular.speed / 2,
   runner:  ZOMBIE_TYPES.runner.speed  / 2,
