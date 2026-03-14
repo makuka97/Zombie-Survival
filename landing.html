@@ -190,7 +190,7 @@
 
   <script>
     function goMultiplayer() {
-      const isMobile = /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || navigator.maxTouchPoints > 1;
+      const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
       window.location.href = isMobile ? '/mobile.html' : '/pc.html';
     }
   </script>
