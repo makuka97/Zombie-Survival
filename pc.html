@@ -304,7 +304,7 @@ let localExplosions = [];
 // ── Client-side prediction ────────────────────────────────────────
 // localMe: our own player simulated locally (never waits for server)
 let localMe = null;
-const PC_SPEED = 3.2; // match local PLAYER_SPEED feel (server now uses PLAYER_SPEED=1.5, client predicts at 2x)
+const PC_SPEED = 2.5; // server PLAYER_SPEED=1.25, client runs at 2x = 2.5
 
 // ── Entity smoothing ─────────────────────────────────────────────
 // For each entity we track a smoothed display position that glides
@@ -433,6 +433,16 @@ socket.on('game-starting-remote', () => startGame());
 
 socket.on('remote-game-state', d => {
   gameState = d;
+
+  // Convert server explosions → local melee flashes for rendering
+  if (d.explosions && d.explosions.length > 0) {
+    for (const ex of d.explosions) {
+      if (ex.melee) {
+        // Only add if not already showing one for this player this frame
+        meleeFlashes.push({ x: ex.x, y: ex.y, angle: ex.angle || 0, color: ex.color, timer: 8 });
+      }
+    }
+  }
 
   // Sync localMe from server (authoritative HP, ammo, weapon, alive state)
   // but keep our locally predicted position unless server diverges too much
