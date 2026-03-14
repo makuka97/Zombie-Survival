@@ -297,14 +297,19 @@
 <script>
 'use strict';
 
+// Safety check — if game-constants fails to load, buttons still work
+if (typeof GAME_CONSTANTS === 'undefined') {
+  console.error('GAME_CONSTANTS not loaded — check /shared/game-constants.js path');
+}
+
 const {
-  CANVAS_W, CANVAS_H, WALL,
-  PLAYER_SIZE, PLAYER_COLORS, PLAYER_SPAWNS,
-  MELEE_RANGE, MELEE_ARC,
-  MYSTERY_BOX_COST, BOX_USE_RANGE,
-  VENDING_BASE_COST, VENDING_USE_RANGE,
-  BOSS_CONFIGS, WEAPONS,
-} = GAME_CONSTANTS;
+  CANVAS_W = 1334, CANVAS_H = 750, WALL = 6,
+  PLAYER_SIZE = 28, PLAYER_COLORS = ['#00ffff','#ff44ff','#4488ff','#ffff00'], PLAYER_SPAWNS = [],
+  MELEE_RANGE = 55, MELEE_ARC = Math.PI * 0.6,
+  MYSTERY_BOX_COST = 1500, BOX_USE_RANGE = 120,
+  VENDING_BASE_COST = 500, VENDING_USE_RANGE = 120,
+  BOSS_CONFIGS = {}, WEAPONS = {},
+} = (typeof GAME_CONSTANTS !== 'undefined' ? GAME_CONSTANTS : {});
 
 let socket, roomCode, mySlot, myColor;
 let isReady = false;
