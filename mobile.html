@@ -234,6 +234,7 @@
 <div id="lobby-screen">
   <div id="lobby-title">Z-TEAM</div>
   <div id="lobby-sub">ONLINE MULTIPLAYER</div>
+  <div id="conn-status" style="font-size:6px;letter-spacing:2px;color:#883232;">CONNECTING...</div>
   <div id="join-form">
     <button id="btn-create" onclick="createRoom()">CREATE ROOM</button>
     <div id="divider">— OR —</div>
@@ -654,11 +655,21 @@ async function initiateCall(rs){const pc=getOrCreatePeer(rs);const offer=await p
 function setupVoiceAnalyser(slot,stream){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const src=audioCtx.createMediaStreamSource(stream);const an=audioCtx.createAnalyser();an.fftSize=512;src.connect(an);analyserNodes[slot]=an;}catch(e){}}
 
 // ── Socket ────────────────────────────────────────────────────────
-socket=io({transports:['websocket']});
+socket=io(); // allow polling fallback for mobile networks
 
 socket.on('connect',()=>{
+  const el=document.getElementById('conn-status');
+  if(el){el.textContent='CONNECTED';el.style.color='#55a049';}
   const urlRoom=new URLSearchParams(window.location.search).get('room');
   if(urlRoom){document.getElementById('room-input').value=urlRoom.toUpperCase();joinRoom();}
+});
+socket.on('disconnect',()=>{
+  const el=document.getElementById('conn-status');
+  if(el){el.textContent='DISCONNECTED — REFRESH';el.style.color='#883232';}
+});
+socket.on('connect_error',(e)=>{
+  const el=document.getElementById('conn-status');
+  if(el){el.textContent='CONNECTION ERROR';el.style.color='#883232';}
 });
 socket.on('room-created',d=>{
   roomCode=d.roomCode;
