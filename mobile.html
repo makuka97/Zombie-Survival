@@ -329,8 +329,14 @@ const smooth = {};
 function getSmoothPos(key, sx, sy, svx, svy) {
   if (!smooth[key]) { smooth[key]={x:sx,y:sy,vx:svx||0,vy:svy||0}; return smooth[key]; }
   const s=smooth[key];
-  s.vx=svx||(sx-s.x)*0.2; s.vy=svy||(sy-s.y)*0.2;
-  s.x+=(sx-s.x)*0.15; s.y+=(sy-s.y)*0.15;
+  // Extrapolate forward using velocity
+  s.x+=s.vx; s.y+=s.vy;
+  // Measure error vs server
+  const dx=sx-s.x, dy=sy-s.y;
+  const dist=Math.sqrt(dx*dx+dy*dy);
+  if (dist>150) { s.x=sx; s.y=sy; } // hard snap only for big jumps
+  else if (dist>0.5) { s.x+=dx*0.2; s.y+=dy*0.2; } // soft correction
+  s.vx=svx||0; s.vy=svy||0;
   return s;
 }
 
@@ -614,6 +620,7 @@ function renderBoss(b){const fl=b.flashTimer>0&&b.flashTimer%2===0;for(let bb of
 
 // ── Voice chat ────────────────────────────────────────────────────
 let localStream=null,rtcPeers={},audioCtx=null,analyserNodes={},speakingState={};
+const remoteAudios = {}; // store audio elements so they aren't GC'd
 
 async function initVoiceChat(){
   try{
@@ -636,14 +643,25 @@ function toggleMute(){
   else{btn.className='active';label.textContent='MIC ON';}
 }
 
+// Resume AudioContext on any user interaction (required for iOS)
+document.addEventListener('touchstart', () => {
+  if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
+  // Also try replaying any remote audio that got blocked
+  for (const a of Object.values(remoteAudios)) {
+    if (a.paused) a.play().catch(()=>{});
+  }
+}, { once: false, passive: true });
+
 setInterval(()=>{
-  if(!audioCtx||!analyserNodes[mySlot])return;
+  if(!audioCtx)return;
   const data=new Uint8Array(32);
-  analyserNodes[mySlot].getByteFrequencyData(data);
-  const vol=data.reduce((s,v)=>s+v,0)/data.length;
-  const speaking=vol>12&&!myMuted;
-  const btn=document.getElementById('mic-btn');
-  if(speaking)btn.classList.add('speaking');else btn.classList.remove('speaking');
+  if(analyserNodes[mySlot]){
+    analyserNodes[mySlot].getByteFrequencyData(data);
+    const vol=data.reduce((s,v)=>s+v,0)/data.length;
+    const speaking=vol>12&&!myMuted;
+    const btn=document.getElementById('mic-btn');
+    if(speaking)btn.classList.add('speaking');else btn.classList.remove('speaking');
+  }
 },80);
 
 function getOrCreatePeer(rs){
@@ -651,14 +669,27 @@ function getOrCreatePeer(rs){
   const pc=new RTCPeerConnection({iceServers:[{urls:'stun:stun.l.google.com:19302'},{urls:'stun:stun1.l.google.com:19302'}]});
   if(localStream)localStream.getTracks().forEach(t=>pc.addTrack(t,localStream));
   pc.onicecandidate=e=>{if(e.candidate)socket.emit('rtc-ice',{roomCode,to:rs,from:mySlot,candidate:e.candidate});};
-  pc.ontrack=e=>{const a=new Audio();a.srcObject=e.streams[0];a.play().catch(()=>{});setupVoiceAnalyser(rs,e.streams[0]);};
+  pc.ontrack=e=>{
+    const stream=e.streams[0];
+    // Store audio element to prevent GC and allow replay on iOS
+    if(!remoteAudios[rs]){
+      const a=new Audio();
+      a.srcObject=stream;
+      a.autoplay=true;
+      remoteAudios[rs]=a;
+    } else {
+      remoteAudios[rs].srcObject=stream;
+    }
+    remoteAudios[rs].play().catch(()=>{});
+    setupVoiceAnalyser(rs,stream);
+  };
   rtcPeers[rs]=pc; return pc;
 }
 async function initiateCall(rs){const pc=getOrCreatePeer(rs);const offer=await pc.createOffer();await pc.setLocalDescription(offer);socket.emit('rtc-offer',{roomCode,to:rs,from:mySlot,offer});}
 function setupVoiceAnalyser(slot,stream){try{if(!audioCtx)audioCtx=new(window.AudioContext||window.webkitAudioContext)();const src=audioCtx.createMediaStreamSource(stream);const an=audioCtx.createAnalyser();an.fftSize=512;src.connect(an);analyserNodes[slot]=an;}catch(e){}}
 
-// ── Socket ────────────────────────────────────────────────────────
 // ── Socket handlers ───────────────────────────────────────────────
+
 
 socket.on('connect',()=>{
   const el=document.getElementById('conn-status');
