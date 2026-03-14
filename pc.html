@@ -261,8 +261,7 @@
 <div id="controls-hint">
   <span class="hint">WASD <span>MOVE</span></span>
   <span class="hint">MOUSE <span>AIM</span></span>
-  <span class="hint">CLICK <span>FIRE</span></span>
-  <span class="hint">E <span>MELEE</span></span>
+  <span class="hint">CLICK <span>FIRE / KNIFE</span></span>
   <span class="hint">F <span>USE/BUY</span></span>
   <span class="hint">M <span>MUTE</span></span>
 </div>
@@ -633,7 +632,6 @@ function bindInputs() {
   document.addEventListener('keydown', e => {
     keys[e.key.toLowerCase()] = true;
     if (e.key.toLowerCase() === 'f') handleInteract();
-    if (e.key.toLowerCase() === 'e') sendMelee();
     if (e.key.toLowerCase() === 'm') toggleMute();
     if (e.key === ' ') e.preventDefault();
   });
@@ -669,7 +667,12 @@ function startInputLoop() {
     if (keys['a'] || keys['arrowleft'])  vx = -1;
     if (keys['d'] || keys['arrowright']) vx =  1;
     if (vx && vy) { vx *= 0.707; vy *= 0.707; }
-    socket.emit('pc-input', { roomCode, input: { angle: (vx||vy) ? Math.atan2(vy,vx) : null, aimAngle, fire: mouse.down, moveX: vx, moveY: vy } });
+    // When out of ammo, left click = melee (knife), same as local mode
+    if (mouse.down && localMe.ammo === 0) {
+      socket.emit('pc-melee', { roomCode });
+      meleeFlashes.push({ x: localMe.x, y: localMe.y, angle: lastInputAngle, color: myColor, timer: 8 });
+    }
+    socket.emit('pc-input', { roomCode, input: { angle: (vx||vy) ? Math.atan2(vy,vx) : null, aimAngle, fire: mouse.down && localMe.ammo !== 0, moveX: vx, moveY: vy } });
   }, 50);
 }
 
@@ -687,11 +690,6 @@ function tickLocalPlayer() {
   const hs = PC_PLAYER_SIZE / 2 + WALL;
   localMe.x = Math.max(hs, Math.min(CANVAS_W - hs, localMe.x + vx * PC_SPEED));
   localMe.y = Math.max(hs, Math.min(CANVAS_H - hs, localMe.y + vy * PC_SPEED));
-}
-
-function sendMelee() {
-  socket.emit('pc-melee', { roomCode });
-  if (localMe) meleeFlashes.push({ x: localMe.x, y: localMe.y, angle: lastInputAngle, color: myColor, timer: 8 });
 }
 
 function handleInteract() {
