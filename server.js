@@ -37,7 +37,7 @@ const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
 const BROADCAST_RATE = 30;
 const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
-const PLAYER_SPEED   = 1.5;
+const PLAYER_SPEED   = 1.25;
 const BULLET_SPEED   = 4;
 const SERVER_ZOMBIE_SPEED = {
   regular: ZOMBIE_TYPES.regular.speed / 2,
@@ -395,7 +395,6 @@ class ServerGame {
 
   tick() {
     if(this.gameOver||!this.gameStarted)return;
-    this.explosions=[];
     const hs=PLAYER_SIZE/2;
     for(let p of this.players){
       if(!p.connected||!p.alive)continue;
@@ -442,6 +441,7 @@ class ServerGame {
     if (this._broadcastTick >= BROADCAST_EVERY) {
       this._broadcastTick = 0;
       this.room.broadcastGameState(this);
+      this.explosions = []; // clear AFTER broadcast so clients receive them
     }
   }
 
