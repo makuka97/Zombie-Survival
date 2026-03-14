@@ -304,7 +304,7 @@ let localExplosions = [];
 // ── Client-side prediction ────────────────────────────────────────
 // localMe: our own player simulated locally (never waits for server)
 let localMe = null;
-const PC_SPEED = 2.5; // server PLAYER_SPEED=1.25, client runs at 2x = 2.5
+const PC_SPEED = 4.2; // match local PLAYER_SPEED exactly
 
 // ── Entity smoothing ─────────────────────────────────────────────
 // For each entity we track a smoothed display position that glides
@@ -596,6 +596,9 @@ function toggleReady() {
 
 function voteRestart() {
   socket.emit('restart-vote-remote', { roomCode });
+  const btn = document.getElementById('btn-restart-vote');
+  btn.textContent = 'RESTARTING...';
+  btn.disabled = true;
 }
 
 // ── Game Start ────────────────────────────────────────────────────
@@ -615,6 +618,9 @@ function startGame() {
 
 function restartGame() {
   document.getElementById('game-over-screen').style.display = 'none';
+  document.getElementById('btn-restart-vote').textContent = 'VOTE RESTART';
+  document.getElementById('btn-restart-vote').disabled = false;
+  document.getElementById('vote-display').textContent = 'Press RESTART to vote';
   gameState = null;
   localMe = null;
   meleeFlashes = [];
@@ -739,6 +745,11 @@ function showWaveBanner(d) {
 
 function showGameOver() {
   document.getElementById('game-over-screen').style.display = 'flex';
+  const playerCount = gameState ? gameState.players.filter(p=>p.connected).length : 1;
+  const btn = document.getElementById('btn-restart-vote');
+  btn.textContent = playerCount <= 1 ? 'RESTART' : 'VOTE RESTART';
+  btn.disabled = false;
+  document.getElementById('vote-display').textContent = playerCount <= 1 ? '' : 'Press RESTART to vote';
 }
 
 // ── Interpolation ─────────────────────────────────────────────────
