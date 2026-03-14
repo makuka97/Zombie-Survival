@@ -321,8 +321,8 @@ let bannerTimeout = null;
 
 const MOBILE_SPEED = 4.2; // match local PLAYER_SPEED exactly
 
-// Initialize socket immediately — must be defined before any button can be tapped
-socket = io();
+// Initialize socket immediately — websocket only (polling causes 400 on Fly.io)
+socket = io({ transports: ['websocket'], upgrade: false });
 let localMe = null;
 const smooth = {};
 
