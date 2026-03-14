@@ -40,7 +40,9 @@
     }
     #btn-create:active { background:#883232; border-color:#883232; }
     #divider { color:#333355; font-size:7px; letter-spacing:3px; }
-      border:2px solid #fff; font-family:'Press Start 2P'; font-size:10px;
+    #btn-join {
+      width:220px; height:48px; background:transparent; color:#ffffff;
+      border:2px solid #7869c4; font-family:'Press Start 2P'; font-size:10px;
       letter-spacing:2px; cursor:pointer;
     }
     #btn-join:active { background:#883232; border-color:#883232; }
@@ -910,11 +912,11 @@ socket.on('remote-game-state', state => {
     if (p.slot===mySlot||!p.connected) continue;
     getSmoothPos('p'+p.slot, p.x, p.y, p.vx||0, p.vy||0);
   }
-  // Smooth zombies
+  // Smooth zombies with server velocity
   for (let i=0; i<state.zombies.length; i++) {
     const z=state.zombies[i];
     const key='z'+(z.id!==undefined?z.id:i);
-    getSmoothPos(key, z.x, z.y, 0, 0);
+    getSmoothPos(key, z.x, z.y, z.vx||0, z.vy||0);
   }
 
   if (state.gameOver && document.getElementById('gameover-screen').style.display==='none') {
