@@ -36,8 +36,8 @@ const {
 
 const TICK_RATE      = 60;
 const TICK_MS        = 1000 / TICK_RATE;
-const BROADCAST_RATE = 30;
-const BROADCAST_EVERY = TICK_RATE / BROADCAST_RATE;
+const BROADCAST_RATE = 60;  // broadcast every tick — Fly.io has the power, eliminates teleporting
+const BROADCAST_EVERY = 1;  // every tick
 const PLAYER_SPEED   = 4.2;  // EXACT match to local index.html PLAYER_SPEED — server ticks at 60hz same as local
 const BULLET_SPEED   = 8;    // EXACT match to local index.html BULLET_SPEED
 const SERVER_ZOMBIE_SPEED = {
