@@ -33,8 +33,13 @@
       text-transform:uppercase; outline:none;
     }
     #room-input:focus { border-color:#fff; }
-    #btn-join {
-      width:220px; height:48px; background:transparent; color:#fff;
+    #btn-create {
+      width:220px; height:48px; background:transparent; color:#ffffff;
+      border:2px solid #ffffff; font-family:'Press Start 2P'; font-size:10px;
+      letter-spacing:2px; cursor:pointer;
+    }
+    #btn-create:active { background:#883232; border-color:#883232; }
+    #divider { color:#333355; font-size:7px; letter-spacing:3px; }
       border:2px solid #fff; font-family:'Press Start 2P'; font-size:10px;
       letter-spacing:2px; cursor:pointer;
     }
@@ -200,10 +205,12 @@
 <!-- LOBBY -->
 <div id="lobby-screen">
   <div id="lobby-title">Z-TEAM</div>
-  <div id="lobby-sub">MOBILE PLAYER</div>
+  <div id="lobby-sub">ONLINE MULTIPLAYER</div>
   <div id="join-form">
-    <input id="room-input" type="text" maxlength="4" placeholder="CODE" autocomplete="off" spellcheck="false">
-    <button id="btn-join" onclick="joinRoom()">JOIN GAME</button>
+    <button id="btn-create" onclick="createRoom()">CREATE ROOM</button>
+    <div id="divider">— OR —</div>
+    <input id="room-input" type="text" maxlength="4" placeholder="ROOM CODE" autocomplete="off" spellcheck="false">
+    <button id="btn-join" onclick="joinRoom()">JOIN ROOM</button>
     <div id="join-err"></div>
   </div>
 </div>
@@ -212,6 +219,7 @@
 <div id="waiting-screen">
   <div id="waiting-title">WAITING ROOM</div>
   <div id="room-code-disp">----</div>
+  <div id="room-code-hint" style="color:#40318d;font-size:6px;letter-spacing:2px;margin-top:-8px;">SHARE THIS CODE WITH FRIENDS</div>
   <div id="player-slots">
     <div class="pslot" id="pslot-1"><div class="pslot-num">P1</div><div class="pslot-name" style="color:#00ffff">—</div><div class="pslot-ready">—</div></div>
     <div class="pslot" id="pslot-2"><div class="pslot-num">P2</div><div class="pslot-name" style="color:#ff44ff">—</div><div class="pslot-ready">—</div></div>
@@ -498,6 +506,10 @@ function showBanner(text, color='#883232') {
 }
 
 // ── Lobby & ready ─────────────────────────────────────────────────
+function createRoom() {
+  socket.emit('create-pc-room');
+}
+
 function joinRoom() {
   const code = document.getElementById('room-input').value.trim().toUpperCase();
   if (code.length !== 4) { document.getElementById('join-err').textContent='ENTER 4-LETTER CODE'; return; }
@@ -830,6 +842,12 @@ socket.on('connect', () => {
     document.getElementById('room-input').value = urlRoom.toUpperCase();
     joinRoom();
   }
+});
+
+socket.on('room-created', d => {
+  roomCode = d.roomCode;
+  // Auto-join as a player in the room we just created
+  socket.emit('join-room', { roomCode, deviceFingerprint: getFingerprint(), mode: 'mobile' });
 });
 
 socket.on('join-success', d => {
