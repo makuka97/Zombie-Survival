@@ -110,27 +110,6 @@
     #local-btn  { color: #ffffff; border-color: #ffffff; }
     #local-btn:hover  { background: #883232; border-color: #883232; }
 
-    #pc-btn     { color: #7869c4; border-color: #7869c4; }
-    #pc-btn:hover     { background: rgba(120,105,196,0.2); color: #ffffff; border-color: #ffffff; }
-    .new-badge {
-      display: inline-block; font-size: 5px; background: #883232;
-      color: #ffffff; padding: 2px 5px; letter-spacing: 1px;
-      vertical-align: middle; margin-left: 6px; position: relative; top: -1px;
-    }
-    .btn-sub { font-size: 6px; letter-spacing: 1px; opacity: 0.6; margin-top: 4px; }
-    #cross-platform {
-      color: #7869c4;
-      font-size: clamp(7px, 1.4vw, 9px);
-      letter-spacing: 3px;
-      text-align: center;
-      margin-top: 10px;
-      margin-bottom: 32px;
-    }
-
-    #remote-btn { color: #222244; border-color: #222244; cursor: not-allowed; pointer-events: none; }
-
-    .badge { font-size: 5px; background: #883232; color: #fff; padding: 2px 5px; letter-spacing: 1px; margin-left: 6px; vertical-align: middle; }
-
     /* ── Patch notes ── */
     #patch-notes {
       border: 1px solid #40318d;
@@ -177,15 +156,9 @@
   <div id="author">WRITTEN BY MICAJAH NORDYKE</div>
 
   <div id="menu">
-    <div style="display:flex; flex-direction:row; gap:28px;">
-      <a id="local-btn" class="menu-btn" href="/index.html">
-        LOCAL PARTY
-      </a>
-      <a id="pc-btn" class="menu-btn" href="#" onclick="goMultiplayer(); return false;">
-        ONLINE<span style="letter-spacing:8px"> </span>MULTIPLAYER<span class="new-badge">NEW!</span>
-      </a>
-    </div>
-    <div id="cross-platform">PC MULTIPLAYER · UP TO 4 PLAYERS · VOICE CHAT</div>
+    <a id="local-btn" class="menu-btn" href="/index.html">
+      LOCAL PARTY
+    </a>
   </div>
 
   <div id="patch-notes">
@@ -193,23 +166,17 @@
     <ul>
       <li>C64 visual overhaul</li>
       <li>Pixel stab replaces arc flash</li>
-      <li>PC mode client prediction</li>
-      <li>Zombie death glitch fixed</li>
       <li>8 unique bosses every 5 waves</li>
-      <li>20hz PC broadcast rate</li>
+      <li>Bomber zombies after wave 5</li>
+      <li>Mystery box & vending machine</li>
+      <li>4 player co-op</li>
     </ul>
   </div>
 
-  <div id="insert-coin">— SELECT MODE —</div>
+  <div id="insert-coin">— PRESS START —</div>
 </div>
 
 <div id="version">PHASE 2B · BUILD 2.2</div>
-
-<script>
-  function goMultiplayer() {
-    window.location.href = '/pc.html';
-  }
-</script>
 
 </body>
 </html>
