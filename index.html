@@ -2978,6 +2978,110 @@ QRCode.createBytes = function(buffer, rsBlocks) {
         return 'regular';
       }
 
+      drawGun(ctx, p, hs) {
+        const a = p.angle;
+        const ox = p.x + Math.cos(a) * hs; // start at player edge
+        const oy = p.y + Math.sin(a) * hs;
+        const w = p.currentWeapon;
+        ctx.save();
+        ctx.translate(p.x, p.y);
+        ctx.rotate(a);
+
+        switch(w) {
+          case 'pistol':
+            // Short thin white barrel
+            ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+12,0); ctx.stroke();
+            break;
+          case 'smg':
+            // Medium yellow barrel with top detail
+            ctx.strokeStyle='#c8a800'; ctx.lineWidth=3;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+16,0); ctx.stroke();
+            ctx.fillStyle='#c8a800';
+            ctx.fillRect(hs+4,-3,6,2); // top rail
+            break;
+          case 'shotgun':
+            // Short wide double barrel
+            ctx.strokeStyle='#8b5429'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(hs-2,-2); ctx.lineTo(hs+14,-2); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hs-2,2);  ctx.lineTo(hs+14,2);  ctx.stroke();
+            // spread cone
+            ctx.strokeStyle='rgba(139,84,41,0.35)'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(hs+14,-2); ctx.lineTo(hs+28,-8); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hs+14,2);  ctx.lineTo(hs+28,8);  ctx.stroke();
+            break;
+          case 'ar':
+            // Long green barrel with stock
+            ctx.strokeStyle='#55a049'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(hs-4,0); ctx.lineTo(hs+20,0); ctx.stroke();
+            ctx.fillStyle='#55a049';
+            ctx.fillRect(hs-4,-3,6,3); // stock top
+            ctx.fillRect(hs+8,-2,4,4); // grip
+            break;
+          case 'lmg':
+            // Long thick brown barrel with bipod hint
+            ctx.strokeStyle='#8b5429'; ctx.lineWidth=4;
+            ctx.beginPath(); ctx.moveTo(hs-4,0); ctx.lineTo(hs+22,0); ctx.stroke();
+            ctx.strokeStyle='#574200'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(hs+10,0); ctx.lineTo(hs+14,5); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hs+10,0); ctx.lineTo(hs+14,-5); ctx.stroke();
+            break;
+          case 'minigun':
+            // Triple spinning barrels (pink/magenta)
+            ctx.strokeStyle='#d14da0'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(hs,  -3); ctx.lineTo(hs+24, -3); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hs,   0); ctx.lineTo(hs+24,  0); ctx.stroke();
+            ctx.beginPath(); ctx.moveTo(hs,   3); ctx.lineTo(hs+24,  3); ctx.stroke();
+            ctx.fillStyle='#883272';
+            ctx.fillRect(hs+2,-5,5,10); // drum
+            break;
+          case 'raygun':
+            // Glowing cyan sci-fi barrel
+            ctx.strokeStyle='#6fcfcf'; ctx.lineWidth=3;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+18,0); ctx.stroke();
+            // glow effect — outer ring
+            ctx.strokeStyle='rgba(111,207,207,0.3)'; ctx.lineWidth=7;
+            ctx.beginPath(); ctx.moveTo(hs,0); ctx.lineTo(hs+18,0); ctx.stroke();
+            // tip orb
+            ctx.fillStyle='#6fcfcf';
+            ctx.fillRect(hs+16,-3,6,6);
+            break;
+          case 'thundergun':
+            // Short massive barrel, dark red
+            ctx.strokeStyle='#883232'; ctx.lineWidth=6;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+14,0); ctx.stroke();
+            ctx.strokeStyle='#ffffff'; ctx.lineWidth=1;
+            ctx.beginPath(); ctx.moveTo(hs+12,-4); ctx.lineTo(hs+12,4); ctx.stroke(); // muzzle brake
+            ctx.beginPath(); ctx.moveTo(hs+10,-5); ctx.lineTo(hs+10,5); ctx.stroke();
+            break;
+          case 'plasma':
+            // Pulsing purple orb launcher
+            ctx.strokeStyle='#8b3f96'; ctx.lineWidth=3;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+16,0); ctx.stroke();
+            const pulse = Math.sin(Date.now()*0.01)*2;
+            ctx.fillStyle='#d14da0';
+            ctx.fillRect(hs+14-pulse/2, -pulse/2-2, 4+pulse, 4+pulse);
+            ctx.strokeStyle='rgba(209,77,160,0.4)'; ctx.lineWidth=pulse+2;
+            ctx.beginPath(); ctx.moveTo(hs+8,0); ctx.lineTo(hs+16,0); ctx.stroke();
+            break;
+          case 'chainsaw':
+            // Chainsaw — wide jagged teeth
+            ctx.strokeStyle='#574200'; ctx.lineWidth=3;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+20,0); ctx.stroke();
+            ctx.fillStyle='#c8a800';
+            for(let i=0;i<4;i++){
+              ctx.fillRect(hs+3+i*4, -4, 2, 4); // top teeth
+              ctx.fillRect(hs+5+i*4,  0, 2, 4); // bottom teeth
+            }
+            break;
+          default:
+            // Fallback — plain white line
+            ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
+            ctx.beginPath(); ctx.moveTo(hs-2,0); ctx.lineTo(hs+12,0); ctx.stroke();
+        }
+        ctx.restore();
+      }
+
       fireBullet(p) {
         const weapon  = WEAPONS[p.currentWeapon];
         const damage  = this.getEffectiveDamage(p, weapon.damage); // tier multiplier applied here
@@ -3857,9 +3961,8 @@ QRCode.createBytes = function(buffer, rsBlocks) {
             ctx.fillRect(p.x-hs,p.y-hs,this.PLAYER_SIZE,this.PLAYER_SIZE);
             ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
             ctx.strokeRect(p.x-hs+1,p.y-hs+1,this.PLAYER_SIZE-2,this.PLAYER_SIZE-2);
-            // Aim direction — pixel line
-            ctx.strokeStyle='#ffffff'; ctx.lineWidth=2;
-            ctx.beginPath(); ctx.moveTo(p.x,p.y); ctx.lineTo(p.x+Math.cos(p.angle)*(hs+10),p.y+Math.sin(p.angle)*(hs+10)); ctx.stroke();
+            // Aim direction — weapon-specific gun visual
+            this.drawGun(ctx, p, hs);
             // HP bar
             ctx.fillStyle='#1a0000'; ctx.fillRect(p.x-hs,p.y-hs-8,this.PLAYER_SIZE,4);
             ctx.fillStyle=p.hp/p.maxHp>0.5?'#55a049':p.hp/p.maxHp>0.25?'#bfce72':'#883232';
