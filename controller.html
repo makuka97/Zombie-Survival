@@ -114,23 +114,18 @@
     #points-display { font-size: 10px; color: #bfce72; letter-spacing: 1px; }
     #points-display span { font-size: 6px; color: #40318d; }
 
-    #tier-display {
-      font-size: 8px; letter-spacing: 2px; color: #ffffff;
-      transition: color 0.4s;
-    }
-    #tier-display span { font-size: 6px; color: #40318d; letter-spacing: 1px; }
-
     #controls {
       display: flex; flex: 1; align-items: center;
       justify-content: space-around; padding: 20px 40px;
       width: 100%; height: 100%;
     }
 
-    /* Joystick — C64 square pixel style */
+    /* Joystick — round */
     #joystick-zone {
       width: 190px; height: 190px;
       background: rgba(120,105,196,0.05);
       border: 2px solid #40318d;
+      border-radius: 50%;
       position: relative; touch-action: none; flex-shrink: 0;
     }
     #joystick-zone::before, #joystick-zone::after {
@@ -141,11 +136,12 @@
     #joystick-knob {
       width: 64px; height: 64px;
       background: #7869c4;
+      border-radius: 50%;
       position: absolute; top:50%; left:50%;
       transform: translate(-50%,-50%); pointer-events: none;
     }
 
-    /* Fire button — C64 square */
+    /* Fire button — round */
     #fire-btn {
       width: 160px; height: 160px;
       background: rgba(136,50,50,0.1); border: 3px solid #883232;
@@ -155,6 +151,7 @@
       touch-action: none; user-select: none; flex-shrink: 0;
       transition: all 0.08s;
       flex-direction: column; gap: 4px;
+      border-radius: 50%;
     }
     #fire-btn.active { background: #883232; color: #000000; transform: scale(0.93); }
     #fire-btn.melee-mode { background: rgba(85,160,73,0.08); border-color: #55a049; color: #55a049; }
@@ -169,7 +166,7 @@
       animation: pulse 1.2s infinite;
     }
 
-    /* Action / mystery box button */
+    /* Action / mystery box button — round */
     #action-btn {
       position: absolute; top: 50%; left: 50%;
       transform: translate(-50%, -50%);
@@ -180,6 +177,7 @@
       background: #000000; color: #222244;
       transition: all 0.15s; cursor: default;
       z-index: 20; pointer-events: none;
+      border-radius: 50%;
     }
     #action-btn:active { transform: translate(-50%, -50%) scale(0.95); }
     #action-btn.mode-box {
@@ -196,20 +194,6 @@
       background: #000000; color: #331111; border-color: #1a0000;
       pointer-events: none; cursor: default; animation: none;
     }
-
-    /* Knife button */
-    #knife-btn {
-      position: absolute; bottom: 18px; right: 18px;
-      width: 68px; height: 68px;
-      border: 2px solid #222244; background: #000000; color: #333355;
-      font-size: 8px; font-family: 'Press Start 2P', monospace;
-      letter-spacing: 1px; cursor: pointer; z-index: 20;
-      transition: all 0.12s;
-    }
-    #knife-btn.active {
-      background: #000000; color: #55a049; border-color: #55a049;
-    }
-    #knife-btn:active { transform: scale(0.93); }
 
     @keyframes pulse-box {
       0%,100% { border-color: #8b3f96; } 50% { border-color: #d14da0; }
@@ -295,7 +279,6 @@
     </div>
     <button id="mystery-box-btn" disabled>MYSTERY<br>BOX<br>$950</button>
     <button id="action-btn">—</button>
-    <button id="knife-btn">🔪<br>KNIFE</button>
   </div>
 
   <div id="gameover-screen">
@@ -359,7 +342,6 @@
         this.firing      = false;
         this.meleeing    = false;
         this.inMeleeMode = false;
-        this.manualKnife = false;
         this.joystick    = new Joystick('joystick-zone', 'joystick-knob');
         this.loop        = null;
         this.hasVoted    = false;
@@ -400,7 +382,6 @@
       bindSocket() {
         this.socket.on('connect', () => {
           this.setStatus('CONNECTED');
-          // Only auto-rejoin if there's no room in the URL (i.e. this is a reconnect, not a fresh QR scan)
           const urlRoom = new URLSearchParams(window.location.search).get('room');
           if (!urlRoom) {
             const saved = localStorage.getItem('zs-room');
@@ -416,14 +397,8 @@
           this.updateAmmo(d.ammo);
           this.updatePoints(d.points);
           this.updateWeapon(d.weapon);
-          this.updateActionButton(
-            d.canUseMysteryBox, d.canUseVending,
-            d.points, d.vendingCost
-          );
+          this.updateActionButton(d.canUseMysteryBox, d.canUseVending, d.points, d.vendingCost);
           if (d.gameOver) this.showGameOver();
-        });
-        this.socket.on('lobby-update', d => {
-          // update slot count display if needed
         });
         this.socket.on('ready-countdown', d => {
           document.getElementById('waiting-text').textContent = `Starting in ${d.seconds}...`;
@@ -437,11 +412,8 @@
         this.socket.on('game-restarting', () => {
           this.hasVoted = false; this.isReady = false;
           this.ammo = 30; this.points = 0; this.weapon = 'pistol';
-          this.manualKnife = false;
-          document.getElementById('knife-btn').classList.remove('active');
           this.stopLoop();
           this.updateAmmo(30); this.updatePoints(0); this.updateWeapon('pistol');
-          
           this.showLobby();
         });
       }
@@ -507,14 +479,6 @@
         btn.addEventListener('click', () => {
           if (btn.classList.contains('mode-box'))  { this.socket.emit('mystery-box-purchase', { roomCode: this.roomCode }); }
           else if (btn.classList.contains('mode-vend')) { this.socket.emit('vending-purchase', { roomCode: this.roomCode }); }
-        });
-
-        // Knife toggle — manual switch even when you have ammo
-        const knifeBtn = document.getElementById('knife-btn');
-        knifeBtn.addEventListener('click', () => {
-          this.manualKnife = !this.manualKnife;
-          this.setMeleeMode(this.manualKnife || this.ammo === 0);
-          knifeBtn.classList.toggle('active', this.manualKnife);
         });
       }
 
@@ -617,18 +581,16 @@
         if (ammo === -1) {
           el.innerHTML = `<span>AMMO </span>∞`;
           el.className = 'ammo-display';
-          if (!this.manualKnife) this.setMeleeMode(false);
+          this.setMeleeMode(false);
         } else if (ammo === 0) {
           el.innerHTML = `<span>AMMO </span>OUT`;
           el.classList.remove('low'); el.classList.add('empty');
           this.setMeleeMode(true);
-          this.manualKnife = false;
-          document.getElementById('knife-btn').classList.remove('active');
         } else {
           el.innerHTML = `<span>AMMO </span>${ammo}`;
           el.classList.remove('empty');
           ammo <= 5 ? el.classList.add('low') : el.classList.remove('low');
-          if (!this.manualKnife) this.setMeleeMode(false);
+          this.setMeleeMode(false);
         }
       }
 
@@ -643,7 +605,6 @@
         document.getElementById('weapon-display').innerHTML =
           `<span>WEAPON </span>${weapon.toUpperCase().replace('_',' ')}`;
       }
-
 
       showWeaponPopup(weapon) {
         document.getElementById('weapon-popup-name').textContent = weapon.toUpperCase().replace('_',' ');
